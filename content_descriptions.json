@@ -1,0 +1,10 @@
+{
+
+    "Learn Python" : "Learn introductory Python programming. We step up from the basics like printing and if statements to more complicated things like object orientated programming.",
+    "Learn Java" : "Learn introductory Java programming. We offer a different method of learning to most java courses in that we start with object orientated programming and work up from there.",
+    "Learn C#" : "Learn introductory C# programming. C# is essential for making games in Unity as well as many other applications (such as backend web-dev). This course is very similiar in structure to our Java course.",
+    "Learn Algebra" : "Learn basic algebra. In this course, we will cover topics such as solving for variables, graphing, functions and slope, as well as many classic and very immportant formulas in maths.",
+    "Learn HTML" : "Learn the the language of the web. Every single website (including this one) is made using HTML. It provides the structure and some basic elements of web pages.",
+    "Learn JavaScript" : "Learn introductory JavaScript. The web as it is today would not be where it is today without JavaScript, not only because of it's importance in create websites but also web servers."
+
+}

@@ -1,0 +1,32 @@
+h1 {
+
+    font-size: 100px;
+
+}
+
+h4 {
+
+    text-align: center;
+
+    font-size: 20px;
+
+}
+
+img {
+
+    max-width: 100%;
+    max-height: 100%;
+
+}
+
+#benefits > div {
+
+    background-color: lightgrey;
+
+    border-color: black;
+    border-style: solid;
+
+    width: 300px;
+    height: 325px;
+
+}

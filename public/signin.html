@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
+        <link rel="stylesheet" href="general.css">
+        <link rel="stylesheet" href="signinup.css">
+
+        <script src="general.js"></script>
+        <script src="signin.js"></script>
+
+        <title>Sutton - Learn Play Repeat</title>
+
+    </head>
+
+    <body>
+
+        <nav class="justify">
+
+            <h1 style="font-size: 75px;"><a href="//localhost/">Sutton</a></h1>
+            <h2><a href="//localhost/learn.html">Learning</a></h2>
+            <h2><a href="//localhost/account.html">Account</a></h2>
+
+        </nav>
+
+        <main>
+
+            <h1 class="center">Sign In</h1>
+
+            <p id="error" class="center"></p>
+
+            <div class="center">
+
+                <form onsubmit="return false;">
+
+                    <div id="usernameDiv">
+
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username">
+
+                    </div>
+
+                    <div id="passwordDiv">
+
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password">
+
+                    </div>
+
+                    <button onclick="signin()">Sign In</button>
+
+                </form>
+
+            </div>
+
+            <p class="center">Dont have an account yet?&nbsp<a href="./signup.html" style="color: blue;">Sign up</a>.</p>
+
+        </main>
+    
+    </body>
+
+</html>

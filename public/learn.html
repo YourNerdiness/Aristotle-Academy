@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
+        <link rel="stylesheet" href="general.css">
+        <link rel="stylesheet" href="learn.css">
+
+        <script src="general.js"></script>
+        <script src="learn.js"></script>
+
+        <title>Sutton - Learn Play Repeat</title>
+
+    </head>
+
+    <body>
+
+        <nav class="justify">
+
+            <h1 style="font-size: 75px;"><a href="//localhost/">Sutton</a></h1>
+            <h2><a href="//localhost/learn.html">Learning</a></h2>
+            <h2><a href="//localhost/account.html">Account</a></h2>
+
+        </nav>
+
+        <main>
+
+            <nav>
+
+                <label for="paidOnly">Only Include Paid For Content</label>
+                <input type="checkbox" id="paidOnly" onchange="getContentList();">
+
+            </nav>
+
+            <nav>
+
+                <label for="maths" class="filterElemsL">Maths</label>
+                <input type="checkbox" id="maths" class="filterElems" onchange="generateContentElems();">
+
+                <label for="websites" class="filterElemsL">Websites</label>
+                <input type="checkbox" id="websites" class="filterElems" onchange="generateContentElems();">
+
+            </nav>
+
+            <p id="error" class="center"></p>
+
+            <table id="contentList" class="justify"></table>
+
+        </main>
+    
+    </body>
+
+</html>
