@@ -128,7 +128,7 @@ const checkIfUserExists = async (username, email, userID) => {
 
     else {
 
-        errorLog("Multipe users with similar details exist.")
+        errorLog("Multiple users with similar details exist.")
 
         return true;
 
