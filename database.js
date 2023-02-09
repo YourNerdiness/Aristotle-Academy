@@ -52,13 +52,13 @@ const encrypt = (content, key, encoding) => {
     let output = cipher.update(content, encoding, "base64");
     output += cipher.final("base64");
 
-    return { content : output, iv : iv.toString(), authTag : cipher.getAuthTag().toString("base64") };
+    return { content : output, iv : iv.toString("base64"), authTag : cipher.getAuthTag().toString("base64") };
 
 };
 
 const decrypt = (content, key, iv, authTag, encoding) => {
 
-    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
+    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, Buffer.from(iv, "base64"));
     
     decipher.setAuthTag(Buffer.from(authTag, "base64"));
 

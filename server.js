@@ -17,14 +17,14 @@ const encrypt = (userID) => {
     const salt = crypto.randomBytes(+process.env.SIGN_IN_SALT_SIZE).toString("base64");
 
     const key = crypto.scryptSync(process.env.SIGN_IN_AES_KEY, salt, 32);
-    const iv = process.env.SIGN_IN_AES_IV;
+    const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv(process.env.SIGN_IN_ENCRYPTION_ALGORITHM, key, Buffer.from(iv, "hex"));
 
     let token = cipher.update(userID, "base64", "base64");
     token += cipher.final("base64");
 
-    return { salt, token, authTag : cipher.getAuthTag().toString("base64") };
+    return { salt, iv : iv.toString("base64"), token, authTag : cipher.getAuthTag().toString("base64") };
 
 }
 
@@ -35,9 +35,9 @@ const decrypt = (signIn) => {
     const authTag = signIn.authTag;
 
     const key = crypto.scryptSync(process.env.SIGN_IN_AES_KEY, salt, 32);
-    const iv = process.env.SIGN_IN_AES_IV;
+    const iv = signIn.iv;
 
-    const decipher = crypto.createDecipheriv(process.env.SIGN_IN_ENCRYPTION_ALGORITHM, key, Buffer.from(iv, "hex"));
+    const decipher = crypto.createDecipheriv(process.env.SIGN_IN_ENCRYPTION_ALGORITHM, key, Buffer.from(iv, "base64"));
 
     decipher.setAuthTag(Buffer.from(authTag, "base64"));
 
