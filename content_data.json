@@ -1,0 +1,52 @@
+{
+
+    "Learn Python" : {
+
+        "description" : "Learn introductory Python programming. We step up from the basics like printing and if statements to more complicated things like object orientated programming.",
+        "tags" : ["Programming", "Python"],
+        "stripe_price_id" : "price_1MZj3YGuzsNtaesn2a8GLDbV"
+
+    },
+
+    "Learn Java" : {
+
+        "description" : "Learn introductory Java programming. We offer a different method of learning to most java courses in that we start with object orientated programming and work up from there.",
+        "tags" : ["Programming", "Java"],
+        "stripe_price_id" : "price_1MZj3rGuzsNtaesnV02sXfq5"
+
+    },
+
+    "Learn C#" : {
+
+        "description" : "Learn introductory C# programming. C# is essential for making games in Unity as well as many other applications (such as backend web-dev). This course is very similar in structure to our Java course.",
+        "tags" : ["Programming", "C#"],
+        "stripe_price_id" : "price_1MZjArGuzsNtaesnzCJwJzwf"
+
+    },
+
+    "Learn HTML" : {
+
+        "description" : "Learn the the language of the web. Every single website (including this one) is made using HTML. It provides the structure and some basic elements of web pages.",
+        "tags" : ["Programming", "HTML", "WebDev"],
+        "stripe_price_id" : "price_1MZjCXGuzsNtaesnI6a3tUOR"
+
+    },
+
+    "Learn JavaScript" : {
+
+        "description" : "Learn introductory JavaScript. The web as it is today would not be where it is today without JavaScript, not only because of it's importance in creating websites but also creating web servers (like the one that allows you to see this website) with Node.js.",
+        "tags" : ["Programming", "JavaScript", "WebDev"],
+        "stripe_price_id" : "price_1MZjD4GuzsNtaesn43jde8WW"
+
+    },
+
+
+    "Learn Algebra" : {
+
+        "description" : "Learn basic algebra. In this course, we will cover topics such as solving for variables, graphing, functions and slope, as well as many classic and very important formulas in maths.",
+        "tags" : ["Maths"],
+        "stripe_price_id" : "price_1MZjArGuzsNtaesnzCJwJzwf"
+
+    }
+
+}
