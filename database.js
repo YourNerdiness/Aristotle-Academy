@@ -46,18 +46,20 @@ const passwordHash = (password, salt, size) => {
 
 const encrypt = (content, key, encoding) => {
 
-    const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, Buffer.from(process.env.DATABASE_AES_IV, "hex"));
+    const iv = crypto.randomBytes(12);
+
+    const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
 
     let output = cipher.update(content, encoding, "base64");
     output += cipher.final("base64");
 
-    return { content : output, authTag : cipher.getAuthTag().toString("base64") };
+    return { content : output, iv : iv.toString(), authTag : cipher.getAuthTag().toString("base64") };
 
 };
 
-const decrypt = (content, key, authTag, encoding) => {
+const decrypt = (content, key, iv, authTag, encoding) => {
 
-    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, Buffer.from(process.env.DATABASE_AES_IV, "hex"));
+    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
     
     decipher.setAuthTag(Buffer.from(authTag, "base64"));
 
@@ -75,7 +77,7 @@ const encryptCTR = (content, key, encoding) => {
     let output = cipher.update(content, encoding, "base64");
     output += cipher.final("base64");
 
-    return output
+    return output;
 
 };
 
@@ -244,11 +246,11 @@ const getUserID = async (username, password) => {
 
         const key = passwordHash(process.env.DATABASE_AES_KEY, userData.encryptionSalt, 32);
 
-        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt.content, key, userData.passwordSalt.authTag), 64), Buffer.from(decrypt(userData.hashedPassword.content, key, userData.hashedPassword.authTag, "base64"), "base64"))) {
+        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt.content, key, userData.passwordSalt.iv, userData.passwordSalt.authTag), 64), Buffer.from(decrypt(userData.hashedPassword.content, key, userData.hashedPassword.iv, userData.hashedPassword.authTag, "base64"), "base64"))) {
 
             const CTRKey = passwordHash(password, userData.userIDSalt, 32);
 
-            return decryptCTR(decrypt(userData.userID.content, key, userData.userID.authTag, "base64"), CTRKey, "base64");
+            return decryptCTR(decrypt(userData.userID.content, key, userData.userID.iv, userData.userID.authTag, "base64"), CTRKey, "base64");
 
         }
 
@@ -284,11 +286,11 @@ const getCustomerID = async (username, password) => {
 
         const key = passwordHash(process.env.DATABASE_AES_KEY, userData.encryptionSalt, 32);
 
-        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt.content, key, userData.passwordSalt.authTag, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword.content, key, userData.hashedPassword.authTag, "base64"), "base64"))) {
+        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt.content, key, userData.passwordSalt.iv, userData.passwordSalt.authTag, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword.content, key, userData.hashedPassword.iv, userData.hashedPassword.authTag, "base64"), "base64"))) {
 
-            const CTRKey = passwordHash(password, decrypt(userData. stripeCustomerIDSalt.content, key, userData.stripeCustomerIDSalt.authTag, "base64"), 32);
+            const CTRKey = passwordHash(password, decrypt(userData.stripeCustomerIDSalt.content, key, userData.stripeCustomerIDSalt.iv, userData.stripeCustomerIDSalt.authTag, "base64"), 32);
 
-            return decryptCTR(decrypt(userData.stripeCustomerID.content, key, userData.stripeCustomerID.authTag, "base64"), CTRKey, "utf-8");
+            return decryptCTR(decrypt(userData.stripeCustomerID.content, key, userData.stripeCustomerID.iv, userData.stripeCustomerID.authTag, "base64"), CTRKey, "utf-8");
 
         }
 
