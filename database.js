@@ -1,5 +1,4 @@
 const crypto = require("crypto");
-const { ConnectionCheckOutStartedEvent } = require("mongodb");
 const MongoClient = require("mongodb").MongoClient;
 const stripe = require("stripe");
 
