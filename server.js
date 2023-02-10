@@ -12,6 +12,8 @@ const app = express();
 
 app.use(express.static("./public"));
 
+let content_data = {};
+
 const encrypt = (userID) => {
 
     const salt = crypto.randomBytes(+process.env.SIGN_IN_SALT_SIZE).toString("base64");
@@ -618,9 +620,20 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
 
 });
 
-app.listen(80, () => { 
+app.listen(process.env.PORT || 3000, async () => {
+
+    console.log("task 1/2 : initializing database");
     
-    database.init(); 
-    console.log("listening"); 
+    await database.init();
+    
+    console.log("task 1/2 : database initialized");
+
+    console.log("task 2/2 : loading course data");
+
+    content_data = JSON.parse(fs.readFileSync("content_data.json"));
+
+    console.log("task 2/2 : course data loaded");
+
+    console.log("tasks complete, listening on port " + process.env.PORT || 3000);
 
 });
