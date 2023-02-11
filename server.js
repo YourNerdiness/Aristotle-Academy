@@ -103,7 +103,7 @@ const checkIfSignedIn = async (cookie) => {
 
 };
 
-app.post("/signup", async (req, res) => {
+app.post("/signup", express.json(), async (req, res) => {
 
     const data = req.body;
 
@@ -163,7 +163,7 @@ app.post("/signup", async (req, res) => {
 
 });
 
-app.post("/signin", async (req, res) => {
+app.post("/signin", express.json(), async (req, res) => {
 
     const data = req.body;
 
@@ -212,13 +212,13 @@ app.post("/signin", async (req, res) => {
 
 });
 
-app.get("/checkIfSignedIn", async (req, res) => {
+app.get("/checkIfSignedIn", express.json(), async (req, res) => {
 
     res.status(200).json({ "loggedIn" : (await checkIfSignedIn(req.headers.cookie)).toString() }).end();
 
 });
 
-app.get("/checkIfPaidFor", async (req, res) => {
+app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
     let userID = getSignIn(req.headers.cookie);
 
@@ -276,7 +276,7 @@ app.get("/checkIfPaidFor", async (req, res) => {
 
 });
 
-app.get("/getContentList", async (req, res) => {
+app.get("/getContentList", express.json(), async (req, res) => {
 
     let userID = getSignIn(req.headers.cookie);
 
@@ -350,7 +350,7 @@ app.get("/getContentList", async (req, res) => {
 
 });
 
-app.get("/getLessonList", async (req, res) => {
+app.get("/getLessonList", express.json(), async (req, res) => {
 
     let userID = getSignIn(req.headers.cookie);
 
@@ -394,7 +394,7 @@ app.get("/getLessonList", async (req, res) => {
 
 });
 
-app.get("/video", async (req, res) => {
+app.get("/video", express.json(), async (req, res) => {
 
     const signInToken = getSignIn(req.headers.cookie);
 
