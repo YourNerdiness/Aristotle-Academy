@@ -10,7 +10,10 @@ const client = new MongoClient(process.env.MONGO_HOST);
 let db;
 
 let users;
-let content;
+let courses;
+
+let courseData;
+let courseNames;
 
 const init = async () => {
 
@@ -19,7 +22,10 @@ const init = async () => {
     db = client.db(process.env.MONGO_DB_NAME);
 
     users = db.collection("users");
-    content = db.collection("content");
+    courses = db.collection("courses");
+
+    courseData = JSON.parse(fs.readFileSync("course_data.json")); 
+    courseNames = Object.keys(courseData);
 
 };
 
@@ -43,8 +49,17 @@ const passwordHash = (password, salt, size) => {
 
 };
 
-const encrypt = (content, key, encoding) => {
+const verificationHash = (data, key, encoding) => {
 
+    return crypto.createHmac(process.env.HASHING_ALGORITHM, Buffer.from(key)).update(data, encoding).digest("base64");
+
+}
+
+const encrypt = (content, encoding) => {
+
+    const encryptionSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+
+    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionSalt, 32);
     const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
@@ -52,17 +67,19 @@ const encrypt = (content, key, encoding) => {
     let output = cipher.update(content, encoding, "base64");
     output += cipher.final("base64");
 
-    return { content : output, iv : iv.toString("base64"), authTag : cipher.getAuthTag().toString("base64") };
+    return { content : output, encryptionSalt, iv : iv.toString("base64"), authTag : cipher.getAuthTag().toString("base64") };
 
 };
 
-const decrypt = (content, key, iv, authTag, encoding) => {
+const decrypt = (encryptionData, encoding) => {
 
-    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, Buffer.from(iv, "base64"));
+    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionData.encryptionSalt, 32);
+
+    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
     
-    decipher.setAuthTag(Buffer.from(authTag, "base64"));
+    decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
 
-    let output = decipher.update(content, "base64", encoding);
+    let output = decipher.update(encryptionData.content, "base64", encoding);
     output += decipher.final(encoding);
 
     return output;
@@ -97,7 +114,7 @@ const checkIfUserExists = async (username, email, userID) => {
 
     if (username) {
 
-        filter.push({ username });
+        filter.push({ usernameHash : hash(username, "utf-8") });
 
     }
 
@@ -147,7 +164,7 @@ const addNewUser = async (username, email, password) => {
 
     const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-    const hashedPassword = passwordHash(password, passwordSalt, 64).toString("base64");
+    const passwordHash = passwordHash(password, passwordSalt, 64).toString("base64");
 
     let customer;
 
@@ -180,44 +197,41 @@ const addNewUser = async (username, email, password) => {
 
     }
 
-    let userID;
+    const userID = crypto.randomBytes(256).toString("base64");
 
-    while ((!userID) || (await checkIfUserExists(null, null, userID))) {
-        
-        userID = crypto.randomInt(0, (2 ** 48) - 1).toString(16) +
-                 crypto.randomInt(0, (2 ** 48) - 1).toString(16) +
-                 crypto.randomInt(0, (2 ** 48) - 1).toString(16) +
-                 crypto.randomInt(0, (2 ** 48) - 1).toString(16) +
-                 crypto.randomInt(0, (2 ** 48) - 1).toString(16) +
-                 crypto.randomInt(0, (2 ** 48) - 1).toString(16) +
-                 crypto.randomInt(0, (2 ** 48) - 1).toString(16) +
-                 crypto.randomInt(0, (2 ** 48) - 1).toString(16);
-                 
-    }
-
-    const encryptionSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
     const userIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
     const stripeCustomerIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-    const encryptionKey = passwordHash(process.env.DATABASE_AES_KEY, encryptionSalt, 32);
     const userIDKey = passwordHash(password, userIDSalt, 32);
     const stripeCustomerIDKey = passwordHash(password, stripeCustomerIDSalt, 32);
 
-    const userData = {  
-                       userID : encrypt(encryptCTR(userID, userIDKey, "base64"), encryptionKey, "base64"), 
-                       stripeCustomerID : encrypt(encryptCTR(customer.id, stripeCustomerIDKey, "utf-8"), encryptionKey, "base64"), 
-                       username,
-                       email : encrypt(email, encryptionKey, "utf-8"), 
-                       hashedPassword : encrypt(hashedPassword, encryptionKey, "base64"),
-                       encryptionSalt,
-                       passwordSalt : encrypt(passwordSalt, encryptionKey, "base64"),
-                       userIDSalt :  encrypt(userIDSalt, encryptionKey, "base64"),
-                       stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, encryptionKey, "base64"),
+    const userData = {
+
+                       userID : encrypt(encryptCTR(userID, userIDKey, "base64"), "base64"), 
+                       stripeCustomerID : encrypt(encryptCTR(customer.id, stripeCustomerIDKey, "utf-8"), "base64"), 
+                       username : encrypt(username, "utf-8"),
+                       usernameHash : hash(username, "utf-8"),
+                       email : encrypt(email, "utf-8"), 
+                       passwordHash : encrypt(passwordHash, "base64"),
+                       passwordSalt : encrypt(passwordSalt, "base64"),
+                       userIDSalt :  encrypt(userIDSalt, "base64"),
+                       stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, "base64"),
+
                     };
 
     await users.insertOne(userData);
 
-    await content.insertOne({ userIDHash : hash(userID, "base64") })
+    const userIDHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+
+    const userContentData = { usernameHash : hash(username, "base64"), userIDHash : passwordHash(userID, userIDHashSalt, 64).toString("base64"), userIDHashSalt };
+
+    for (let i = 0; i < courseNames.length; i++) {
+
+        userContentData[courseNames[i]] = { paidFor : false, lessonData : null };
+
+    }
+
+    await courses.insertOne({ userContentData, verification : verificationHash(JSON.stringify(userContentData), userID) });
 
     return userID;
 
@@ -225,7 +239,7 @@ const addNewUser = async (username, email, password) => {
 
 const getUserID = async (username, password) => {
 
-    const result = await users.find({ username }).toArray();
+    const result = await users.find({ usernameHash : hash(username, "utf-8") }).toArray();
 
     if (result.length == 0) {
 
@@ -235,7 +249,7 @@ const getUserID = async (username, password) => {
 
     else if (result.length > 1) {
 
-        errorLog("Multiple users with similar details exist.");
+        errorLog("Multiple users with the same username exist.");
 
     }
 
@@ -243,13 +257,11 @@ const getUserID = async (username, password) => {
 
         const userData = result[0];
 
-        const key = passwordHash(process.env.DATABASE_AES_KEY, userData.encryptionSalt, 32);
+        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), "base64"), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
 
-        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt.content, key, userData.passwordSalt.iv, userData.passwordSalt.authTag), 64), Buffer.from(decrypt(userData.hashedPassword.content, key, userData.hashedPassword.iv, userData.hashedPassword.authTag, "base64"), "base64"))) {
+            const CTRKey = passwordHash(password, decrypt(userData.userIDSalt, "base64"), 32);
 
-            const CTRKey = passwordHash(password, userData.userIDSalt, 32);
-
-            return decryptCTR(decrypt(userData.userID.content, key, userData.userID.iv, userData.userID.authTag, "base64"), CTRKey, "base64");
+            return decryptCTR(decrypt(userData.userID, "base64"), CTRKey, "base64");
 
         }
 
@@ -265,7 +277,7 @@ const getUserID = async (username, password) => {
 
 const getCustomerID = async (username, password) => {
 
-    const result = await users.find({ username }).toArray();
+    const result = await users.find({ usernameHash : hash(username, "utf-8") }).toArray();
 
     if (result.length == 0) {
 
@@ -275,7 +287,7 @@ const getCustomerID = async (username, password) => {
 
     else if (result.length > 1) {
 
-        errorLog("Multiple users with similar details exist.");
+        errorLog("Multiple users with the same username exist.");
 
     }
 
@@ -283,13 +295,11 @@ const getCustomerID = async (username, password) => {
 
         const userData = result[0];
 
-        const key = passwordHash(process.env.DATABASE_AES_KEY, userData.encryptionSalt, 32);
+        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword, "base64"), "base64"))) {
 
-        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt.content, key, userData.passwordSalt.iv, userData.passwordSalt.authTag, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword.content, key, userData.hashedPassword.iv, userData.hashedPassword.authTag, "base64"), "base64"))) {
+            const CTRKey = passwordHash(password, decrypt(userData.stripeCustomerIDSalt, "base64"), 32);
 
-            const CTRKey = passwordHash(password, decrypt(userData.stripeCustomerIDSalt.content, key, userData.stripeCustomerIDSalt.iv, userData.stripeCustomerIDSalt.authTag, "base64"), 32);
-
-            return decryptCTR(decrypt(userData.stripeCustomerID.content, key, userData.stripeCustomerID.iv, userData.stripeCustomerID.authTag, "base64"), CTRKey, "utf-8");
+            return decryptCTR(decrypt(userData.stripeCustomerID, "base64"), CTRKey, "utf-8");
 
         }
 
@@ -303,40 +313,31 @@ const getCustomerID = async (username, password) => {
 
 }
 
-const getLessonList = async (contentName, userID) => {
+const checkIfPaidFor = async (courseName, username, userID) => {
 
-    const result = await content.find({ userIDHash : hash(userID, "base64") }).toArray();
+    const result = await courses.find({ usernameHash : hash(username, "utf-8") }).toArray();
 
     if (result.length == 0) {
 
-        return [];
+        return false;
 
     }
 
     else if (result.length > 1) {
 
-        errorLog("Multiple users with similar details exist.");
+        errorLog("Multiple users with the same username exist.");
+
+        return false;
 
     }
 
     else {
 
-        const contentData = result[0];
+        const courseData = result[0];
 
-        if (contentData[contentName] == undefined) {
-
-            return [];
-
-        }
-
-        else {
-
-            return contentData[contentName];
-
-        }
+        return (!!(courseData[courseName])) && courseData[courseName].paidFor;
 
     }
-
 
 };
 
@@ -347,6 +348,6 @@ module.exports = {
     addNewUser,
     getUserID,
     getCustomerID,
-    getLessonList
+    checkIfPaidFor
 
 };
