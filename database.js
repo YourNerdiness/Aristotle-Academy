@@ -39,7 +39,7 @@ const errorLog = (message) => {
 
 const hash = (data, encoding) => {
 
-    return crypto.createHash(process.env.HASHING_ALGORITHM).update(data, encoding).digest("base64");
+    return crypto.createHash(process.env.HASHING_ALGORITHM).update(data, encoding);
 
 };
 
@@ -51,7 +51,7 @@ const passwordHash = (password, salt, size) => {
 
 const verificationHash = (data, key, encoding) => {
 
-    return crypto.createHmac(process.env.HASHING_ALGORITHM, Buffer.from(key)).update(data, encoding).digest("base64");
+    return crypto.createHmac(process.env.HASHING_ALGORITHM, Buffer.from(key)).update(data, encoding);
 
 }
 
@@ -114,7 +114,7 @@ const checkIfUserExists = async (username, email, userID) => {
 
     if (username) {
 
-        filter.push({ usernameHash : hash(username, "utf-8") });
+        filter.push({ usernameHash : hash(username, "utf-8").digest("base64") });
 
     }
 
@@ -210,7 +210,7 @@ const addNewUser = async (username, email, password) => {
                        userID : encrypt(encryptCTR(userID, userIDKey, "base64"), "base64"), 
                        stripeCustomerID : encrypt(encryptCTR(customer.id, stripeCustomerIDKey, "utf-8"), "base64"), 
                        username : encrypt(username, "utf-8"),
-                       usernameHash : hash(username, "utf-8"),
+                       usernameHash : hash(username, "utf-8").digest("base64"),
                        email : encrypt(email, "utf-8"), 
                        passwordHash : encrypt(passwordHash, "base64"),
                        passwordSalt : encrypt(passwordSalt, "base64"),
@@ -223,15 +223,15 @@ const addNewUser = async (username, email, password) => {
 
     const userIDHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-    const userContentData = { usernameHash : hash(username, "base64"), userIDHash : passwordHash(userID, userIDHashSalt, 64).toString("base64"), userIDHashSalt };
+    const userCourseData = { usernameHash : hash(username, "utf-8").digest("base64"), userIDHash : passwordHash(userID, userIDHashSalt, 64).toString("base64"), userIDHashSalt };
 
     for (let i = 0; i < courseNames.length; i++) {
 
-        userContentData[courseNames[i]] = { paidFor : false, lessonData : null };
+        userCourseData[courseNames[i]] = { paidFor : false, lessonData : null };
 
     }
 
-    await courses.insertOne({ userContentData, verification : verificationHash(JSON.stringify(userContentData), userID) });
+    await courses.insertOne({ userCourseData, verification : verificationHash(JSON.stringify(userCourseData), userID).toString("base64") });
 
     return userID;
 
@@ -239,7 +239,7 @@ const addNewUser = async (username, email, password) => {
 
 const getUserID = async (username, password) => {
 
-    const result = await users.find({ usernameHash : hash(username, "utf-8") }).toArray();
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -277,7 +277,7 @@ const getUserID = async (username, password) => {
 
 const getCustomerID = async (username, password) => {
 
-    const result = await users.find({ usernameHash : hash(username, "utf-8") }).toArray();
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -315,7 +315,7 @@ const getCustomerID = async (username, password) => {
 
 const checkIfPaidFor = async (courseName, username, userID) => {
 
-    const result = await courses.find({ usernameHash : hash(username, "utf-8") }).toArray();
+    const result = await courses.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -333,7 +333,19 @@ const checkIfPaidFor = async (courseName, username, userID) => {
 
     else {
 
-        const courseData = result[0];
+        const result = result[0];
+
+        const courseData = result.userCourseData;
+
+        if (userID) {
+
+            if(!crypto.timingSafeEqual(verificationHash(JSON.stringify(courseData), userID), Buffer.from(result.verification))) {
+
+                throw "Verifcation failed. THIS SHOULD NOT NORMALLY HAPPEN. User's course data has been modified without their permission.";
+
+            }
+
+        }
 
         return (!!(courseData[courseName])) && courseData[courseName].paidFor;
 
