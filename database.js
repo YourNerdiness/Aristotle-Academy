@@ -64,8 +64,7 @@ const encrypt = (content, encoding) => {
 
     const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
 
-    let output = cipher.update(content, encoding, "base64");
-    output += cipher.final("base64");
+    const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
 
     return { content : output, encryptionSalt, iv : iv.toString("base64"), authTag : cipher.getAuthTag().toString("base64") };
 
@@ -79,10 +78,17 @@ const decrypt = (encryptionData, encoding) => {
     
     decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
 
-    let output = decipher.update(encryptionData.content, "base64", encoding);
-    output += decipher.final(encoding);
+    try {
 
-    return output;
+        const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
+
+        return output;
+
+    } catch (error) {
+
+        throw "Incorrect decryption key."
+
+    }
 
 };
 
@@ -90,8 +96,7 @@ const encryptCTR = (content, key, encoding) => {
 
     const cipher = crypto.createCipheriv("aes-256-ctr", key, Buffer.from(process.env.DATABASE_AES_CTR_IV, "hex"));
 
-    let output = cipher.update(content, encoding, "base64");
-    output += cipher.final("base64");
+    const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
 
     return output;
 
@@ -101,139 +106,100 @@ const decryptCTR = (content, key, encoding) => {
 
     const decipher = crypto.createDecipheriv("aes-256-ctr", key, Buffer.from(process.env.DATABASE_AES_CTR_IV, "hex"));
     
-    let output = decipher.update(content, "base64", encoding);
-    output += decipher.final(encoding);
+    const output = decipher.update(content, "base64", encoding) + decipher.final(encoding);
 
     return output;
 
 };
 
-const checkIfUserExists = async (username, email, userID) => {
+const addNewUser = async (username, email, password) => {
 
-    const filter = [];
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") });
 
-    if (username) {
+    if (result.length === 1) {
 
-        filter.push({ usernameHash : hash(username, "utf-8").digest("base64") });
-
-    }
-
-    if (email) {
-
-        filter.push({ email });
+        throw "Username is taken."
 
     }
 
-    if (userID) {
+    else if (result.length > 1) {
 
-        filter.push({ userID });
-
-    }
-
-    const result = await users.find({ $or: filter }).toArray();
-
-    if (result.length == 0) {
-
-        return false;
-
-    }
-
-    else if (result.length == 1) {
-
-        return true;
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
 
     }
 
     else {
 
-        errorLog("Multiple users with similar details exist.")
+        const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-        return true;
+        const passwordHash = passwordHash(password, passwordSalt, 64).toString("base64");
 
-    }
+        let customer;
 
-};
+        try {
 
-const addNewUser = async (username, email, password) => {
+            customer = await stripeAPI.customers.create({
 
-    if (await checkIfUserExists(username, email, null)) {
+                name: username,
+                email
 
-        errorLog("User Already Exists");
+            });
 
-    }
+        } catch (error) {
 
-    const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+            switch (error.raw.code) {
 
-    const passwordHash = passwordHash(password, passwordSalt, 64).toString("base64");
+                case "email_invalid":
 
-    let customer;
-
-    try {
-
-        customer = await stripeAPI.customers.create({
-
-            name: username,
-            email
-
-        });
-
-    } catch (error) {
-
-        switch (error.raw.code) {
-
-            case "email_invalid":
-
-                errorLog("Email is not valid.")
-
-                break;
+                    throw "Please enter a valid email."
             
-            default:
+                default:
 
-                errorLog(error.raw.code);
+                    throw error.raw.code;
 
-                break;
+            }
 
         }
 
+        const userID = crypto.randomBytes(256).toString("base64");
+
+        const userIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+        const stripeCustomerIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+
+        const userIDKey = passwordHash(password, userIDSalt, 32);
+        const stripeCustomerIDKey = passwordHash(password, stripeCustomerIDSalt, 32);
+
+        const userData = {
+
+                            userID : encrypt(encryptCTR(userID, userIDKey, "base64"), "base64"), 
+                            stripeCustomerID : encrypt(encryptCTR(customer.id, stripeCustomerIDKey, "utf-8"), "base64"), 
+                            username : encrypt(username, "utf-8"),
+                            usernameHash : hash(username, "utf-8").digest("base64"),
+                            email : encrypt(email, "utf-8"), 
+                            passwordHash : encrypt(passwordHash, "base64"),
+                            passwordSalt : encrypt(passwordSalt, "base64"),
+                            userIDSalt :  encrypt(userIDSalt, "base64"),
+                            stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, "base64"),
+
+                        };
+
+        await users.insertOne(userData);
+
+        const userIDHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+
+        const userCourseData = { usernameHash : hash(username, "utf-8").digest("base64"), userIDHash : passwordHash(userID, userIDHashSalt, 64).toString("base64"), userIDHashSalt };
+
+        for (let i = 0; i < courseNames.length; i++) {
+
+            userCourseData[courseNames[i]] = { paidFor : false, lessonData : null };
+
+        }
+
+        await courses.insertOne({ userCourseData, verification : encrypt(verificationHash(JSON.stringify(userCourseData), userID).toString("base64"), "base64") });
+
+        return userID;
+
     }
-
-    const userID = crypto.randomBytes(256).toString("base64");
-
-    const userIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-    const stripeCustomerIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-
-    const userIDKey = passwordHash(password, userIDSalt, 32);
-    const stripeCustomerIDKey = passwordHash(password, stripeCustomerIDSalt, 32);
-
-    const userData = {
-
-                       userID : encrypt(encryptCTR(userID, userIDKey, "base64"), "base64"), 
-                       stripeCustomerID : encrypt(encryptCTR(customer.id, stripeCustomerIDKey, "utf-8"), "base64"), 
-                       username : encrypt(username, "utf-8"),
-                       usernameHash : hash(username, "utf-8").digest("base64"),
-                       email : encrypt(email, "utf-8"), 
-                       passwordHash : encrypt(passwordHash, "base64"),
-                       passwordSalt : encrypt(passwordSalt, "base64"),
-                       userIDSalt :  encrypt(userIDSalt, "base64"),
-                       stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, "base64"),
-
-                    };
-
-    await users.insertOne(userData);
-
-    const userIDHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-
-    const userCourseData = { usernameHash : hash(username, "utf-8").digest("base64"), userIDHash : passwordHash(userID, userIDHashSalt, 64).toString("base64"), userIDHashSalt };
-
-    for (let i = 0; i < courseNames.length; i++) {
-
-        userCourseData[courseNames[i]] = { paidFor : false, lessonData : null };
-
-    }
-
-    await courses.insertOne({ userCourseData, verification : verificationHash(JSON.stringify(userCourseData), userID).toString("base64") });
-
-    return userID;
 
 };
 
@@ -241,7 +207,7 @@ const getUserID = async (username, password) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
-    if (result.length == 0) {
+    if (result.length === 0) {
 
         return undefined;
 
@@ -249,7 +215,7 @@ const getUserID = async (username, password) => {
 
     else if (result.length > 1) {
 
-        errorLog("Multiple users with the same username exist.");
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
 
     }
 
@@ -279,7 +245,7 @@ const getCustomerID = async (username, password) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
-    if (result.length == 0) {
+    if (result.length === 0) {
 
         return undefined;
 
@@ -287,7 +253,7 @@ const getCustomerID = async (username, password) => {
 
     else if (result.length > 1) {
 
-        errorLog("Multiple users with the same username exist.");
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN. ";
 
     }
 
@@ -317,7 +283,7 @@ const checkIfPaidFor = async (courseName, username, userID) => {
 
     const result = await courses.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
-    if (result.length == 0) {
+    if (result.length === 0) {
 
         return false;
 
@@ -325,9 +291,7 @@ const checkIfPaidFor = async (courseName, username, userID) => {
 
     else if (result.length > 1) {
 
-        errorLog("Multiple users with the same username exist.");
-
-        return false;
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN. ";
 
     }
 
@@ -339,9 +303,9 @@ const checkIfPaidFor = async (courseName, username, userID) => {
 
         if (userID) {
 
-            if(!crypto.timingSafeEqual(verificationHash(JSON.stringify(courseData), userID), Buffer.from(result.verification))) {
+            if(!crypto.timingSafeEqual(verificationHash(JSON.stringify(courseData), userID), Buffer.from(decrypt(result.verification)))) {
 
-                throw "Verifcation failed. THIS SHOULD NOT NORMALLY HAPPEN. User's course data has been modified without their permission.";
+                throw "Verifcation failed. User's course data has been modified without their permission. THIS SHOULD NOT NORMALLY HAPPEN.";
 
             }
 
@@ -356,7 +320,6 @@ const checkIfPaidFor = async (courseName, username, userID) => {
 module.exports = {
 
     init,
-    checkIfUserExists,
     addNewUser,
     getUserID,
     getCustomerID,
