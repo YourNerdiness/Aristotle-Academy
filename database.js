@@ -30,7 +30,15 @@ const init = async () => {
 
 };
 
+const wait = (ms) => {
+
+    return new Promise((resolve) => { setTimeout(() => { resolve(); }, ms);} );
+
+}
+
 const hash = (data, encoding) => {
+
+    setTimeout(() => {}, crypto.randomInt(0, 100))
 
     return crypto.createHash(process.env.HASHING_ALGORITHM).update(data, encoding);
 
@@ -98,6 +106,8 @@ const decryptCTR = (content, key, encoding) => {
 };
 
 const addNewUser = async (username, email, password) => {
+
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") });
 
@@ -192,6 +202,8 @@ const addNewUser = async (username, email, password) => {
 
 const verifyUserID = async (username, userID) => {
 
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
     if (result.length === 0) {
@@ -215,6 +227,8 @@ const verifyUserID = async (username, userID) => {
 }
 
 const getUserID = async (username, password) => {
+
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
@@ -254,6 +268,8 @@ const getUserID = async (username, password) => {
 
 const getCustomerID = async (username, password) => {
 
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
     if (result.length === 0) {
@@ -291,6 +307,8 @@ const getCustomerID = async (username, password) => {
 }
 
 const checkIfPaidFor = async (courseName, username, userID) => {
+
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
     const result = await courses.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
