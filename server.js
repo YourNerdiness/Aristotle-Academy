@@ -37,17 +37,9 @@ const decrypt = (encryptionData, encoding) => {
     
     decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
 
-    try {
+    const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
 
-        const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
-
-        return output;
-
-    } catch (error) {
-
-        throw "Decryption failed.";
-
-    }
+    return output;
 
 };
 
