@@ -25,7 +25,7 @@ const init = async () => {
     users = db.collection("users");
     courses = db.collection("courses");
 
-    courseData = JSON.parse(fs.readFileSync("content_data.json")); 
+    courseData = JSON.parse(fs.readFileSync("course_data.json")); 
     courseNames = Object.keys(courseData);
 
 };
