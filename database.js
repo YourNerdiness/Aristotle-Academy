@@ -115,10 +115,6 @@ const addNewUser = async (username, email, password) => {
 
     else {
 
-        const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-
-        const passwordDigest = passwordHash(password, passwordSalt, 64).toString("base64");
-
         let customer;
 
         try {
@@ -148,6 +144,12 @@ const addNewUser = async (username, email, password) => {
 
         const userID = crypto.randomBytes(256).toString("base64");
 
+        const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+        const userIDHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+
+        const passwordDigest = passwordHash(password, passwordSalt, 64).toString("base64");
+        const userIDDigest = passwordHash(userID, userIDHashSalt, 64).toString("base64");
+
         const userIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
         const stripeCustomerIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
@@ -156,7 +158,8 @@ const addNewUser = async (username, email, password) => {
 
         const userData = {
 
-                            userID : encrypt(encryptCTR(userID, userIDKey, "base64"), "base64"), 
+                            userID : encrypt(encryptCTR(userID, userIDKey, "base64"), "base64"),
+                            userIDHash : encrypt(userIDDigest, "base64"),
                             stripeCustomerID : encrypt(encryptCTR(customer.id, stripeCustomerIDKey, "utf-8"), "base64"), 
                             username : encrypt(username, "utf-8"),
                             usernameHash : hash(username, "utf-8").digest("base64"),
@@ -164,15 +167,14 @@ const addNewUser = async (username, email, password) => {
                             passwordHash : encrypt(passwordDigest, "base64"),
                             passwordSalt : encrypt(passwordSalt, "base64"),
                             userIDSalt :  encrypt(userIDSalt, "base64"),
+                            userIDHashSalt : encrypt(userIDHashSalt, "base64"),
                             stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, "base64"),
 
                         };
 
-        await users.insertOne(userData);
+        const userIDCourseDataHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-        const userIDHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-
-        const userCourseData = { usernameHash : hash(username, "utf-8").digest("base64"), userIDHash : passwordHash(userID, userIDHashSalt, 64).toString("base64"), userIDHashSalt };
+        const userCourseData = { usernameHash : hash(username, "utf-8").digest("base64"), userIDHash : passwordHash(userID, userIDCourseDataHashSalt, 64).toString("base64"), userIDCourseDataHashSalt };
 
         for (let i = 0; i < courseNames.length; i++) {
 
@@ -187,6 +189,30 @@ const addNewUser = async (username, email, password) => {
     }
 
 };
+
+const verifyUserID = async (username, userID) => {
+
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+
+    if (result.length === 0) {
+
+        return false;
+
+    }
+
+    else if (result.length > 1) {
+
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+
+    }
+
+    else {
+
+        return crypto.timingSafeEqual(passwordHash(userID, decrypt(result.userIDHashSalt), 64), Buffer.from(decrypt(userData.userIDHash, "base64"), "base64"))
+
+    }
+
+}
 
 const getUserID = async (username, password) => {
 
@@ -306,6 +332,7 @@ module.exports = {
 
     init,
     addNewUser,
+    verifyUserID,
     getUserID,
     getCustomerID,
     checkIfPaidFor
