@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const MongoClient = require("mongodb").MongoClient;
 const stripe = require("stripe");
+const fs = require("fs");
 
 require("dotenv").config();
 
@@ -24,16 +25,8 @@ const init = async () => {
     users = db.collection("users");
     courses = db.collection("courses");
 
-    courseData = JSON.parse(fs.readFileSync("course_data.json")); 
+    courseData = JSON.parse(fs.readFileSync("content_data.json")); 
     courseNames = Object.keys(courseData);
-
-};
-
-const errorLog = (message) => {
-
-    console.error(Date.now(), message);
-
-    throw message;
 
 };
 
@@ -78,17 +71,9 @@ const decrypt = (encryptionData, encoding) => {
     
     decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
 
-    try {
+    const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
 
-        const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
-
-        return output;
-
-    } catch (error) {
-
-        throw "Incorrect decryption key."
-
-    }
+    return output;
 
 };
 
@@ -132,7 +117,7 @@ const addNewUser = async (username, email, password) => {
 
         const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-        const passwordHash = passwordHash(password, passwordSalt, 64).toString("base64");
+        const passwordDigest = passwordHash(password, passwordSalt, 64).toString("base64");
 
         let customer;
 
@@ -176,7 +161,7 @@ const addNewUser = async (username, email, password) => {
                             username : encrypt(username, "utf-8"),
                             usernameHash : hash(username, "utf-8").digest("base64"),
                             email : encrypt(email, "utf-8"), 
-                            passwordHash : encrypt(passwordHash, "base64"),
+                            passwordHash : encrypt(passwordDigest, "base64"),
                             passwordSalt : encrypt(passwordSalt, "base64"),
                             userIDSalt :  encrypt(userIDSalt, "base64"),
                             stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, "base64"),
