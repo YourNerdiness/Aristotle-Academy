@@ -12,45 +12,57 @@ const app = express();
 
 app.use(express.static("./public"));
 
-let content_data = {};
+let courseData = {};
 
-const encrypt = (userID) => {
+const encrypt = (content, encoding) => {
 
-    const salt = crypto.randomBytes(+process.env.SIGN_IN_SALT_SIZE).toString("base64");
+    const encryptionSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-    const key = crypto.scryptSync(process.env.SIGN_IN_AES_KEY, salt, 32);
+    const key = crypto.scryptSync(process.env.SIGN_IN_AES_KEY, encryptionSalt, 32);
     const iv = crypto.randomBytes(12);
 
-    const cipher = crypto.createCipheriv(process.env.SIGN_IN_ENCRYPTION_ALGORITHM, key, Buffer.from(iv, "hex"));
+    const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
 
-    let token = cipher.update(userID, "base64", "base64");
-    token += cipher.final("base64");
+    const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
 
-    return { salt, iv : iv.toString("base64"), token, authTag : cipher.getAuthTag().toString("base64") };
-
-}
-
-const decrypt = (signIn) => {
-
-    const salt = signIn.salt;
-    const token = signIn.token;
-    const authTag = signIn.authTag;
-
-    const key = crypto.scryptSync(process.env.SIGN_IN_AES_KEY, salt, 32);
-    const iv = signIn.iv;
-
-    const decipher = crypto.createDecipheriv(process.env.SIGN_IN_ENCRYPTION_ALGORITHM, key, Buffer.from(iv, "base64"));
-
-    decipher.setAuthTag(Buffer.from(authTag, "base64"));
-
-    let userID = decipher.update(token, "base64", "base64");
-    userID += decipher.final("base64");
-
-    return userID;
+    return { content : output, encryptionSalt, iv : iv.toString("base64"), authTag : cipher.getAuthTag().toString("base64") };
 
 };
 
-const getSignIn = (cookie) => {
+const decrypt = (encryptionData, encoding) => {
+
+    const key = crypto.scryptSync(process.env.DATABASE_AES_KEY, encryptionData.encryptionSalt, 32);
+
+    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
+    
+    decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
+
+    try {
+
+        const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
+
+        return output;
+
+    } catch (error) {
+
+        throw "Decryption failed.";
+
+    }
+
+};
+
+const generateToken = (username, userID) => {
+
+    return JSON.stringify({
+
+        username : encrypt(username, "utf-8"),
+        userID : encrypt(userID, "base64")
+
+    });
+
+}
+
+const getToken = (cookie) => {
 
     if (!cookie) {
 
@@ -60,14 +72,20 @@ const getSignIn = (cookie) => {
 
     const cookies = cookie.split(";").map(x => x.split("="));
 
+    if (cookies.length === 0) {
+
+        return undefined;
+
+    }
+
     let i = 0;
-    while (i < cookies.length && cookies[i][0] != process.env.SIGN_IN_COOKIE_NAME) {
+    while (i < cookies.length && cookies[i][0] !== process.env.SIGN_IN_COOKIE_NAME) {
 
         i++;
 
     }
 
-    if (cookies[i][0] != process.env.SIGN_IN_COOKIE_NAME) {
+    if (cookies[i][0] !== process.env.SIGN_IN_COOKIE_NAME) {
 
         return undefined;
 
@@ -79,7 +97,7 @@ const getSignIn = (cookie) => {
 
 const checkIfSignedIn = async (cookie) => {
 
-    const signIn = getSignIn(cookie);
+    const signIn = getToken(cookie);
 
     if (!signIn) {
 
@@ -91,7 +109,7 @@ const checkIfSignedIn = async (cookie) => {
 
         try {
 
-            return await database.checkIfUserExists(null, null, decrypt(signIn));
+            return await database.verifyUserID(decrypt(signIn.username), decrypt(signIn.userID));
 
         } catch (error) {
 
@@ -107,59 +125,43 @@ app.post("/signup", express.json(), async (req, res) => {
 
     const data = req.body;
 
+    if (!data) {
+
+        res.status(400).send("Missing requeust data.");
+
+        return;
+
+    }
+
     const username = data.username;
     const email = data.email;
     const password = data.password;
 
-    if (!data || !username || !email || !password) {
+    if (!username || !email || !password) {
 
-        res.status(400).send("Mising sign up data.").end();
+        res.status(400).send("Mising sign up data.");
 
-    }
-
-    else {
-
-        let userExists;
-
-        try {
-
-            userExists = await database.checkIfUserExists(username, email, null);
-
-        } catch (error) {
-
-            res.status(500).send(error).end();
-
-            return;
-
-        }
-        
-        if (userExists) {
-
-            res.status(400).send("Username or email is already in use. This might be because your username is already taken.").end();
-
-        }
-
-        else {
-        
-            let userID;
-    
-            try {
-    
-                userID = await database.addNewUser(username, email, password);
-    
-            } catch (error) {
-    
-                res.status(500).send(error).end();
-    
-                return;
-    
-            }
-    
-            res.status(201).cookie(process.env.SIGN_IN_COOKIE_NAME, JSON.stringify(encrypt(userID)), { maxAge : 31557600000, httpOnly : true }).send("Signed Up Succesfully").end();
-    
-        }
+        return;
 
     }
+        
+    let userID;
+    
+    try {
+    
+        userID = await database.addNewUser(username, email, password);
+    
+    } catch (error) {
+
+        console.log(error);
+    
+        res.status(500).send(error);
+    
+        return;
+    
+    }
+    
+    res.status(201).cookie(process.env.SIGN_IN_COOKIE_NAME, generateToken(username, userID), { maxAge : 31557600000, httpOnly : true }).send("Signed Up Succesfully");
 
 });
 
@@ -167,18 +169,26 @@ app.post("/signin", express.json(), async (req, res) => {
 
     const data = req.body;
 
+    if (!data) {
+
+        res.status(400).send("Missing request data.");
+
+        return;
+
+    }
+
     const username = data.username;
     const password = data.password;
 
     if (!data || !username || !password) {
 
-        res.status(400).send("Mising sign in data.").end();
+        res.status(400).send("Mising sign in data.");
 
     }
 
     else if (!(await database.checkIfUserExists(username, null))) {
 
-        res.status(400).send("You haven't signed up yet, please sign up.").end();
+        res.status(400).send("You haven't signed up yet, please sign up.");
 
     }
 
@@ -192,7 +202,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         } catch (error) {
 
-            res.status(500).send(error).end();
+            res.status(500).send(error);
 
             return;
 
@@ -200,13 +210,13 @@ app.post("/signin", express.json(), async (req, res) => {
 
         if (!userID) {
 
-            res.status(403).send("Incorrect username or password.").end();
+            res.status(403).send("Incorrect username or password.");
 
             return;
 
         }
 
-        res.status(200).cookie(process.env.SIGN_IN_COOKIE_NAME, JSON.stringify(encrypt(userID)), { maxAge : 31557600000, httpOnly : true }).send("Signed In Succesfully").end();
+        res.status(200).cookie(process.env.SIGN_IN_COOKIE_NAME, generateToken(username, userID), { maxAge : 31557600000, httpOnly : true }).send("Signed In Succesfully");
 
     }
 
@@ -214,37 +224,37 @@ app.post("/signin", express.json(), async (req, res) => {
 
 app.get("/checkIfSignedIn", express.json(), async (req, res) => {
 
-    res.status(200).json({ "loggedIn" : (await checkIfSignedIn(req.headers.cookie)).toString() }).end();
+    res.status(200).json({ "loggedIn" : (await checkIfSignedIn(req.headers.cookie)).toString() });
 
 });
 
 app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
-    let userID = getSignIn(req.headers.cookie);
+    let userID = getToken(req.headers.cookie).uesrID;
 
     if (!userID) {
 
-        res.status(401).send("Not signed in.").end();
+        res.status(401).send("Not signed in.");
 
     }
 
     else {
 
-        const contentName = req.headers.contentName;
+        const courseName = req.headers.courseName;
 
-        if (!contentName) {
+        if (!courseName) {
 
-            res.status(400).send("No content name provided.").end();
+            res.status(400).send("No course name provided.");
 
         }
 
         else {
 
-            const contentList = fs.readdirSync("./public/content");
+            const courseList = Object.keys(courseData);
 
-            if (contentList.indexOf(contentName) == -1) {
+            if (courseList.indexOf(courseName) === -1) {
 
-                res.status(404).send("Content does not exist.").end();
+                res.status(404).send("Content does not exist.");
 
             }
 
@@ -256,7 +266,7 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
                 try {
 
-                    paidFor = ((await database.getLessonList(contentName, userID)).length != 0).toString();
+                    paidFor = (await database.checkIfPaidFor(courseName, userID)).toString();
 
                 } catch (error) {
 
@@ -278,27 +288,27 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
 app.get("/getContentList", express.json(), async (req, res) => {
 
-    let userID = getSignIn(req.headers.cookie);
+    let userID = getToken(req.headers.cookie).userID;
 
     const data = req.headers;
 
-    if (!userID && (data.filter == "true")) {
+    if (!userID && (data.filter === "true")) {
 
-        res.status(401).send("You are not signed in, please sign in to see your paid for courses.").end();
+        res.status(401).send("You are not signed in, please sign in to see your paid for courses.");
 
     } 
     
     else {
 
-        let contentList;
-        let contentDescriptions;
-        let contentTags;
+        let courseList;
+        let courseDescriptions;
+        let courseTags;
 
         try {
       
-            contentList = fs.readdirSync("./public/content");
-            contentDescriptions = JSON.parse(fs.readFileSync("./content_descriptions.json"));
-            contentTags = JSON.parse(fs.readFileSync("./content_tags.json"));
+            courseList = fs.readdirSync("./public/course");
+            courseDescriptions = JSON.parse(fs.readFileSync("./course_descriptions.json"));
+            courseTags = JSON.parse(fs.readFileSync("./course_tags.json"));
 
         } catch (error) {
 
@@ -308,25 +318,25 @@ app.get("/getContentList", express.json(), async (req, res) => {
 
         }
 
-        if (data.filter == "true") {
+        if (data.filter === "true") {
             
             userID = decrypt(userID);
 
             const filteredCotentList = [];
 
-            for (let i = 0; i < contentList.length; i++) {
+            for (let i = 0; i < courseList.length; i++) {
 
                 try {
 
-                    if ((await database.getLessonList(contentName, userID)).length != 0) {
+                    if ((await database.getLessonList(courseName, userID)).length !== 0) {
 
-                        filteredCotentList.push(contentList[i])
+                        filteredCotentList.push(courseList[i])
 
                     }
 
                 } catch (error) {
 
-                    res.status(500).send(error).end();
+                    res.status(500).send(error);
 
                     return;
 
@@ -334,7 +344,7 @@ app.get("/getContentList", express.json(), async (req, res) => {
 
             }
 
-            res.status(200).json({ contentList : filteredCotentList, contentDescriptions, contentTags }).end();
+            res.status(200).json({ courseList : filteredCotentList, courseDescriptions, courseTags });
             
         }
 
@@ -342,7 +352,7 @@ app.get("/getContentList", express.json(), async (req, res) => {
 
             const codeFiles = ["info.css", "info.js"];
 
-            res.status(200).json({ contentList : contentList.filter(elem => codeFiles.indexOf(elem) == -1), contentDescriptions, contentTags }).end();
+            res.status(200).json({ courseList : courseList.filter(elem => codeFiles.indexOf(elem) === -1), courseDescriptions, courseTags });
 
         }
 
@@ -352,31 +362,31 @@ app.get("/getContentList", express.json(), async (req, res) => {
 
 app.get("/getLessonList", express.json(), async (req, res) => {
 
-    let userID = getSignIn(req.headers.cookie);
+    let userID = getToken(req.headers.cookie);
 
     if (!userID) {
 
-        res.status(401).send("Not signed in.").end();
+        res.status(401).send("Not signed in.");
 
     }
 
     else {
 
-        const contentName = req.headers.contentname;
+        const courseName = req.headers.coursename;
         
-        if (!contentName) {
+        if (!courseName) {
 
-            res.status(400).send("No content name provided.").end();
+            res.status(400).send("No course name provided.");
 
         }
 
         else {
 
-            const contentList = fs.readdirSync("./public/content");
+            const courseList = fs.readdirSync("./public/course");
 
-            if (contentList.indexOf(contentName) == -1) {
+            if (courseList.indexOf(courseName) === -1) {
 
-                res.status(404).send("Content does not exist.").end();
+                res.status(404).send("Content does not exist.");
 
             }
 
@@ -384,7 +394,7 @@ app.get("/getLessonList", express.json(), async (req, res) => {
 
                 userID = decrypt(userID);
 
-                res.status(200).json({ lessonList : await database.getLessonList(contentName, userID) })
+                res.status(200).json({ lessonList : await database.getLessonList(courseName, userID) })
 
             }
 
@@ -396,11 +406,11 @@ app.get("/getLessonList", express.json(), async (req, res) => {
 
 app.get("/video", express.json(), async (req, res) => {
 
-    const signInToken = getSignIn(req.headers.cookie);
+    const signInToken = getToken(req.headers.cookie);
 
     if (!signInToken) {
 
-        res.status(401).send("You are not signed in, please sign in to access content.").end();
+        res.status(401).send("You are not signed in, please sign in to access course.");
 
     }
 
@@ -416,7 +426,7 @@ app.get("/video", express.json(), async (req, res) => {
     
         } catch (error) {
     
-            res.status(500).send(error).end();
+            res.status(500).send(error);
 
             return;
     
@@ -424,7 +434,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         if (!lessonPaidFor) {
 
-            res.send(401).send("You have not paid for this content.").end();
+            res.send(401).send("You have not paid for this course.");
 
             return;
             
@@ -434,7 +444,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         if (!range) {
 
-            res.status(400).send("No range provided.").end();
+            res.status(400).send("No range provided.");
 
         }
 
@@ -444,7 +454,7 @@ app.get("/video", express.json(), async (req, res) => {
 
             if (!fs.existsSync(filePath)) {
 
-                res.status(404).send("Can't find video.").end();
+                res.status(404).send("Can't find video.");
 
             }
 
@@ -514,18 +524,18 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
     if (!customerID) {
 
-        res.status(401).send("Incorrect Password.").end();
+        res.status(401).send("Incorrect Password.");
 
     }
 
     else {
 
-        const contentName = req.query.name;
+        const courseName = req.query.name;
         const lessonIndex = req.query.i;
 
-        if (!contentName || !lessonIndex) {
+        if (!courseName || !lessonIndex) {
 
-            res.send(400).send("Missing lesson data.").end();
+            res.send(400).send("Missing lesson data.");
 
         }
 
@@ -533,17 +543,17 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
             const priceIDS = JSON.parse(fs.readFileSync("price_ids.json"));
 
-            if (!priceIDS[contentName]) {
+            if (!priceIDS[courseName]) {
 
-                res.status(404).send("Content does not exist.").end();
+                res.status(404).send("Content does not exist.");
 
             }
 
             else {
 
-                if (!priceIDS[contentName][lessonIndex]) {
+                if (!priceIDS[courseName][lessonIndex]) {
 
-                    res.status(404).send("Lesson does not exists.").end();
+                    res.status(404).send("Lesson does not exists.");
 
                 }
 
@@ -557,7 +567,7 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
                                 metadata : {
 
-                                    contentName,
+                                    courseName,
                                     lessonIndex
     
                                 }
@@ -566,18 +576,18 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
                             customer : customerID,
                             
-                            success_url : process.env.DOMAIN_NAME + `/content/${encodeURIComponent(contentName)}/content.html`,
-                            cancel_url : process.env.DOMAIN_NAME + `/content/${encodeURIComponent(contentName)}/info.html`,
+                            success_url : process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/content.html`,
+                            cancel_url : process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/info.html`,
                             
                             currency : "aud",
                             mode : "payment",
                             payment_method_types : ["card"],
                             
-                            line_items : [ { price : priceIDS[contentName][1], quantity : 1 } ]
+                            line_items : [ { price : priceIDS[courseName][1], quantity : 1 } ]
             
                         });
             
-                        res.status(200).json({ URL : session.url }).end();
+                        res.status(200).json({ URL : session.url });
 
                     } catch (error) {
 
@@ -608,15 +618,13 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
 
     } catch (error) {
 
-        res.status(400).send(error).end();
+        res.status(400).send(error);
 
         return;
 
     }
 
-    
-
-    res.status(200).end();
+    res.status(200).send();
 
 });
 
@@ -630,7 +638,7 @@ app.listen(process.env.PORT || 3000, async () => {
 
     console.log("task 2/2 : loading course data");
 
-    content_data = JSON.parse(fs.readFileSync("content_data.json"));
+    courseData = JSON.parse(fs.readFileSync("course_data.json"));
 
     console.log("task 2/2 : course data loaded");
 
