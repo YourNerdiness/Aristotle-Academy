@@ -13,7 +13,6 @@ const app = express();
 app.use(express.static("./public"));
 
 let courseData = {};
-let priceIDS = {};
 
 const encrypt = (content, encoding) => {
 
@@ -173,9 +172,15 @@ app.post("/signin", express.json(), async (req, res) => {
     const username = data.username;
     const password = data.password;
 
-    if (!username || !password) {
+    if (!data || !username || !password) {
 
         res.status(400).send("Mising sign in data.");
+
+    }
+
+    else if (!(await database.checkIfUserExists(username, null))) {
+
+        res.status(400).send("You haven't signed up yet, please sign up.");
 
     }
 
@@ -527,6 +532,8 @@ app.post("/buyContent", express.json(), async (req, res) => {
         }
 
         else {
+
+            const priceIDS = JSON.parse(fs.readFileSync("price_ids.json"));
 
             if (!priceIDS[courseName]) {
 
