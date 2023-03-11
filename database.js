@@ -38,8 +38,6 @@ const wait = (ms) => {
 
 const hash = (data, encoding) => {
 
-    setTimeout(() => {}, crypto.randomInt(0, 100))
-
     return crypto.createHash(process.env.HASHING_ALGORITHM).update(data, encoding);
 
 };
