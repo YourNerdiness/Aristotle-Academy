@@ -69,6 +69,12 @@ const decrypt = (encryptionData, encoding) => {
 
 };
 
+const wait = (ms) => {
+
+    return new Promise((resolve) => { setTimeout(() => { resolve(); }, ms);} );
+
+}
+
 const generateToken = (username, userID) => {
 
     return JSON.stringify({
@@ -126,6 +132,8 @@ const checkIfSignedIn = async (cookie) => {
 };
 
 app.post("/signup", express.json(), async (req, res) => {
+    
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
     const data = req.body;
 
@@ -168,6 +176,8 @@ app.post("/signup", express.json(), async (req, res) => {
 });
 
 app.post("/signin", express.json(), async (req, res) => {
+
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
     const data = req.body;
 
@@ -226,14 +236,17 @@ app.post("/signin", express.json(), async (req, res) => {
 
 app.get("/checkIfSignedIn", express.json(), async (req, res) => {
 
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+
     res.status(200).json({ "loggedIn" : (await checkIfSignedIn(req.headers.cookie)).toString() });
 
 });
 
 app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
-    const token = getToken(req.headers.cookie);
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
+    const token = getToken(req.headers.cookie);
 
     if (!token) {
 
@@ -296,6 +309,8 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
 app.get("/getCourseData", express.json(), async (req, res) => {
 
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+
     const data = req.headers;
 
     const token = getToken(req.headers.cookie);
@@ -350,6 +365,8 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 });
 
 app.get("/video", express.json(), async (req, res) => {
+
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
     const token = getToken(req.headers.cookie);
 
@@ -464,6 +481,8 @@ app.get("/video", express.json(), async (req, res) => {
 });
 
 app.post("/buyContent", express.json(), async (req, res) => {
+
+    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
     const username = req.body.username;
     const password = req.body.password;
