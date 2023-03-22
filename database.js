@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const MongoClient = require("mongodb").MongoClient;
+const { MongoClient, ServerApiVersion } = require('mongodb');
 const stripe = require("stripe");
 const fs = require("fs");
 
@@ -7,7 +7,10 @@ require("dotenv").config();
 
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
-const client = new MongoClient(process.env.MONGO_HOST);
+const mongodbURI = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_HOSTNAME}/?retryWrites=true&w=majority`;
+
+const client = new MongoClient(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
 let db;
 
 let users;
@@ -20,7 +23,7 @@ const init = async () => {
 
     await client.connect();
 
-    db = client.db(process.env.MONGO_DB_NAME);
+    db = client.db(process.env.MONGODB_DB_NAME);
 
     users = db.collection("users");
     courses = db.collection("courses");
@@ -171,6 +174,8 @@ const addNewUser = async (username, email, password) => {
                             stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, "base64"),
 
                         };
+
+        await users.insertOne(userData);
 
         const userIDCourseDataHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
