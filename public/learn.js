@@ -1,8 +1,8 @@
-let contentList;
-let contentDescriptions;
-let contentTags;
+let courseList;
+let courseDescriptions;
+let courseTags;
 
-const getContentList = async () => {
+const getcourseList = async () => {
 
     const req = {
 
@@ -16,11 +16,11 @@ const getContentList = async () => {
 
     }
 
-    const res = await fetch("/getContentList", req);
+    const res = await fetch("/getcourseList", req);
 
     if (!res.ok) {
 
-        document.getElementById("error").textContent = await res.text();
+        document.getElementById("error").textcourse = await res.text();
 
         if(res.status == 401) {
 
@@ -32,13 +32,13 @@ const getContentList = async () => {
 
     else {
 
-        const contentData = await (res).json();
+        const courseData = await (res).json();
 
-        contentList = contentData.contentList;
-        contentDescriptions = contentData.contentDescriptions;
-        contentTags = contentData.contentTags;
+        courseList = courseData.courseList;
+        courseDescriptions = courseData.courseDescriptions;
+        courseTags = courseData.courseTags;
 
-        generateContentElems();
+        generatecourseElems();
 
     }
 
@@ -65,13 +65,13 @@ const getFilterTags = () => {
 
 }
 
-const generateContentElems = () => {
+const generatecourseElems = () => {
 
     document.getElementById("error").textContent = "";
 
     const rowLength = Math.round(window.innerWidth/400);
 
-    const table = document.getElementById("contentList");
+    const table = document.getElementById("courseList");
 
     while (table.firstChild) {
 
@@ -81,13 +81,13 @@ const generateContentElems = () => {
 
     const filterTags = getFilterTags();
 
-    const contentListTemp = [...contentList];
+    const courseListTemp = [...courseList];
 
     if (filterTags.length != 0) {
 
-        for (let i = 0; i < contentListTemp.length; i++) {
+        for (let i = 0; i < courseListTemp.length; i++) {
 
-            const elemTags = contentTags[contentListTemp[i]];
+            const elemTags = courseTags[courseListTemp[i]];
 
             console.log(filterTags);
 
@@ -97,7 +97,7 @@ const generateContentElems = () => {
 
                     console.log(j)
 
-                    contentListTemp.splice(i, 1);
+                    courseListTemp.splice(i, 1);
 
                     i--;
 
@@ -111,24 +111,24 @@ const generateContentElems = () => {
 
     }
 
-    for (let i = 0; i < contentListTemp.length; i += rowLength) {
+    for (let i = 0; i < courseListTemp.length; i += rowLength) {
 
         const tableRow = document.createElement("tr");
 
-        for (let j = i; j < Math.min(i + rowLength, contentListTemp.length); j++) {
+        for (let j = i; j < Math.min(i + rowLength, courseListTemp.length); j++) {
 
             const tableData = document.createElement("td");
 
             const div = document.createElement("div");
             const link = document.createElement("a");
 
-            link.href = "http://localhost/content/" + encodeURIComponent(contentListTemp[j]) + "/info.html";
+            link.href = "http://localhost/course/" + encodeURIComponent(courseListTemp[j]) + "/info.html";
 
             const title = document.createElement("h4");
             const description = document.createElement("h5");
 
-            title.textContent = contentListTemp[j];
-            description.textContent = contentDescriptions[contentListTemp[j]];
+            title.textcourse = courseListTemp[j];
+            description.textcourse = courseDescriptions[courseListTemp[j]];
 
             link.appendChild(title);
 
@@ -147,5 +147,5 @@ const generateContentElems = () => {
 
 }
 
-window.onload = getContentList;
-window.onresize = generateContentElems;
+window.onload = getcourseList;
+window.onresize = generatecourseElems;
