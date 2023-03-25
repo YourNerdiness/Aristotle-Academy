@@ -96,9 +96,36 @@ const getToken = (cookie) => {
 
     const cookies = new URLSearchParams(cookie);
 
-    const token = cookies.get("sutton_sign_in");
+    const rawToken = cookies.get(process.env.SIGN_IN_COOKIE_NAME);
 
-    return !token ? undefined : JSON.parse(decodeURIComponent(token));
+    if (!rawToken) {
+
+        return undefined;
+
+    }
+
+    else {
+
+        const token = JSON.parse(decodeURIComponent(token));
+
+        if (!token.username || ! token.userID || Object.keys(token.username).length != 4 || Object.keys(token.userID) != 4) {
+
+            return null;
+
+        }
+
+        else {
+
+            return {
+
+                username : decrypt(token.username),
+                userID : decrypt(token.userID)
+
+            };
+
+        }
+
+    }
 
 }
 
@@ -198,12 +225,6 @@ app.post("/signin", express.json(), async (req, res) => {
 
     }
 
-    else if (!(await database.checkIfUserExists(username, null))) {
-
-        res.status(400).send("You haven't signed up yet, please sign up.");
-
-    }
-
     else {
 
         let userID;
@@ -277,7 +298,7 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
         else {
 
-            if (courseList.indexOf(courseName) === -1) {
+            if (courseList.indexOf(courseName) == -1) {
 
                 res.status(404).send("Content does not exist.");
 
@@ -315,10 +336,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
     const token = getToken(req.headers.cookie);
 
-    const username = decrypt(token.username);
-    const userID = decrypt(token.userID);
-
-    if (!userID && (data.filter === "true")) {
+    if (!token && (data.filter == "true")) {
 
         res.status(401).send("You are not signed in, please sign in to see your paid for courses.");
 
@@ -326,7 +344,10 @@ app.get("/getCourseData", express.json(), async (req, res) => {
     
     else {
 
-        if (data.filter === "true") {
+        if (data.filter == "true") {
+
+            const username = token.username;
+            const userID = token.userID;
 
             const filteredCourseList = [];
 
@@ -519,7 +540,7 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
         else {
 
-            if (courseList.indexOf(courseName) === -1) {
+            if (courseList.indexOf(courseName) == -1) {
 
                 res.status(404).send("Content does not exist.");
 

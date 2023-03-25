@@ -4,6 +4,12 @@ table {
 
 }
 
+input {
+
+    margin-right: 32px;
+
+}
+
 a {
 
     color: inherit;

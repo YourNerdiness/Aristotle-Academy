@@ -2,48 +2,6 @@ let courseList;
 let courseDescriptions;
 let courseTags;
 
-const getcourseList = async () => {
-
-    const req = {
-
-        headers : {
-
-            "Content-Type" : "application/json",
-
-            filter : document.getElementById("paidOnly").checked.toString()
-
-        }
-
-    }
-
-    const res = await fetch("/getcourseList", req);
-
-    if (!res.ok) {
-
-        document.getElementById("error").textcourse = await res.text();
-
-        if(res.status == 401) {
-
-            document.getElementById("paidOnly").checked = false;
-
-        }
-
-    }
-
-    else {
-
-        const courseData = await (res).json();
-
-        courseList = courseData.courseList;
-        courseDescriptions = courseData.courseDescriptions;
-        courseTags = courseData.courseTags;
-
-        generatecourseElems();
-
-    }
-
-}
-
 const getFilterTags = () => {
 
     const filterElems = Array.from(document.getElementsByClassName("filterElems"));
@@ -65,7 +23,45 @@ const getFilterTags = () => {
 
 }
 
-const generatecourseElems = () => {
+const generateFiltertags = () => {
+
+    let tags = [];
+
+    const keys = Object.keys(courseTags);
+
+    for (let i = 0; i < keys.length; i++) {
+
+        tags = tags.concat(courseTags[keys[i]])
+
+    }
+
+    tags = Array.from(new Set(tags));
+
+    const navElem = document.querySelectorAll("main > nav")[1];
+
+    for (let i = 0; i < tags.length; i++) {
+
+        const label = document.createElement("label");
+        const checkbox = document.createElement("input");
+
+        label.htmlFor = tags[i];
+        label.className = "filterElemsL";
+        label.textContent = tags[i];
+
+        checkbox.type = "checkbox";
+        checkbox.id = tags[i]
+        checkbox.className = "filterElems";
+
+        checkbox.addEventListener("change", generateCourseElems);
+
+        navElem.appendChild(label);
+        navElem.appendChild(checkbox);
+
+    }
+
+};
+
+const generateCourseElems = () => {
 
     document.getElementById("error").textContent = "";
 
@@ -81,54 +77,52 @@ const generatecourseElems = () => {
 
     const filterTags = getFilterTags();
 
-    const courseListTemp = [...courseList];
+    let filteredCourseList = [];
 
-    if (filterTags.length != 0) {
+    for (let i = 0; i < courseList.length; i++) {
 
-        for (let i = 0; i < courseListTemp.length; i++) {
+        const elemTags = courseTags[courseList[i]];
 
-            const elemTags = courseTags[courseListTemp[i]];
+        let shouldFilter = true;
 
-            console.log(filterTags);
+        console.log(elemTags, filterTags);
 
-            for (let j = 0; j < filterTags.length; j++) {
+        for (let j = 0; j < filterTags.length; j++) {
 
-                if (elemTags.indexOf(filterTags[j]) == -1) {
+            shouldFilter = shouldFilter && (elemTags.indexOf(filterTags[j]) == -1);
 
-                    console.log(j)
+        }
 
-                    courseListTemp.splice(i, 1);
+        console.log(shouldFilter);
 
-                    i--;
+        if (!shouldFilter) {
 
-                    break;
-
-                }
-
-            }
+            filteredCourseList.push(courseList[i]);
 
         }
 
     }
 
-    for (let i = 0; i < courseListTemp.length; i += rowLength) {
+    filteredCourseList = filteredCourseList.length == 0 ? courseList : filteredCourseList;
+
+    for (let i = 0; i < filteredCourseList.length; i += rowLength) {
 
         const tableRow = document.createElement("tr");
 
-        for (let j = i; j < Math.min(i + rowLength, courseListTemp.length); j++) {
+        for (let j = i; j < Math.min(i + rowLength, filteredCourseList.length); j++) {
 
             const tableData = document.createElement("td");
 
             const div = document.createElement("div");
             const link = document.createElement("a");
 
-            link.href = "http://localhost/course/" + encodeURIComponent(courseListTemp[j]) + "/info.html";
+            link.href = "http://localhost/course/" + encodeURIComponent(filteredCourseList[j]) + "/info.html";
 
             const title = document.createElement("h4");
             const description = document.createElement("h5");
 
-            title.textcourse = courseListTemp[j];
-            description.textcourse = courseDescriptions[courseListTemp[j]];
+            title.textContent = filteredCourseList[j];
+            description.textContent = courseDescriptions[filteredCourseList[j]];
 
             link.appendChild(title);
 
@@ -147,5 +141,56 @@ const generatecourseElems = () => {
 
 }
 
-window.onload = getcourseList;
-window.onresize = generatecourseElems;
+const getCourseData = async () => {
+
+    const req = {
+
+        headers : {
+
+            "Content-Type" : "application/json",
+
+            filter : document.getElementById("paidOnly").checked.toString()
+
+        }
+
+    }
+
+    const res = await fetch("/getCourseData", req);
+
+    if (!res.ok) {
+
+        document.getElementById("error").textContent = await res.text();
+
+        if(res.status == 401) {
+
+            document.getElementById("paidOnly").checked = false;
+
+        }
+
+    }
+
+    else {
+
+        const courseData = await (res).json();
+
+        courseList = courseData.courseList;
+        courseDescriptions = courseData.courseDescriptions;
+        courseTags = courseData.courseTags;
+
+    }
+
+};
+
+const init = async () => {
+
+    await getCourseData();
+
+    generateFiltertags();
+
+    generateCourseElems();
+
+};
+
+window.onresize = generateCourseElems;
+
+init();

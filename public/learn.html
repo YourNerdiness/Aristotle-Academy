@@ -12,9 +12,9 @@
         <link rel="stylesheet" href="learn.css">
 
         <script src="general.js"></script>
-        <script src="learn.js"></script>
+        <script src="learn.js" defer></script>
 
-        <title>Sutton - Learn Play Repeat</title>
+        <title>Sutton - Learn 2.0</title>
 
     </head>
 
@@ -33,23 +33,15 @@
             <nav>
 
                 <label for="paidOnly">Only Include Paid For Content</label>
-                <input type="checkbox" id="paidOnly" onchange="getContentList();">
+                <input type="checkbox" id="paidOnly" onchange="getCourseData();">
 
             </nav>
 
-            <nav>
-
-                <label for="maths" class="filterElemsL">Maths</label>
-                <input type="checkbox" id="maths" class="filterElems" onchange="generateContentElems();">
-
-                <label for="websites" class="filterElemsL">Websites</label>
-                <input type="checkbox" id="websites" class="filterElems" onchange="generateContentElems();">
-
-            </nav>
+            <nav></nav>
 
             <p id="error" class="center"></p>
 
-            <table id="contentList" class="justify"></table>
+            <table id="courseList" class="justify"></table>
 
         </main>
     
