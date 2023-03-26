@@ -4,14 +4,8 @@ const fs = require("fs");
 const database = require("./database");
 const stripe = require("stripe");
 const { URLSearchParams } = require("url");
-
+const morgan = require("morgan");
 require("dotenv").config();
-
-const stripeAPI = stripe(process.env.STRIPE_SK);
-
-const app = express();
-
-app.use(express.static("./public"));
 
 let courseData = {};
 let courseList = [];
@@ -157,6 +151,26 @@ const checkIfSignedIn = async (cookie) => {
     }
 
 };
+
+morgan.token("client-ip", (req) => {
+
+    const header = req.headers["x-forwarded-for"];
+
+    if (header) {
+
+      return header;
+    
+    }
+    return req.ip == "::1" ? "127.0.0.1" : req.ip;
+    
+})
+
+const stripeAPI = stripe(process.env.STRIPE_SK);
+
+const app = express();
+
+app.use(morgan(":date - :client-ip - :user-agent - :url"));
+app.use(express.static("public"));
 
 app.post("/signup", express.json(), async (req, res) => {
     
