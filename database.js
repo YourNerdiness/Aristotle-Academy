@@ -104,7 +104,7 @@ const addNewUser = async (username, email, password) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") });
 
-    if (result.length === 1) {
+    if (result.length == 1) {
 
         throw "Username is taken."
 
@@ -199,7 +199,7 @@ const verifyUserID = async (username, userID) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
-    if (result.length === 0) {
+    if (result.length == 0) {
 
         return false;
 
@@ -223,7 +223,7 @@ const getUserID = async (username, password) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
-    if (result.length === 0) {
+    if (result.length == 0) {
 
         return undefined;
 
@@ -261,7 +261,7 @@ const getCustomerID = async (username, password) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
-    if (result.length === 0) {
+    if (result.length == 0) {
 
         return undefined;
 
@@ -299,7 +299,7 @@ const checkIfPaidFor = async (courseName, username, userID) => {
 
     const result = await courses.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
-    if (result.length === 0) {
+    if (result.length == 0) {
 
         return false;
 
