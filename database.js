@@ -80,26 +80,6 @@ const decrypt = (encryptionData, encoding) => {
 
 };
 
-const encryptCTR = (content, key, encoding) => {
-
-    const cipher = crypto.createCipheriv("aes-256-ctr", key, Buffer.from(process.env.DATABASE_AES_CTR_IV, "hex"));
-
-    const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
-
-    return output;
-
-};
-
-const decryptCTR = (content, key, encoding) => {
-
-    const decipher = crypto.createDecipheriv("aes-256-ctr", key, Buffer.from(process.env.DATABASE_AES_CTR_IV, "hex"));
-    
-    const output = decipher.update(content, "base64", encoding) + decipher.final(encoding);
-
-    return output;
-
-};
-
 const addNewUser = async (username, email, password) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") });
@@ -147,47 +127,37 @@ const addNewUser = async (username, email, password) => {
 
         const userID = crypto.randomBytes(256).toString("base64");
 
+        const usernameHash = hash(username, "utf-8").digest("base64"); 
+
         const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-        const userIDHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
         const passwordDigest = passwordHash(password, passwordSalt, 64).toString("base64");
-        const userIDDigest = passwordHash(userID, userIDHashSalt, 64).toString("base64");
-
-        const userIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-        const stripeCustomerIDSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-
-        const userIDKey = passwordHash(password, userIDSalt, 32);
-        const stripeCustomerIDKey = passwordHash(password, stripeCustomerIDSalt, 32);
 
         const userData = {
 
-                            userID : encrypt(encryptCTR(userID, userIDKey, "base64"), "base64"),
-                            userIDHash : encrypt(userIDDigest, "base64"),
-                            stripeCustomerID : encrypt(encryptCTR(customer.id, stripeCustomerIDKey, "utf-8"), "base64"), 
+                            userID : encrypt(userID, "base64"),
+                            stripeCustomerID : encrypt(customer.id, "base64"), 
                             username : encrypt(username, "utf-8"),
-                            usernameHash : hash(username, "utf-8").digest("base64"),
+                            usernameHash : usernameHash,
                             email : encrypt(email, "utf-8"), 
                             passwordHash : encrypt(passwordDigest, "base64"),
-                            passwordSalt : encrypt(passwordSalt, "base64"),
-                            userIDSalt :  encrypt(userIDSalt, "base64"),
-                            userIDHashSalt : encrypt(userIDHashSalt, "base64"),
-                            stripeCustomerIDSalt : encrypt(stripeCustomerIDSalt, "base64"),
+                            passwordSalt : encrypt(passwordSalt, "base64")
 
                         };
 
         await users.insertOne(userData);
 
-        const userIDCourseDataHashSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
-
-        const userCourseData = { usernameHash : hash(username, "utf-8").digest("base64"), userIDHash : passwordHash(userID, userIDCourseDataHashSalt, 64).toString("base64"), userIDCourseDataHashSalt };
+        const userCourseData = { usernameHash, courses : {} };
 
         for (let i = 0; i < courseNames.length; i++) {
 
-            userCourseData[courseNames[i]] = { paidFor : false, lessonData : null };
+            userCourseData.courses[courseNames[i]] = { paidFor : false, lessonData : null };
 
         }
 
-        await courses.insertOne({ userCourseData, verification : encrypt(verificationHash(JSON.stringify(userCourseData), userID).toString("base64"), "base64") });
+        userCourseData.courses = encrypt(JSON.stringify(userCourseData.courses), "utf-8");
+
+        await courses.insertOne( userCourseData );
 
         return userID;
 
@@ -213,7 +183,7 @@ const verifyUserID = async (username, userID) => {
 
     else {
 
-        return crypto.timingSafeEqual(passwordHash(userID, decrypt(result.userIDHashSalt), 64), Buffer.from(decrypt(userData.userIDHash, "base64"), "base64"))
+        return crypto.timingSafeEqual(Buffer.from(userID), Buffer.from(decrypt(userData.userID, "base64"), "base64"))
 
     }
 
@@ -241,9 +211,7 @@ const getUserID = async (username, password) => {
 
         if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), "base64"), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
 
-            const CTRKey = passwordHash(password, decrypt(userData.userIDSalt, "base64"), 32);
-
-            return decryptCTR(decrypt(userData.userID, "base64"), CTRKey, "base64");
+            return decrypt(userData.userID, "base64");
 
         }
 
@@ -279,9 +247,7 @@ const getCustomerID = async (username, password) => {
 
         if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword, "base64"), "base64"))) {
 
-            const CTRKey = passwordHash(password, decrypt(userData.stripeCustomerIDSalt, "base64"), 32);
-
-            return decryptCTR(decrypt(userData.stripeCustomerID, "base64"), CTRKey, "utf-8");
+            return decrypt(userData.stripeCustomerID, "base64");
 
         }
 
@@ -295,7 +261,7 @@ const getCustomerID = async (username, password) => {
 
 }
 
-const checkIfPaidFor = async (courseName, username, userID) => {
+const checkIfPaidFor = async (courseName, username) => {
 
     const result = await courses.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
@@ -315,17 +281,7 @@ const checkIfPaidFor = async (courseName, username, userID) => {
 
         const result = result[0];
 
-        const courseData = result.userCourseData;
-
-        if (userID) {
-
-            if(!crypto.timingSafeEqual(verificationHash(JSON.stringify(courseData), userID), Buffer.from(decrypt(result.verification)))) {
-
-                throw "Verifcation failed. User's course data has been modified without their permission. THIS SHOULD NOT NORMALLY HAPPEN.";
-
-            }
-
-        }
+        const courseData = JSON.parse(decrypt(result.courses, "utf-8"));
 
         return (!!(courseData[courseName])) && courseData[courseName].paidFor;
 
