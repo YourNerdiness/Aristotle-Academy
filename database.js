@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const stripe = require("stripe");
 const fs = require("fs");
+const ms = require("ms");
 
 require("dotenv").config();
 
@@ -15,6 +16,7 @@ let db;
 
 let users;
 let courses;
+let jwts;
 
 let courseData;
 let courseNames;
@@ -27,6 +29,9 @@ const init = async () => {
 
     users = db.collection("users");
     courses = db.collection("courses");
+    jwts = db.collection("jwts");
+
+    jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: ms(process.env.JWT_EXPIRES)/1000 });
 
     courseData = JSON.parse(fs.readFileSync("course_data.json")); 
     courseNames = Object.keys(courseData);
@@ -44,12 +49,6 @@ const passwordHash = (password, salt, size) => {
     return crypto.scryptSync(password, salt, size);
 
 };
-
-const verificationHash = (data, key, encoding) => {
-
-    return crypto.createHmac(process.env.HASHING_ALGORITHM, Buffer.from(key)).update(data, encoding);
-
-}
 
 const encrypt = (content, encoding) => {
 
@@ -237,7 +236,7 @@ const getCustomerID = async (username, password) => {
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN. ";
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
 
     }
 
@@ -273,7 +272,7 @@ const checkIfPaidFor = async (courseName, username) => {
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN. ";
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
 
     }
 
@@ -289,6 +288,62 @@ const checkIfPaidFor = async (courseName, username) => {
 
 };
 
+const saveJWTId = async (username, jwtID) => {
+
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+
+    if (result.length == 0) {
+
+        throw "Username is invalid."
+
+    }
+
+    else if (result.length > 1) {
+
+        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+
+    }
+
+    else {
+
+        const obj = {};
+
+        obj[hash(username, "utf-8")] = hash(jwtID, "base64");
+
+        await jwts.insertOne(obj);
+
+    }
+
+};
+
+const verifyJWTId = async (username, jwtID) => {
+
+    const obj = {};
+
+    obj[hash(username, "utf-8")] = hash(jwtID, "base64");
+
+    const jwtIDs = await jwts.find(obj);
+
+    if (result.length == 0) {
+
+        return false;
+
+    }
+
+    else if (result.length > 1) {
+
+        throw "JWT ID is not unique. THIS SHOULD NOT NORMALLY HAPPEN.";
+
+    }
+
+    else {
+
+        return true;
+
+    }
+
+};
+
 module.exports = {
 
     init,
@@ -296,6 +351,8 @@ module.exports = {
     verifyUserID,
     getUserID,
     getCustomerID,
-    checkIfPaidFor
+    checkIfPaidFor,
+    saveJWTId,
+    verifyJWTId
 
 };

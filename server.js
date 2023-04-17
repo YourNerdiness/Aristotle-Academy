@@ -1,10 +1,12 @@
-const express = require("express");
+const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
-const fs = require("fs");
 const database = require("./database");
-const stripe = require("stripe");
-const { URLSearchParams } = require("url");
+const express = require("express");
+const fs = require("fs");
+const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
+const ms = require("ms");
+const stripe = require("stripe");
 require("dotenv").config();
 
 let courseData = {};
@@ -26,13 +28,13 @@ const filterChildProperties = (obj, property) => {
 
     return toReturn;
 
-}
+};
 
 const encrypt = (content, encoding) => {
 
     const encryptionSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
 
-    const key = crypto.scryptSync(process.env.SIGN_IN_AES_KEY, encryptionSalt, 32);
+    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionSalt, 32);
     const iv = crypto.randomBytes(12);
 
     const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
@@ -45,110 +47,73 @@ const encrypt = (content, encoding) => {
 
 const decrypt = (encryptionData, encoding) => {
 
-    const key = crypto.scryptSync(process.env.DATABASE_AES_KEY, encryptionData.encryptionSalt, 32);
+    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionData.encryptionSalt, 32);
 
     const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
     
     decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
 
-    try {
+    const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
 
-        return decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
-
-    } catch (error) {
-
-        return "";
-
-    }
+    return output;
 
 };
 
-const wait = (ms) => {
+const wait = (t) => {
 
-    return new Promise((resolve) => { setTimeout(() => { resolve(); }, ms);} );
+    return new Promise((resolve) => { setTimeout(() => { resolve(); }, t);} );
 
-}
+};
 
-const generateToken = (username, userID) => {
+const generateToken = async (username, userID) => {
 
-    return JSON.stringify({
+    const jwtID = crypto.randomBytes(+process.env.JWT_ID_SIZE).toString("base64");
 
-        username : encrypt(username, "utf-8"),
-        userID : encrypt(userID, "base64")
+    await database.saveJWTId(username, jwtID);
 
-    });
+    return jwt.sign({ username : encrypt(username, "utf-8"), userID : encrypt(userID, "base64"), jwtID : encrypt(jwtID, "base64")}, process.env.JWT_SECRET, { expiresIn : process.env.JWT_EXPIRES});
 
-}
+};
 
-const getToken = (cookie) => {
+const getToken = async (token) => {
 
-    if (!cookie) {
+    try {
 
-        return undefined;
+        const encryptedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-    }
+        const decryptedToken = { username : decrypt(encryptedToken.username), userID : decrypt(encryptedToken.userID) }
 
-    const cookies = new URLSearchParams(cookie);
-
-    const rawToken = cookies.get(process.env.SIGN_IN_COOKIE_NAME);
-
-    if (!rawToken) {
-
-        return undefined;
-
-    }
-
-    else {
-
-        const token = JSON.parse(decodeURIComponent(token));
-
-        if (!token.username || ! token.userID || Object.keys(token.username).length != 4 || Object.keys(token.userID) != 4) {
+        if (!(await database.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
 
             return null;
 
         }
 
-        else {
+        if (!(await database.verifyJWTId(decryptedToken.username, decrypt(encryptedToken.jwtID)))) {
 
-            return {
-
-                username : decrypt(token.username),
-                userID : decrypt(token.userID)
-
-            };
+            return null;
 
         }
 
-    }
-
-}
-
-const checkIfSignedIn = async (cookie) => {
-
-    const token = getToken(cookie);
-
-    if (!token) {
-
-        return false;
+        return decryptedToken;
 
     }
 
-    else {
+    catch (error) {
 
-        const username = decrypt(token.username);
-        const userID = decrypt(token.userID);
-
-        try {
-
-            return await database.verifyUserID(username, userID);
-
-        } catch (error) {
-
-            return false;
-
-        }
+        return null;
 
     }
+
+};
+
+const getTokenMiddleware = (req, res, next) => {
+
+    const token = req.headers.cookie.jwt ? getToken(req.headers.cookie.jwt) : null;
+
+    req.headers.auth = token;
+
+    next();
 
 };
 
@@ -161,20 +126,31 @@ morgan.token("client-ip", (req) => {
       return header;
     
     }
+    
     return req.ip == "::1" ? "127.0.0.1" : req.ip;
     
-})
+});
 
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
 const app = express();
 
 app.use(morgan(":date - :client-ip - :user-agent - :url"));
+app.use(cookieParser());
+app.use(getTokenMiddleware);
 app.use(express.static("public"));
 
 app.post("/signup", express.json(), async (req, res) => {
     
     await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+
+    if (req.headers.auth) {
+
+        res.status(409).send("You are already signed in.");
+
+        return;
+
+    }
 
     const data = req.body;
 
@@ -212,11 +188,19 @@ app.post("/signup", express.json(), async (req, res) => {
     
     }
     
-    res.status(201).cookie(process.env.SIGN_IN_COOKIE_NAME, generateToken(username, userID), { maxAge : 31557600000, httpOnly : true }).send("Signed Up Succesfully");
+    res.status(201).cookie("jwt", await generateToken(username, userID), { httpOnly : true, maxAge : ms(process.env.JWT_EXPIRES)}).send("Signed Up Succesfully");
 
 });
 
 app.post("/signin", express.json(), async (req, res) => {
+
+    if (req.headers.auth) {
+
+        res.status(409).send("You are already signed in.");
+
+        return;
+
+    }
 
     await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
@@ -263,7 +247,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         }
 
-        res.status(200).cookie(process.env.SIGN_IN_COOKIE_NAME, generateToken(username, userID), { maxAge : 31557600000, httpOnly : true }).send("Signed In Succesfully");
+        res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly : true, maxAge : ms(process.env.JWT_EXPIRES)}).send("Signed In Succesfully");
 
     }
 
@@ -273,7 +257,7 @@ app.get("/checkIfSignedIn", express.json(), async (req, res) => {
 
     await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
-    res.status(200).json({ "loggedIn" : (await checkIfSignedIn(req.headers.cookie)).toString() });
+    res.status(200).json({ "loggedIn" : !!req.headers.auth });
 
 });
 
@@ -281,7 +265,7 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
     await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
-    const token = getToken(req.headers.cookie);
+    const token = req.headers.auth;
 
     if (!token) {
 
@@ -291,8 +275,8 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
     else {
 
-        const username = decrypt(token.username);
-        const userID = decrypt(token.userID);
+        const username = token.username;
+        const userID = token.userID;
 
         if (!username || !userID) {
 
@@ -348,7 +332,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
     const data = req.headers;
 
-    const token = getToken(req.headers.cookie);
+    const token = req.headers.auth;
 
     if (!token && (data.filter == "true")) {
 
@@ -403,7 +387,7 @@ app.get("/video", express.json(), async (req, res) => {
 
     await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
 
-    const token = getToken(req.headers.cookie);
+    const token = req.headers.auth;
 
     if (!token) {
 
@@ -413,8 +397,8 @@ app.get("/video", express.json(), async (req, res) => {
 
     else {
 
-        const username = decrypt(token.username);
-        const userID = decrypt(token.userID);
+        const username = token.username;
+        const userID = token.userID;
 
         if (!username || !userID) {
 
@@ -546,7 +530,7 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
         const courseName = req.query.name;
 
-        if (!courseName || !lessonIndex) {
+        if (!courseName) {
 
             res.send(400).send("Missing lesson data.");
 
@@ -570,8 +554,7 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
                             metadata : {
 
-                                courseName,
-                                lessonIndex
+                                courseName
     
                             }
 
@@ -607,7 +590,7 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
 });
 
-app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) => {
+app.post("/webhook", express.raw({type: "application/json"}), async (req, res) => {
 
     let event = req.body;
 
@@ -629,14 +612,22 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
 
 });
 
-app.listen(process.env.PORT || 3000, async() => {
+app.listen(process.env.PORT || 3000, async () => {
 
     console.log("task 1/2 : initializing database");
     
-    await database.init();
-    
-    console.log("task 1/2 : database initialization successful");
+    const t1 =  database.init();
 
+    t1.then(_ => {
+
+        console.log("task 1/2 : database initialization successful");
+
+    }).catch(error => {
+
+        console.log(`task 1/2 : ${error}`);
+
+    });
+    
     console.log("task 2/2 : loading course data");
 
     courseData = JSON.parse(fs.readFileSync("course_data.json"));
@@ -645,6 +636,8 @@ app.listen(process.env.PORT || 3000, async() => {
     courseTags = filterChildProperties(courseData, "tags");
 
     console.log("task 2/2 : course data loaded");
+
+    await t1;
 
     console.log("tasks complete, listening on port " + process.env.PORT || 3000);
 
