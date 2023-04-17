@@ -1,12 +1,12 @@
 const redirectToSignin = async () => {
 
-    let res = await fetch("/checkIfLoggedIn");
+    let res = await fetch("/checkIfSignedIn");
 
     if (res.ok) {
 
         res = await res.json();
 
-        if (res.loggedIn == "false") {
+        if (!res.loggedIn) {
 
             window.location.href = "./signup.html"
 

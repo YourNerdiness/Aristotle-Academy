@@ -52,12 +52,12 @@ const passwordHash = (password, salt, size) => {
 
 const encrypt = (content, encoding) => {
 
-    const encryptionSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+    const encryptionSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
 
-    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionSalt, 32);
+    const key = passwordHash(process.env.AES_KEY, encryptionSalt, 32);
     const iv = crypto.randomBytes(12);
 
-    const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
+    const cipher = crypto.createCipheriv(process.env.ENCRYPTION_ALGORITHM, key, iv);
 
     const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
 
@@ -67,9 +67,9 @@ const encrypt = (content, encoding) => {
 
 const decrypt = (encryptionData, encoding) => {
 
-    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionData.encryptionSalt, 32);
+    const key = passwordHash(process.env.AES_KEY, encryptionData.encryptionSalt, 32);
 
-    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
+    const decipher = crypto.createDecipheriv(process.env.ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
     
     decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
 
@@ -81,17 +81,17 @@ const decrypt = (encryptionData, encoding) => {
 
 const addNewUser = async (username, email, password) => {
 
-    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") });
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
     if (result.length == 1) {
 
-        throw "Username is taken."
+        throw new Error("Username is taken.");
 
     }
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
@@ -128,7 +128,7 @@ const addNewUser = async (username, email, password) => {
 
         const usernameHash = hash(username, "utf-8").digest("base64"); 
 
-        const passwordSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+        const passwordSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
 
         const passwordDigest = passwordHash(password, passwordSalt, 64).toString("base64");
 
@@ -176,13 +176,15 @@ const verifyUserID = async (username, userID) => {
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
     else {
 
-        return crypto.timingSafeEqual(Buffer.from(userID), Buffer.from(decrypt(userData.userID, "base64"), "base64"))
+        const userData = result[0];
+
+        return crypto.timingSafeEqual(Buffer.from(userID, "base64"), Buffer.from(decrypt(userData.userID, "base64"), "base64"))
 
     }
 
@@ -200,7 +202,7 @@ const getUserID = async (username, password) => {
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
@@ -236,7 +238,7 @@ const getCustomerID = async (username, password) => {
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
@@ -272,7 +274,7 @@ const checkIfPaidFor = async (courseName, username) => {
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
@@ -300,7 +302,7 @@ const saveJWTId = async (username, jwtID) => {
 
     else if (result.length > 1) {
 
-        throw "Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.";
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
@@ -322,7 +324,7 @@ const verifyJWTId = async (username, jwtID) => {
 
     obj[hash(username, "utf-8")] = hash(jwtID, "base64");
 
-    const jwtIDs = await jwts.find(obj);
+    const result = await jwts.find(obj).toArray();
 
     if (result.length == 0) {
 
@@ -332,7 +334,7 @@ const verifyJWTId = async (username, jwtID) => {
 
     else if (result.length > 1) {
 
-        throw "JWT ID is not unique. THIS SHOULD NOT NORMALLY HAPPEN.";
+        throw new Error("JWT ID is not unique. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 

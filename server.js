@@ -30,27 +30,33 @@ const filterChildProperties = (obj, property) => {
 
 };
 
+const passwordHash = (password, salt, size) => {
+
+    return crypto.scryptSync(password, salt, size);
+
+};
+
 const encrypt = (content, encoding) => {
 
-    const encryptionSalt = crypto.randomBytes(+process.env.DATABASE_SALT_SIZE).toString("base64");
+    const encryptionSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
 
-    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionSalt, 32);
+    const key = passwordHash(process.env.AES_KEY, encryptionSalt, 32);
     const iv = crypto.randomBytes(12);
 
-    const cipher = crypto.createCipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, key, iv);
+    const cipher = crypto.createCipheriv(process.env.ENCRYPTION_ALGORITHM, key, iv);
 
     const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
 
-    return { content : output, encryptionSalt, iv : iv.toString("base64"), authTag : cipher.getAuthTag().toString("base64") };
+    return { content: output, encryptionSalt, iv: iv.toString("base64"), authTag: cipher.getAuthTag().toString("base64") };
 
 };
 
 const decrypt = (encryptionData, encoding) => {
 
-    const key = passwordHash(process.env.DATABASE_AES_KEY, encryptionData.encryptionSalt, 32);
+    const key = passwordHash(process.env.AES_KEY, encryptionData.encryptionSalt, 32);
 
-    const decipher = crypto.createDecipheriv(process.env.DATABASE_ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
-    
+    const decipher = crypto.createDecipheriv(process.env.ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
+
     decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
 
     const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
@@ -61,17 +67,17 @@ const decrypt = (encryptionData, encoding) => {
 
 const wait = (t) => {
 
-    return new Promise((resolve) => { setTimeout(() => { resolve(); }, t);} );
+    return new Promise((resolve) => { setTimeout(() => { resolve(); }, t); });
 
 };
 
 const generateToken = async (username, userID) => {
 
-    const jwtID = crypto.randomBytes(+process.env.JWT_ID_SIZE).toString("base64");
+    const jwtID = crypto.randomBytes(Number(process.env.JWT_ID_SIZE)).toString("base64");
 
     await database.saveJWTId(username, jwtID);
 
-    return jwt.sign({ username : encrypt(username, "utf-8"), userID : encrypt(userID, "base64"), jwtID : encrypt(jwtID, "base64")}, process.env.JWT_SECRET, { expiresIn : process.env.JWT_EXPIRES});
+    return jwt.sign({ username: encrypt(username, "utf-8"), userID: encrypt(userID, "base64"), jwtID: encrypt(jwtID, "base64") }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
 
 };
 
@@ -81,15 +87,19 @@ const getToken = async (token) => {
 
         const encryptedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-        const decryptedToken = { username : decrypt(encryptedToken.username), userID : decrypt(encryptedToken.userID) }
+        const decryptedToken = { username: decrypt(encryptedToken.username, "utf-8"), userID: decrypt(encryptedToken.userID, "base64") }
 
         if (!(await database.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
+
+            console.log(1);
 
             return null;
 
         }
 
-        if (!(await database.verifyJWTId(decryptedToken.username, decrypt(encryptedToken.jwtID)))) {
+        if (!(await database.verifyJWTId(decryptedToken.username, decrypt(encryptedToken.jwtID, "base64")))) {
+
+            console.log(2);
 
             return null;
 
@@ -101,15 +111,19 @@ const getToken = async (token) => {
 
     catch (error) {
 
+        console.log(3);
+
         return null;
 
     }
 
 };
 
-const getTokenMiddleware = (req, res, next) => {
+const getTokenMiddleware = async (req, res, next) => {
 
-    const token = req.headers.cookie.jwt ? getToken(req.headers.cookie.jwt) : null;
+    const token = req.cookies.jwt ? (await getToken(req.cookies.jwt)) : null;
+
+    console.log(token);
 
     req.headers.auth = token;
 
@@ -123,12 +137,12 @@ morgan.token("client-ip", (req) => {
 
     if (header) {
 
-      return header;
-    
+        return header;
+
     }
-    
+
     return req.ip == "::1" ? "127.0.0.1" : req.ip;
-    
+
 });
 
 const stripeAPI = stripe(process.env.STRIPE_SK);
@@ -141,8 +155,8 @@ app.use(getTokenMiddleware);
 app.use(express.static("public"));
 
 app.post("/signup", express.json(), async (req, res) => {
-    
-    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     if (req.headers.auth) {
 
@@ -173,22 +187,34 @@ app.post("/signup", express.json(), async (req, res) => {
         return;
 
     }
-        
+
     let userID;
-    
+
     try {
-    
+
         userID = await database.addNewUser(username, email, password);
-    
+
     } catch (error) {
-    
-        res.status(500).send(error);
-    
+
+        res.status(500).send(error.toString());
+
         return;
-    
+
     }
-    
-    res.status(201).cookie("jwt", await generateToken(username, userID), { httpOnly : true, maxAge : ms(process.env.JWT_EXPIRES)}).send("Signed Up Succesfully");
+
+    try {
+
+        res.status(201).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: ms(process.env.JWT_EXPIRES) }).send("Signed Up Succesfully");
+
+    }
+
+    catch (error) {
+
+        console.log(error);
+
+        res.status(500).send(error.toString());
+
+    }
 
 });
 
@@ -202,7 +228,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
     }
 
-    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const data = req.body;
 
@@ -233,7 +259,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         } catch (error) {
 
-            res.status(500).send(error);
+            res.status(500).send(error.toString());
 
             return;
 
@@ -247,7 +273,17 @@ app.post("/signin", express.json(), async (req, res) => {
 
         }
 
-        res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly : true, maxAge : ms(process.env.JWT_EXPIRES)}).send("Signed In Succesfully");
+        try {
+
+            res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: ms(process.env.JWT_EXPIRES) }).send("Signed In Succesfully");
+
+        }
+
+        catch (error) {
+
+            res.status(500).send(error.toString());
+
+        }
 
     }
 
@@ -255,15 +291,17 @@ app.post("/signin", express.json(), async (req, res) => {
 
 app.get("/checkIfSignedIn", express.json(), async (req, res) => {
 
-    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
-    res.status(200).json({ "loggedIn" : !!req.headers.auth });
+    console.log(req.headers.auth)
+
+    res.status(200).json({ "loggedIn": !!req.headers.auth });
 
 });
 
 app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
-    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const token = req.headers.auth;
 
@@ -310,7 +348,7 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
                 } catch (error) {
 
-                    res.status(500).send(error);
+                    res.status(500).send(error.toString());
 
                     return;
 
@@ -328,7 +366,7 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
 app.get("/getCourseData", express.json(), async (req, res) => {
 
-    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const data = req.headers;
 
@@ -338,8 +376,8 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
         res.status(401).send("You are not signed in, please sign in to see your paid for courses.");
 
-    } 
-    
+    }
+
     else {
 
         if (data.filter == "true") {
@@ -361,7 +399,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
                 } catch (error) {
 
-                    res.status(500).send(error);
+                    res.status(500).send(error.toString());
 
                     return;
 
@@ -369,8 +407,8 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
             }
 
-            res.status(200).json({ courseList : filteredCourseList, courseDescriptions, courseTags });
-            
+            res.status(200).json({ courseList: filteredCourseList, courseDescriptions, courseTags });
+
         }
 
         else {
@@ -385,7 +423,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
 app.get("/video", express.json(), async (req, res) => {
 
-    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const token = req.headers.auth;
 
@@ -415,19 +453,19 @@ app.get("/video", express.json(), async (req, res) => {
             return;
 
         }
-        
+
         let lessonPaidFor;
 
         try {
 
             lessonPaidFor = await database.checkIfPaidFor(req.query.courseName, username, userID);
-    
+
         } catch (error) {
-    
-            res.status(500).send(error);
+
+            res.status(500).send(error.toString());
 
             return;
-    
+
         }
 
         if (!lessonPaidFor) {
@@ -435,7 +473,7 @@ app.get("/video", express.json(), async (req, res) => {
             res.send(401).send("You have not paid for this course.");
 
             return;
-            
+
         }
 
         let range = req.headers.range;
@@ -447,7 +485,7 @@ app.get("/video", express.json(), async (req, res) => {
         }
 
         else {
-        
+
             const filePath = "./videos/" + req.query.name + req.query.index + ".mp4";
 
             if (!fs.existsSync(filePath)) {
@@ -460,7 +498,7 @@ app.get("/video", express.json(), async (req, res) => {
 
                 range = range.substring(6).split("-");
 
-               const videoSize = fs.statSync(filePath).size;
+                const videoSize = fs.statSync(filePath).size;
 
                 const chunkLength = 2 ** 20;
 
@@ -501,7 +539,7 @@ app.get("/video", express.json(), async (req, res) => {
 
 app.post("/buyContent", express.json(), async (req, res) => {
 
-    await wait(crypto.randomInt(+process.env.MAX_DELAY_LENGTH));
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const username = req.body.username;
     const password = req.body.password;
@@ -514,7 +552,7 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
     } catch (error) {
 
-        res.status(500).send(error);
+        res.status(500).send(error.toString());
 
         return;
 
@@ -550,34 +588,34 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
                     const session = await stripeAPI.checkout.sessions.create({
 
-                        payment_intent_data : {
+                        payment_intent_data: {
 
-                            metadata : {
+                            metadata: {
 
                                 courseName
-    
+
                             }
 
                         },
 
-                        customer : customerID,
-                            
-                        success_url : process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/content.html`,
-                        cancel_url : process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/info.html`,
-                            
-                        currency : "aud",
-                        mode : "payment",
-                        payment_method_types : ["card"],
-                            
-                        line_items : [ { price : courseData[courseName].stripe_price_id, quantity : 1 } ]
-            
+                        customer: customerID,
+
+                        success_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/content.html`,
+                        cancel_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/info.html`,
+
+                        currency: "aud",
+                        mode: "payment",
+                        payment_method_types: ["card"],
+
+                        line_items: [{ price: courseData[courseName].stripe_price_id, quantity: 1 }]
+
                     });
-            
-                    res.status(200).json({ URL : session.url });
+
+                    res.status(200).json({ URL: session.url });
 
                 } catch (error) {
 
-                    res.status(500).send(error);
+                    res.status(500).send(error.toString());
 
 
                 }
@@ -590,7 +628,7 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
 });
 
-app.post("/webhook", express.raw({type: "application/json"}), async (req, res) => {
+app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
 
     let event = req.body;
 
@@ -615,8 +653,8 @@ app.post("/webhook", express.raw({type: "application/json"}), async (req, res) =
 app.listen(process.env.PORT || 3000, async () => {
 
     console.log("task 1/2 : initializing database");
-    
-    const t1 =  database.init();
+
+    const t1 = database.init();
 
     t1.then(_ => {
 
@@ -627,7 +665,7 @@ app.listen(process.env.PORT || 3000, async () => {
         console.log(`task 1/2 : ${error}`);
 
     });
-    
+
     console.log("task 2/2 : loading course data");
 
     courseData = JSON.parse(fs.readFileSync("course_data.json"));
