@@ -130,7 +130,7 @@ const addNewUser = async (username, email, password) => {
 
         const passwordSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
 
-        const passwordDigest = passwordHash(password, passwordSalt, 64).toString("base64");
+        const passwordDigest = passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64");
 
         const userData = {
 
@@ -210,7 +210,7 @@ const getUserID = async (username, password) => {
 
         const userData = result[0];
 
-        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
+        if (crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
 
             return decrypt(userData.userID, "base64");
 
@@ -246,7 +246,7 @@ const getCustomerID = async (username, password) => {
 
         const userData = result[0];
 
-        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword, "base64"), "base64"))) {
+        if (crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword, "base64"), "base64"))) {
 
             return decrypt(userData.stripeCustomerID, "base64");
 
