@@ -181,6 +181,14 @@ const getCourseData = async () => {
 
 };
 
+const getGenerateCourseElems = async () => {
+
+    await getCourseData();
+
+    generateCourseElems();
+
+};
+
 const init = async () => {
 
     await getCourseData();

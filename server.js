@@ -111,7 +111,7 @@ const getToken = async (token) => {
 
     catch (error) {
 
-        console.log(3);
+        console.log(error);
 
         return null;
 
@@ -122,8 +122,6 @@ const getToken = async (token) => {
 const getTokenMiddleware = async (req, res, next) => {
 
     const token = req.cookies.jwt ? (await getToken(req.cookies.jwt)) : null;
-
-    console.log(token);
 
     req.headers.auth = token;
 
@@ -210,8 +208,6 @@ app.post("/signup", express.json(), async (req, res) => {
 
     catch (error) {
 
-        console.log(error);
-
         res.status(500).send(error.toString());
 
     }
@@ -293,8 +289,6 @@ app.get("/checkIfSignedIn", express.json(), async (req, res) => {
 
     await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
-    console.log(req.headers.auth)
-
     res.status(200).json({ "loggedIn": !!req.headers.auth });
 
 });
@@ -372,7 +366,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
     const token = req.headers.auth;
 
-    if (!token && (data.filter == "true")) {
+    if (!token && data.filter == "true") {
 
         res.status(401).send("You are not signed in, please sign in to see your paid for courses.");
 
@@ -406,6 +400,8 @@ app.get("/getCourseData", express.json(), async (req, res) => {
                 }
 
             }
+
+            console.log(filteredCourseList);
 
             res.status(200).json({ courseList: filteredCourseList, courseDescriptions, courseTags });
 

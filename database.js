@@ -210,7 +210,7 @@ const getUserID = async (username, password) => {
 
         const userData = result[0];
 
-        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), "base64"), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
+        if (crypto.timingSafeEqual(passwordHash(password, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
 
             return decrypt(userData.userID, "base64");
 
@@ -280,9 +280,7 @@ const checkIfPaidFor = async (courseName, username) => {
 
     else {
 
-        const result = result[0];
-
-        const courseData = JSON.parse(decrypt(result.courses, "utf-8"));
+        const courseData = JSON.parse(decrypt(result[0].courses, "utf-8"));
 
         return (!!(courseData[courseName])) && courseData[courseName].paidFor;
 
@@ -310,7 +308,7 @@ const saveJWTId = async (username, jwtID) => {
 
         const obj = {};
 
-        obj[hash(username, "utf-8")] = hash(jwtID, "base64");
+        obj[hash(username, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
 
         await jwts.insertOne(obj);
 
@@ -322,7 +320,7 @@ const verifyJWTId = async (username, jwtID) => {
 
     const obj = {};
 
-    obj[hash(username, "utf-8")] = hash(jwtID, "base64");
+    obj[hash(username, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
 
     const result = await jwts.find(obj).toArray();
 
