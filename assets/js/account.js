@@ -8,7 +8,7 @@ const redirectToSignin = async () => {
 
         if (!res.loggedIn) {
 
-            window.location.href = "./signup.html"
+            window.location.href = "./signup"
 
         }
 
@@ -16,7 +16,7 @@ const redirectToSignin = async () => {
 
     else {
 
-        window.location.href = "./signup.html"
+        window.location.href = "./signup"
 
     }
 

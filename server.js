@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
 const ms = require("ms");
 const stripe = require("stripe");
+const path = require("path");
 require("dotenv").config();
 
 let courseData = {};
@@ -91,15 +92,11 @@ const getToken = async (token) => {
 
         if (!(await database.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
 
-            console.log(1);
-
             return null;
 
         }
 
         if (!(await database.verifyJWTId(decryptedToken.username, decrypt(encryptedToken.jwtID, "base64")))) {
-
-            console.log(2);
 
             return null;
 
@@ -110,8 +107,6 @@ const getToken = async (token) => {
     }
 
     catch (error) {
-
-        console.log(error);
 
         return null;
 
@@ -150,7 +145,38 @@ const app = express();
 app.use(morgan(":date - :client-ip - :user-agent - :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
-app.use(express.static("public"));
+
+app.use(express.static("assets"));
+
+app.get("/", (req, res) => {
+
+    res.status(200).sendFile(path.join(__dirname, "public/index.html"));
+
+});
+
+app.get("/learn", (req, res) => {
+
+    res.status(200).sendFile(path.join(__dirname, "public/learn.html"));
+
+});
+
+app.get("/account", (req, res) => {
+
+    res.status(200).sendFile(path.join(__dirname, "public/account.html"));
+
+});
+
+app.get("/signin", (req, res) => {
+
+    res.status(200).sendFile(path.join(__dirname, "public/signin.html"));
+
+});
+
+app.get("/signup", (req, res) => {
+
+    res.status(200).sendFile(path.join(__dirname, "public/signup.html"));
+
+});
 
 app.post("/signup", express.json(), async (req, res) => {
 
