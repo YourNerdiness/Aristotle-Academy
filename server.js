@@ -183,63 +183,6 @@ app.set("view engine", "ejs");
 
 app.use(express.static("assets"));
 
-app.get("/index", (req, res) => {
-
-    const pageName = "index"
-    const bodyPath = `pages/${pageName}.ejs`
-
-    res.status(200).render("main", { pageName, bodyPath });
-
-});
-
-app.get("/learn", (req, res) => {
-
-    res.status(200).sendFile(path.join(__dirname, "public/learn.html"));
-
-});
-
-app.get("/account", (req, res) => {
-
-    if (!req.headers.auth) {
-
-        res.status(401).redirect("/signup")
-
-        return;
-
-    }
-
-    res.status(200).sendFile(path.join(__dirname, "public/account.html"));
-
-});
-
-app.get("/signin", (req, res) => {
-
-    if (req.headers.auth) {
-
-        res.status(409).redirect("/account")
-
-        return;
-
-    }
-
-    res.status(200).sendFile(path.join(__dirname, "public/signin.html"));
-
-});
-
-app.get("/signup", (req, res) => {
-
-    if (req.headers.auth) {
-
-        res.status(409).redirect("/account");
-
-        return;
-
-    }
-
-    res.status(200).sendFile(path.join(__dirname, "public/signup.html"));
-
-});
-
 app.post("/signup", express.json(), async (req, res) => {
 
     await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
