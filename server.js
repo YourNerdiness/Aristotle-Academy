@@ -119,6 +119,8 @@ const getToken = async (token) => {
 
 const getTokenMiddleware = async (req, res, next) => {
 
+    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
+
     const token = req.cookies.jwt ? (await getToken(req.cookies.jwt)) : null;
 
     req.headers.auth = token;
@@ -184,8 +186,6 @@ app.set("view engine", "ejs");
 app.use(express.static("assets"));
 
 app.post("/signup", express.json(), async (req, res) => {
-
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     if (req.headers.auth) {
 
@@ -254,8 +254,6 @@ app.post("/signin", express.json(), async (req, res) => {
 
     }
 
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
-
     const data = req.body;
 
     if (!data) {
@@ -316,8 +314,6 @@ app.post("/signin", express.json(), async (req, res) => {
 });
 
 app.get("/checkIfPaidFor", express.json(), async (req, res) => {
-
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const token = req.headers.auth;
 
@@ -382,8 +378,6 @@ app.get("/checkIfPaidFor", express.json(), async (req, res) => {
 
 app.get("/getCourseData", express.json(), async (req, res) => {
 
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
-
     const data = req.headers;
 
     const token = req.headers.auth;
@@ -438,8 +432,6 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 });
 
 app.get("/video", express.json(), async (req, res) => {
-
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const token = req.headers.auth;
 
@@ -554,8 +546,6 @@ app.get("/video", express.json(), async (req, res) => {
 });
 
 app.post("/buyContent", express.json(), async (req, res) => {
-
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
 
     const username = req.body.username;
     const password = req.body.password;
