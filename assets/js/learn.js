@@ -85,15 +85,11 @@ const generateCourseElems = () => {
 
         let shouldFilter = true;
 
-        console.log(elemTags, filterTags);
-
         for (let j = 0; j < filterTags.length; j++) {
 
             shouldFilter = shouldFilter && (elemTags.indexOf(filterTags[j]) == -1);
 
         }
-
-        console.log(shouldFilter);
 
         if (!shouldFilter) {
 
