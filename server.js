@@ -17,6 +17,45 @@ let courseDescriptions;
 let courseTags;
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
+const pageRedirectCallbacks = {
+
+    account : async (req, res) => {
+
+        if (!req.headers.auth) {
+
+            res.status(401).redirect("/signup");
+
+            return true;
+
+        }
+
+    },
+
+    signin : async (req, res) => {
+
+        if (req.headers.auth) {
+
+            res.status(409).redirect("/account");
+
+            return true;
+
+        }
+
+    },
+
+    signup : async (req, res) => {
+
+        if (req.headers.auth) {
+
+            res.status(409).redirect("/account");
+
+            return true;
+
+        }
+
+    }
+
+};
 
 const filterChildProperties = (obj, property) => {
 
@@ -137,14 +176,26 @@ const indexRouteMiddle = (req, res, next) => {
 
 };
 
-const ejsRenderMiddleware = (req, res, next) => {
+const ejsRenderMiddleware = async (req, res, next) => {
 
     if (req.method == "GET" && pageRoutes.includes(req.url)) {
 
         const pageName = req.url.substring(1);
         const bodyPath = `pages/${pageName}.ejs`
 
-        res.status(200).render("main", { pageName, bodyPath });
+        const redirect = pageRedirectCallbacks[pageName];
+
+        if (redirect) {
+
+            if (await redirect(req, res)) {
+
+                return;
+
+            }
+
+        }
+
+        res.status(200).render("main", { pageName, bodyPath, accountRoute : req.headers.auth ? "/account" : "/signup", accountText : req.headers.auth ? "Account" : "Signup" });
 
     }
 
@@ -189,7 +240,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
     if (req.headers.auth) {
 
-        res.status(409).redirect("/account");
+        res.status(409).send("You are already signed in.");
 
         return;
 
@@ -248,7 +299,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
     if (req.headers.auth) {
 
-        res.status(409).redirect("/account");
+        res.status(409).send("You are already signed in.");
 
         return;
 
