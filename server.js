@@ -1,6 +1,7 @@
 const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
 const database = require("./database");
+const ejs = require("ejs");
 const express = require("express");
 const fs = require("fs");
 const jwt = require("jsonwebtoken");
@@ -14,6 +15,8 @@ let courseData = {};
 let courseList = [];
 let courseDescriptions;
 let courseTags;
+
+const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
 
 const filterChildProperties = (obj, property) => {
 
@@ -124,6 +127,33 @@ const getTokenMiddleware = async (req, res, next) => {
 
 };
 
+const indexRouteMiddle = (req, res, next) => {
+
+    req.url = req.url == "/" ? "/index" : req.url;
+
+    next();
+
+};
+
+const ejsRenderMiddleware = (req, res, next) => {
+
+    if (req.method == "GET" && pageRoutes.includes(req.url)) {
+
+        const pageName = req.url.substring(1);
+        const bodyPath = `pages/${pageName}.ejs`
+
+        res.status(200).render("main", { pageName, bodyPath });
+
+    }
+
+    else {
+
+        next();
+
+    }
+
+};
+
 morgan.token("client-ip", (req) => {
 
     const header = req.headers["x-forwarded-for"];
@@ -145,12 +175,20 @@ const app = express();
 app.use(morgan(":date - :client-ip - :user-agent - :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
+app.use(indexRouteMiddle);
+app.use(ejsRenderMiddleware);
+
+app.set('views', './views');
+app.set("view engine", "ejs");
 
 app.use(express.static("assets"));
 
-app.get("/", (req, res) => {
+app.get("/index", (req, res) => {
 
-    res.status(200).sendFile(path.join(__dirname, "public/index.html"));
+    const pageName = "index"
+    const bodyPath = `pages/${pageName}.ejs`
+
+    res.status(200).render("main", { pageName, bodyPath });
 
 });
 
