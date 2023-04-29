@@ -32,7 +32,7 @@ const signup = async () => {
 
     if (res.ok) {
 
-        window.location.href = "./account";
+        window.location.reload();
 
     }
 

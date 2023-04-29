@@ -162,17 +162,41 @@ app.get("/learn", (req, res) => {
 
 app.get("/account", (req, res) => {
 
+    if (!req.headers.auth) {
+
+        res.status(401).redirect("/signup")
+
+        return;
+
+    }
+
     res.status(200).sendFile(path.join(__dirname, "public/account.html"));
 
 });
 
 app.get("/signin", (req, res) => {
 
+    if (req.headers.auth) {
+
+        res.status(409).redirect("/account")
+
+        return;
+
+    }
+
     res.status(200).sendFile(path.join(__dirname, "public/signin.html"));
 
 });
 
 app.get("/signup", (req, res) => {
+
+    if (req.headers.auth) {
+
+        res.status(409).redirect("/account");
+
+        return;
+
+    }
 
     res.status(200).sendFile(path.join(__dirname, "public/signup.html"));
 
@@ -184,12 +208,11 @@ app.post("/signup", express.json(), async (req, res) => {
 
     if (req.headers.auth) {
 
-        res.status(409).send("You are already signed in.");
+        res.status(409).redirect("/account");
 
         return;
 
     }
-
     const data = req.body;
 
     if (!data) {
@@ -244,7 +267,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
     if (req.headers.auth) {
 
-        res.status(409).send("You are already signed in.");
+        res.status(409).redirect("/account");
 
         return;
 
@@ -308,14 +331,6 @@ app.post("/signin", express.json(), async (req, res) => {
         }
 
     }
-
-});
-
-app.get("/checkIfSignedIn", express.json(), async (req, res) => {
-
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
-
-    res.status(200).json({ "loggedIn": !!req.headers.auth });
 
 });
 
@@ -426,8 +441,6 @@ app.get("/getCourseData", express.json(), async (req, res) => {
                 }
 
             }
-
-            console.log(filteredCourseList);
 
             res.status(200).json({ courseList: filteredCourseList, courseDescriptions, courseTags });
 
