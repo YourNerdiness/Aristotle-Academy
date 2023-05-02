@@ -24,7 +24,7 @@ a:hover, a:focus, a:active {
 
 }
 
-td > div {
+.display-container {
 
     background-color: lightgrey;
     
@@ -34,4 +34,16 @@ td > div {
     width: 300px;
     height: 400px;
     
+}
+
+.course-title {
+
+    width: 300px;
+
+    text-transform: none;
+
+    border-style: none;
+
+    color: black;
+
 }

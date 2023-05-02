@@ -135,7 +135,7 @@ const addNewUser = async (username, email, password) => {
         const userData = {
 
                             userID : encrypt(userID, "base64"),
-                            stripeCustomerID : encrypt(customer.id, "base64"), 
+                            stripeCustomerID : encrypt(customer.id, "utf-8"), 
                             username : encrypt(username, "utf-8"),
                             usernameHash : usernameHash,
                             email : encrypt(email, "utf-8"), 
@@ -246,9 +246,9 @@ const getCustomerID = async (username, password) => {
 
         const userData = result[0];
 
-        if (crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.hashedPassword, "base64"), "base64"))) {
+        if (crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
 
-            return decrypt(userData.stripeCustomerID, "base64");
+            return decrypt(userData.stripeCustomerID, "utf-8");
 
         }
 

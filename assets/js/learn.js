@@ -2,6 +2,42 @@ let courseList;
 let courseDescriptions;
 let courseTags;
 
+const redirectCallback = async (courseName) => {
+
+    const data = { courseName, password : prompt("Please re-enter your password: ") };
+
+    const req = {
+
+        method : "POST",
+
+        headers : {
+
+            "Content-Type" : "application/json"
+
+        },
+
+        body : JSON.stringify(data)
+
+    };
+
+    const res = await fetch("/learnRedirect", req);
+
+    if (res.status == 418) {
+
+        document.getElementById("error").textContent = await res.text();
+
+        redirectCallback(courseName);
+
+    }
+
+    else if (res.status == 200) {
+
+        window.location.href = (await res.json()).url;
+
+    }
+
+};
+
 const getFilterTags = () => {
 
     const filterElems = Array.from(document.getElementsByClassName("filterElems"));
@@ -110,9 +146,12 @@ const generateCourseElems = () => {
             const tableData = document.createElement("td");
 
             const div = document.createElement("div");
-            const link = document.createElement("a");
+            const btn = document.createElement("button");
 
-            link.href = "http://localhost/course/" + encodeURIComponent(filteredCourseList[j]) + "/info.html";
+            div.className = "display-container";
+            btn.className = "course-title"
+
+            btn.addEventListener("click", () => { redirectCallback(filteredCourseList[j]) });
 
             const title = document.createElement("h4");
             const description = document.createElement("h5");
@@ -120,9 +159,9 @@ const generateCourseElems = () => {
             title.textContent = filteredCourseList[j];
             description.textContent = courseDescriptions[filteredCourseList[j]];
 
-            link.appendChild(title);
+            btn.appendChild(title);
 
-            div.appendChild(link);
+            div.appendChild(btn);
             div.appendChild(description);
 
             tableData.appendChild(div);

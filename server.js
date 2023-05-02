@@ -1,4 +1,5 @@
 const cookieParser = require("cookie-parser");
+const cors = require('cors');
 const crypto = require("crypto");
 const database = require("./database");
 const ejs = require("ejs");
@@ -130,7 +131,7 @@ const getToken = async (token) => {
 
         const encryptedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-        const decryptedToken = { username: decrypt(encryptedToken.username, "utf-8"), userID: decrypt(encryptedToken.userID, "base64") }
+        const decryptedToken = { username : decrypt(encryptedToken.username, "utf-8"), userID : decrypt(encryptedToken.userID, "base64") }
 
         if (!(await database.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
 
@@ -225,6 +226,7 @@ const stripeAPI = stripe(process.env.STRIPE_SK);
 
 const app = express();
 
+app.use(cors({ origin : true }))
 app.use(morgan(":date - :client-ip - :user-agent - :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
@@ -342,7 +344,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         if (!userID) {
 
-            res.status(403).send("Incorrect username or password.");
+            res.status(401).send("Incorrect username or password.");
 
             return;
 
@@ -364,64 +366,72 @@ app.post("/signin", express.json(), async (req, res) => {
 
 });
 
-app.get("/checkIfPaidFor", express.json(), async (req, res) => {
+app.post("/learnRedirect", express.json(), async (req, res) => {
+
+    const courseName = req.body.courseName;
+    const password = req.body.password;
+
+    if (!courseName || !password) {
+
+        res.status(400).send("Missing request data.");
+
+        return;
+
+    }
+
+    if (!courseList.includes(courseName)) {
+
+        res.send(404).send("Course does not exist.");
+
+        return;
+
+    }
 
     const token = req.headers.auth;
 
-    if (!token) {
+    if (!req.headers.auth) {
 
-        res.status(401).send("Not signed in.");
+        res.status(401).redirect("/signup");
+
+    }
+
+    const paidFor = await database.checkIfPaidFor(courseName, token.username);
+
+    if (paidFor) {
+
+        res.status(200).redirect(`/course/${courseName}`);
 
     }
 
     else {
 
-        const username = token.username;
-        const userID = token.userID;
+        const customerID = await database.getCustomerID(token.username, password);
 
-        if (!username || !userID) {
+        if (!customerID) {
 
-            res.status(401).send("Not signed in.");
+            res.status(403).send("Password was incorrect, please try again.");
 
             return;
 
         }
 
-        const courseName = req.headers.courseName;
+        const session = await stripeAPI.checkout.sessions.create({
 
-        if (!courseName) {
+            customer: customerID,
 
-            res.status(400).send("No course name provided.");
+            success_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}`,
+            cancel_url: process.env.DOMAIN_NAME + "/learn",
 
-        }
+            currency: "aud",
+            mode: "subscription",
+            payment_method_types: ["card"],
 
-        else {
+            line_items: [{ price : process.env.STRIPE_SUBSCRIPTION_PRICE_ID, quantity : 1 }]
 
-            if (courseList.indexOf(courseName) == -1) {
 
-                res.status(404).send("Content does not exist.");
+        });
 
-            }
-
-            else {
-
-                try {
-
-                    paidFor = (await database.checkIfPaidFor(courseName, username, userID)).toString();
-
-                } catch (error) {
-
-                    res.status(500).send(error.toString());
-
-                    return;
-
-                }
-
-                res.status(200).json({ paidFor });
-
-            }
-
-        }
+        res.status(200).json({ url : session.url });
 
     }
 
@@ -494,30 +504,19 @@ app.get("/video", express.json(), async (req, res) => {
 
     else {
 
-        const username = token.username;
-        const userID = token.userID;
+        if (!courseList.includes(req.query.courseName)) {
 
-        if (!username || !userID) {
-
-            res.status(401).send("You are not signed in, please sign in to access your course.");
+            res.status(404).send("Course does not exist.");
 
             return;
 
         }
 
-        if (!req.query.courseName) {
-
-            res.status(400).send("Missing course name.");
-
-            return;
-
-        }
-
-        let lessonPaidFor;
+        let coursePaidFor;
 
         try {
 
-            lessonPaidFor = await database.checkIfPaidFor(req.query.courseName, username, userID);
+            coursePaidFor = await database.checkIfPaidFor(req.query.courseName, username, userID);
 
         } catch (error) {
 
@@ -527,9 +526,9 @@ app.get("/video", express.json(), async (req, res) => {
 
         }
 
-        if (!lessonPaidFor) {
+        if (!coursePaidFor) {
 
-            res.send(401).send("You have not paid for this course.");
+            res.send(403).send("You have not paid for this course.");
 
             return;
 
