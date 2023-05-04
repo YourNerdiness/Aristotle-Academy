@@ -24,18 +24,6 @@ a:hover, a:focus, a:active {
 
 }
 
-.display-container {
-
-    background-color: lightgrey;
-    
-    border-color: black;
-    border-style: solid;
-    
-    width: 300px;
-    height: 400px;
-    
-}
-
 .course-title {
 
     width: 300px;
