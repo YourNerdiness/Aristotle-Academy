@@ -18,15 +18,3 @@ img {
     max-height: 100%;
 
 }
-
-#benefits > div {
-
-    background-color: lightgrey;
-
-    border-color: black;
-    border-style: solid;
-
-    width: 300px;
-    height: 400px;
-
-}
