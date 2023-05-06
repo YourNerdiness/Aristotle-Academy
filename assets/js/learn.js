@@ -4,7 +4,7 @@ let courseTags;
 
 const redirectCallback = async (courseName) => {
 
-    const data = { courseName, password : prompt("Please re-enter your password: ") };
+    const data = { courseName };
 
     const req = {
 
@@ -22,17 +22,15 @@ const redirectCallback = async (courseName) => {
 
     const res = await fetch("/learnRedirect", req);
 
-    if (res.status == 418) {
+    if (res.ok) {
 
-        document.getElementById("error").textContent = await res.text();
-
-        redirectCallback(courseName);
+        window.location.href = (await res.json()).url;
 
     }
 
-    else if (res.status == 200) {
+    else {
 
-        window.location.href = (await res.json()).url;
+        document.getElementById("error").textContent = await res.text();
 
     }
 
@@ -145,7 +143,7 @@ const generateCourseElems = () => {
 
             const tableData = document.createElement("td");
 
-            const div = document.createElement("div");
+            const div = document.createElement("section");
             const btn = document.createElement("button");
 
             div.className = "display-container";

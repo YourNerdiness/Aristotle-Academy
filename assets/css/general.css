@@ -26,6 +26,8 @@ nav > * {
 
 .display-container {
 
+    text-align: center;
+
     background-color: lightgrey;
     
     border-color: black;

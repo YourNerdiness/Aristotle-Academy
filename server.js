@@ -14,10 +14,13 @@ require("dotenv").config();
 
 let courseData = {};
 let courseList = [];
-let courseDescriptions;
-let courseTags;
+let courseDescriptions = {};
+let courseTags = {};
+
+let subIds = {};
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
+
 const pageRedirectCallbacks = {
 
     account : async (req, res) => {
@@ -29,6 +32,8 @@ const pageRedirectCallbacks = {
             return true;
 
         }
+
+        return false;
 
     },
 
@@ -42,6 +47,8 @@ const pageRedirectCallbacks = {
 
         }
 
+        return false;
+
     },
 
     signup : async (req, res) => {
@@ -51,6 +58,54 @@ const pageRedirectCallbacks = {
             res.status(409).redirect("/account");
 
             return true;
+
+        }
+
+        return false;
+
+    },
+
+    getPro : async (req, res) => {
+
+        const token = req.headers.auth;
+
+        if (token) {
+
+            if (!courseList.includes(req.query.courseName)) {
+
+                res.redirect("/learn");
+
+                return true;
+
+            }
+
+            if (await database.checkIfPaidFor(req.query.courseName, token.username)) {
+
+                res.redirect(`/course/${req.query.courseName}`)
+
+                return true;
+
+            }
+
+            return false;
+
+        }
+
+        return false;
+
+    }
+
+};
+
+const ejsVars = {
+
+    getPro : async (req, res) => {
+        
+        return {
+
+            coursePrice : "20",
+            monthlyPrice : "30",
+            yearlyPrice : "60",
 
         }
 
@@ -179,9 +234,11 @@ const indexRouteMiddle = (req, res, next) => {
 
 const ejsRenderMiddleware = async (req, res, next) => {
 
-    if (req.method == "GET" && pageRoutes.includes(req.url)) {
+    const route = req.url.split("?")[0];
 
-        const pageName = req.url.substring(1);
+    if (req.method == "GET" && pageRoutes.includes(route)) {
+
+        const pageName = route.substring(1);
         const bodyPath = `pages/${pageName}.ejs`
 
         const redirect = pageRedirectCallbacks[pageName];
@@ -196,7 +253,24 @@ const ejsRenderMiddleware = async (req, res, next) => {
 
         }
 
-        res.status(200).render("main", { pageName, bodyPath, accountRoute : req.headers.auth ? "/account" : "/signup", accountText : req.headers.auth ? "Account" : "Signup" });
+        let pageVars = {};
+
+        const pageVarFunc = ejsVars[pageName];
+
+        if (pageVarFunc) {
+
+            pageVars = await pageVarFunc(req, res)
+
+        }
+
+        let accountVars = {
+            
+            accountRoute : req.headers.auth ? "/account" : "/signup", 
+            accountText : req.headers.auth ? "Account" : "Signup"
+    
+        };
+
+        res.status(200).render("main", Object.assign({ pageName, bodyPath }, accountVars, pageVars));
 
     }
 
@@ -225,6 +299,34 @@ morgan.token("client-ip", (req) => {
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
 const app = express();
+
+app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+
+    let event = req.body;
+
+    const sig = req.headers["stripe-signature"];
+
+    try {
+
+        event = stripeAPI.webhooks.constructEvent(event, sig, process.env.STRIPE_WEBHOOK_SIGNING);
+
+    } catch (error) {
+
+        console.log(error)
+
+        res.status(400).send(error);
+
+        return;
+
+    }
+
+    const paymentIntent = await stripeAPI.paymentIntents.retrieve(event.data.object.id);
+
+    console.log(paymentIntent);
+
+    res.status(200).end();
+
+});
 
 app.use(cors({ origin : true }))
 app.use(morgan(":date - :client-ip - :user-agent - :url"));
@@ -258,6 +360,7 @@ app.post("/signup", express.json(), async (req, res) => {
     }
 
     const username = data.username;
+    console.log(247);
     const email = data.email;
     const password = data.password;
 
@@ -369,9 +472,8 @@ app.post("/signin", express.json(), async (req, res) => {
 app.post("/learnRedirect", express.json(), async (req, res) => {
 
     const courseName = req.body.courseName;
-    const password = req.body.password;
 
-    if (!courseName || !password) {
+    if (!courseName) {
 
         res.status(400).send("Missing request data.");
 
@@ -391,7 +493,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
     if (!req.headers.auth) {
 
-        res.status(401).redirect("/signup");
+        res.status(200).redirect("/signup");
 
     }
 
@@ -399,41 +501,131 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
     if (paidFor) {
 
-        res.status(200).redirect(`/course/${courseName}`);
+        res.status(200).json({ json : `/course/${courseName}`});
 
     }
 
     else {
 
-        const customerID = await database.getCustomerID(token.username, password);
-
-        if (!customerID) {
-
-            res.status(403).send("Password was incorrect, please try again.");
-
-            return;
-
-        }
-
-        const session = await stripeAPI.checkout.sessions.create({
-
-            customer: customerID,
-
-            success_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}`,
-            cancel_url: process.env.DOMAIN_NAME + "/learn",
-
-            currency: "aud",
-            mode: "subscription",
-            payment_method_types: ["card"],
-
-            line_items: [{ price : process.env.STRIPE_SUBSCRIPTION_PRICE_ID, quantity : 1 }]
-
-
-        });
-
-        res.status(200).json({ url : session.url });
+        res.status(200).json({ url : `/getPro?courseName=${encodeURIComponent(courseName)}`})
 
     }
+
+});
+
+app.post("/buyRedirect", express.json(), async (req, res) => {
+
+    const item = req.body.item;
+    const password = req.body.password;
+
+    const token = req.headers.auth;
+
+    if (!item || !password) {
+
+        res.status(400).send("Missing request data.");
+
+        return;
+
+    }
+
+    if (!token) {
+
+        res.status(401).send("Please sign in before purchasing a course.");
+
+        return;
+
+    }
+
+    const paidFor = await database.checkIfPaidFor(item, token.username);
+
+    if (paidFor) {
+
+        res.status(409).send("You have already paid for this course.");
+
+    }
+
+    const customerID = await database.getCustomerID(token.username, password);
+
+    let session;
+
+    switch (item) {
+
+        case "monthly-sub":
+            
+            session = await stripeAPI.checkout.sessions.create({
+
+                customer: customerID,
+
+                success_url: process.env.DOMAIN_NAME + "/learn",
+                cancel_url: process.env.DOMAIN_NAME + "/learn",
+
+                currency: "aud",
+                mode: "subscription",
+                payment_method_types: ["card"],
+
+                line_items: [{ price: subIds.monthly, quantity: 1 }]
+
+
+            });
+
+
+            break;
+    
+        case "yearly-sub":
+
+            session = await stripeAPI.checkout.sessions.create({
+
+                customer: customerID,
+
+                success_url: process.env.DOMAIN_NAME + "/learn",
+                cancel_url: process.env.DOMAIN_NAME + "/learn",
+
+                currency: "aud",
+                mode: "subscription",
+                payment_method_types: ["card"],
+
+                line_items: [{ price: subIds.yearly, quantity: 1 }]
+
+
+            });
+
+            break;
+
+        default:
+
+            if (courseList.includes(item)) {
+
+                session = await stripeAPI.checkout.sessions.create({
+
+                    customer: customerID,
+    
+                    success_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(item)}`,
+                    cancel_url: process.env.DOMAIN_NAME + "/learn",
+    
+                    currency: "aud",
+                    mode: "payment",
+                    payment_method_types: ["card"],
+    
+                    line_items: [{ price: courseData[item].stripe_price_id, quantity: 1 }]
+    
+    
+                });
+
+            }
+
+            else {
+
+                res.status(404).send("Course does not exist.");
+
+                return;
+
+            }
+
+            break;
+
+    }
+
+    res.status(200).json({ url : session.url });
 
 });
 
@@ -684,28 +876,6 @@ app.post("/buyContent", express.json(), async (req, res) => {
 
 });
 
-app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-
-    let event = req.body;
-
-    const sig = req.headers["stripe-signature"];
-
-    try {
-
-        event = stripe.webhooks.constructEvent(event, sig, process.env.STRIPE_WEBHOOK_SIGNING);
-
-    } catch (error) {
-
-        res.status(400).send(error);
-
-        return;
-
-    }
-
-    res.status(200).send();
-
-});
-
 app.listen(process.env.PORT || 3000, async () => {
 
     console.log("task 1/2 : initializing database");
@@ -728,6 +898,8 @@ app.listen(process.env.PORT || 3000, async () => {
     courseList = Object.keys(courseData);
     courseDescriptions = filterChildProperties(courseData, "description");
     courseTags = filterChildProperties(courseData, "tags");
+
+    subIds = JSON.parse(fs.readFileSync("sub_ids.json"));
 
     console.log("task 2/2 : course data loaded");
 
