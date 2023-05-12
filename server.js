@@ -68,10 +68,12 @@ const pageRedirectCallbacks = {
     getPro : async (req, res) => {
 
         const token = req.headers.auth;
+        
+        const courseName = req.query.courseName;
 
         if (token) {
 
-            if (!courseList.includes(req.query.courseName)) {
+            if (!courseList.includes(courseName)) {
 
                 res.redirect("/learn");
 
@@ -79,9 +81,9 @@ const pageRedirectCallbacks = {
 
             }
 
-            if (await database.checkIfPaidFor(req.query.courseName, token.username)) {
+            if (await database.checkIfPaidFor(token.userID, courseName)) {
 
-                res.redirect(`/course/${req.query.courseName}`)
+                res.redirect(`/course/${courseName}`)
 
                 return true;
 
@@ -174,7 +176,7 @@ const generateToken = async (username, userID) => {
 
     const jwtID = crypto.randomBytes(Number(process.env.JWT_ID_SIZE)).toString("base64");
 
-    await database.saveJWTId(username, jwtID);
+    await database.saveJWTId(userID, jwtID);
 
     return jwt.sign({ username: encrypt(username, "utf-8"), userID: encrypt(userID, "base64"), jwtID: encrypt(jwtID, "base64") }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
 
@@ -194,7 +196,7 @@ const getToken = async (token) => {
 
         }
 
-        if (!(await database.verifyJWTId(decryptedToken.username, decrypt(encryptedToken.jwtID, "base64")))) {
+        if (!(await database.verifyJWTId(decryptedToken.userID, decrypt(encryptedToken.jwtID, "base64")))) {
 
             return null;
 
@@ -312,19 +314,39 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
     } catch (error) {
 
-        console.log(error)
-
         res.status(400).send(error);
 
         return;
 
     }
 
-    const paymentIntent = await stripeAPI.paymentIntents.retrieve(event.data.object.id);
+    switch (event.type) {
 
-    console.log(paymentIntent);
+        case "checkout.session.completed":
 
-    res.status(200).end();
+            if (event.data.object.mode == "subscription") {
+
+                return;
+
+            }
+
+            console.log(event)
+
+            res.status(200).end();
+
+            break;
+
+        case "customer.subscription.created":
+
+            const subId = event.data.object.id;
+
+            console.log(subId);
+
+            res.status(200).end();
+
+            break;
+
+    }
 
 });
 
@@ -360,7 +382,6 @@ app.post("/signup", express.json(), async (req, res) => {
     }
 
     const username = data.username;
-    console.log(247);
     const email = data.email;
     const password = data.password;
 
@@ -497,11 +518,11 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
     }
 
-    const paidFor = await database.checkIfPaidFor(courseName, token.username);
+    const paidFor = await database.checkIfPaidFor(token.userID, courseName);
 
     if (paidFor) {
 
-        res.status(200).json({ json : `/course/${courseName}`});
+        res.status(200).json({ url : `/course/${encodeURIComponent(courseName)}`});
 
     }
 
@@ -520,9 +541,25 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     const token = req.headers.auth;
 
-    if (!item || !password) {
+    if (!item || password === undefined) {
 
         res.status(400).send("Missing request data.");
+
+        return;
+
+    }
+
+    if (!password) {
+
+        res.status(400).send("Please enter your password.");
+        
+        return;
+
+    }
+
+    if (!(await database.getUserID(token.username, password))) {
+
+        res.status(401).send("Incorrect password.");
 
         return;
 
@@ -536,7 +573,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     }
 
-    const paidFor = await database.checkIfPaidFor(item, token.username);
+    const paidFor = await database.checkIfPaidFor(token.userID, item);
 
     if (paidFor) {
 
@@ -544,7 +581,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     }
 
-    const customerID = await database.getCustomerID(token.username, password);
+    const customerID = await database.getCustomerID(token.userID, password);
 
     let session;
 
@@ -554,16 +591,22 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
             
             session = await stripeAPI.checkout.sessions.create({
 
-                customer: customerID,
+                metadata : {
 
-                success_url: process.env.DOMAIN_NAME + "/learn",
-                cancel_url: process.env.DOMAIN_NAME + "/learn",
+                    item
+                    
+                },
 
-                currency: "aud",
-                mode: "subscription",
-                payment_method_types: ["card"],
+                customer : customerID,
 
-                line_items: [{ price: subIds.monthly, quantity: 1 }]
+                success_url : process.env.DOMAIN_NAME + "/learn",
+                cancel_url : process.env.DOMAIN_NAME + "/learn",
+
+                currency:  "aud",
+                mode : "subscription",
+                payment_method_types : ["card"],
+
+                line_items : [{ price : subIds.monthly, quantity : 1 }]
 
 
             });
@@ -575,16 +618,22 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
             session = await stripeAPI.checkout.sessions.create({
 
-                customer: customerID,
+                metadata : {
 
-                success_url: process.env.DOMAIN_NAME + "/learn",
-                cancel_url: process.env.DOMAIN_NAME + "/learn",
+                    item
+                    
+                },
 
-                currency: "aud",
-                mode: "subscription",
-                payment_method_types: ["card"],
+                customer : customerID,
 
-                line_items: [{ price: subIds.yearly, quantity: 1 }]
+                success_url : process.env.DOMAIN_NAME + "/learn",
+                cancel_url : process.env.DOMAIN_NAME + "/learn",
+
+                currency : "aud",
+                mode : "subscription",
+                payment_method_types : ["card"],
+
+                line_items : [{ price : subIds.yearly, quantity : 1 }]
 
 
             });
@@ -597,16 +646,22 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
                 session = await stripeAPI.checkout.sessions.create({
 
-                    customer: customerID,
+                    metadata : {
+
+                        item
+                        
+                    },
+
+                    customer : customerID,
     
-                    success_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(item)}`,
-                    cancel_url: process.env.DOMAIN_NAME + "/learn",
+                    success_url : process.env.DOMAIN_NAME + `/course/${encodeURIComponent(item)}`,
+                    cancel_url : process.env.DOMAIN_NAME + "/learn",
     
-                    currency: "aud",
-                    mode: "payment",
-                    payment_method_types: ["card"],
+                    currency : "aud",
+                    mode : "payment",
+                    payment_method_types : ["card"],
     
-                    line_items: [{ price: courseData[item].stripe_price_id, quantity: 1 }]
+                    line_items : [{ price : courseData[item].stripe_price_id, quantity : 1 }]
     
     
                 });
@@ -625,7 +680,11 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     }
 
-    res.status(200).json({ url : session.url });
+    if (session.url) {
+
+        res.status(200).json({ url : session.url });
+
+    }
 
 });
 
@@ -654,7 +713,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
                 try {
 
-                    if ((await database.checkIfPaidFor(courseList[i], username, userID))) {
+                    if ((await database.checkIfPaidFor(userID, courseList[i]))) {
 
                         filteredCourseList.push(courseList[i])
 
@@ -696,7 +755,9 @@ app.get("/video", express.json(), async (req, res) => {
 
     else {
 
-        if (!courseList.includes(req.query.courseName)) {
+        const courseName = req.query.courseName;
+
+        if (!courseList.includes(courseName)) {
 
             res.status(404).send("Course does not exist.");
 
@@ -708,7 +769,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         try {
 
-            coursePaidFor = await database.checkIfPaidFor(req.query.courseName, username, userID);
+            coursePaidFor = await database.checkIfPaidFor(userID, courseName);
 
         } catch (error) {
 
@@ -736,7 +797,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         else {
 
-            const filePath = "./videos/" + req.query.name + req.query.index + ".mp4";
+            const filePath = ""; // TODO
 
             if (!fs.existsSync(filePath)) {
 
@@ -778,95 +839,6 @@ app.get("/video", express.json(), async (req, res) => {
                 const videoStream = fs.createReadStream(filePath, { start, end });
 
                 videoStream.pipe(res);
-
-            }
-
-        }
-
-    }
-
-});
-
-app.post("/buyContent", express.json(), async (req, res) => {
-
-    const username = req.body.username;
-    const password = req.body.password;
-
-    let customerID;
-
-    try {
-
-        customerID = await database.getCustomerID(username, password);
-
-    } catch (error) {
-
-        res.status(500).send(error.toString());
-
-        return;
-
-    }
-
-    if (!customerID) {
-
-        res.status(401).send("Incorrect Password.");
-
-    }
-
-    else {
-
-        const courseName = req.query.name;
-
-        if (!courseName) {
-
-            res.send(400).send("Missing lesson data.");
-
-        }
-
-        else {
-
-            if (courseList.indexOf(courseName) == -1) {
-
-                res.status(404).send("Content does not exist.");
-
-            }
-
-            else {
-
-                try {
-
-                    const session = await stripeAPI.checkout.sessions.create({
-
-                        payment_intent_data: {
-
-                            metadata: {
-
-                                courseName
-
-                            }
-
-                        },
-
-                        customer: customerID,
-
-                        success_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/content.html`,
-                        cancel_url: process.env.DOMAIN_NAME + `/course/${encodeURIComponent(courseName)}/info.html`,
-
-                        currency: "aud",
-                        mode: "payment",
-                        payment_method_types: ["card"],
-
-                        line_items: [{ price: courseData[courseName].stripe_price_id, quantity: 1 }]
-
-                    });
-
-                    res.status(200).json({ URL: session.url });
-
-                } catch (error) {
-
-                    res.status(500).send(error.toString());
-
-
-                }
 
             }
 

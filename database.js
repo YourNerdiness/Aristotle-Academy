@@ -15,28 +15,12 @@ const client = new MongoClient(mongodbURI, { useNewUrlParser: true, useUnifiedTo
 let db;
 
 let users;
-let courses;
+let payments;
 let jwts;
 
 let courseData;
 let courseNames;
-
-const init = async () => {
-
-    await client.connect();
-
-    db = client.db(process.env.MONGODB_DB_NAME);
-
-    users = db.collection("users");
-    courses = db.collection("courses");
-    jwts = db.collection("jwts");
-
-    jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: ms(process.env.JWT_EXPIRES)/1000 });
-
-    courseData = JSON.parse(fs.readFileSync("course_data.json")); 
-    courseNames = Object.keys(courseData);
-
-};
+let defaultCoursePaymentData;
 
 const hash = (data, encoding) => {
 
@@ -76,6 +60,32 @@ const decrypt = (encryptionData, encoding) => {
     const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
 
     return output;
+
+};
+
+const init = async () => {
+
+    await client.connect();
+
+    db = client.db(process.env.MONGODB_DB_NAME);
+
+    users = db.collection("users");
+    payments = db.collection("payments");
+    jwts = db.collection("jwts");
+
+    jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: ms(process.env.JWT_EXPIRES)/1000 });
+
+    courseData = JSON.parse(fs.readFileSync("course_data.json")); 
+    courseNames = Object.keys(courseData);
+    defaultCoursePaymentData = {};
+
+    for (const courseName in courseNames) {
+
+        defaultCoursePaymentData[courseName] = false;
+
+    }
+
+    defaultCoursePaymentData = encrypt(JSON.stringify(defaultCoursePaymentData), "utf-8");
 
 };
 
@@ -127,6 +137,7 @@ const addNewUser = async (username, email, password) => {
         const userID = crypto.randomBytes(256).toString("base64");
 
         const usernameHash = hash(username, "utf-8").digest("base64"); 
+        const userIDHash = hash(userID, "base64").digest("base64");
 
         const passwordSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
 
@@ -137,26 +148,25 @@ const addNewUser = async (username, email, password) => {
                             userID : encrypt(userID, "base64"),
                             stripeCustomerID : encrypt(customer.id, "utf-8"), 
                             username : encrypt(username, "utf-8"),
-                            usernameHash : usernameHash,
                             email : encrypt(email, "utf-8"), 
                             passwordHash : encrypt(passwordDigest, "base64"),
-                            passwordSalt : encrypt(passwordSalt, "base64")
+                            passwordSalt : encrypt(passwordSalt, "base64"),
+                            usernameHash,
+                            userIDHash
 
                         };
 
         await users.insertOne(userData);
 
-        const userCourseData = { usernameHash, courses : {} };
+        const paymentData = { 
+        
+            userIDHash, 
+            sub_id : null, 
+            courses : defaultCoursePaymentData 
+        
+        };
 
-        for (let i = 0; i < courseNames.length; i++) {
-
-            userCourseData.courses[courseNames[i]] = { paidFor : false, lessonData : null };
-
-        }
-
-        userCourseData.courses = encrypt(JSON.stringify(userCourseData.courses), "utf-8");
-
-        await courses.insertOne( userCourseData );
+        await courses.insertOne( paymentData );
 
         return userID;
 
@@ -226,9 +236,9 @@ const getUserID = async (username, password) => {
 
 };
 
-const getCustomerID = async (username, password) => {
+const getCustomerID = async (userID, password) => {
 
-    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+    const result = await users.find({ userIDHash : hash(userID, "utf-8").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -262,9 +272,9 @@ const getCustomerID = async (username, password) => {
 
 }
 
-const checkIfPaidFor = async (courseName, username) => {
+const checkIfPaidFor = async (userID, courseName) => {
 
-    const result = await courses.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+    const result = await courses.find({ userIDHash : hash(userID, "utf-8").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -274,7 +284,7 @@ const checkIfPaidFor = async (courseName, username) => {
 
     else if (result.length > 1) {
 
-        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+        throw new Error("Multiple users with the same userID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
@@ -288,9 +298,9 @@ const checkIfPaidFor = async (courseName, username) => {
 
 };
 
-const saveJWTId = async (username, jwtID) => {
+const saveJWTId = async (userID, jwtID) => {
 
-    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+    const result = await users.find({ userIDHash : hash(userID, "utf-8").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -308,7 +318,7 @@ const saveJWTId = async (username, jwtID) => {
 
         const obj = {};
 
-        obj[hash(username, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
+        obj[hash(userID, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
 
         await jwts.insertOne(obj);
 
@@ -316,11 +326,11 @@ const saveJWTId = async (username, jwtID) => {
 
 };
 
-const verifyJWTId = async (username, jwtID) => {
+const verifyJWTId = async (userID, jwtID) => {
 
     const obj = {};
 
-    obj[hash(username, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
+    obj[hash(userID, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
 
     const result = await jwts.find(obj).toArray();
 
