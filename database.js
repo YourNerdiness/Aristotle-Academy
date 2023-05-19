@@ -238,7 +238,7 @@ const getUserID = async (username, password) => {
 
 const getCustomerID = async (userID, password) => {
 
-    const result = await users.find({ userIDHash : hash(userID, "utf-8").digest("base64") }).toArray();
+    const result = await users.find({ userIDHash : hash(userID, "base64").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -274,7 +274,7 @@ const getCustomerID = async (userID, password) => {
 
 const checkIfPaidFor = async (userID, courseName) => {
 
-    const result = await courses.find({ userIDHash : hash(userID, "utf-8").digest("base64") }).toArray();
+    const result = await courses.find({ userIDHash : hash(userID, "base64").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -300,7 +300,9 @@ const checkIfPaidFor = async (userID, courseName) => {
 
 const saveJWTId = async (userID, jwtID) => {
 
-    const result = await users.find({ userIDHash : hash(userID, "utf-8").digest("base64") }).toArray();
+    const userIDHash = hash(userID, "base64").digest("base64");
+
+    const result = await users.find({ userIDHash }).toArray();
 
     if (result.length == 0) {
 
@@ -316,11 +318,9 @@ const saveJWTId = async (userID, jwtID) => {
 
     else {
 
-        const obj = {};
+        const jwtIDHash = hash(jwtID, "base64").digest("base64");
 
-        obj[hash(userID, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
-
-        await jwts.insertOne(obj);
+        await jwts.insertOne({ userIDHash, jwtIDHash });
 
     }
 
@@ -328,11 +328,10 @@ const saveJWTId = async (userID, jwtID) => {
 
 const verifyJWTId = async (userID, jwtID) => {
 
-    const obj = {};
+    const userIDHash = hash(userID, "base64").digest("base64");
+    const jwtIDHash = hash(jwtID, "base64").digest("base64");
 
-    obj[hash(userID, "utf-8").digest("base64")] = hash(jwtID, "base64").digest("base64");
-
-    const result = await jwts.find(obj).toArray();
+    const result = await jwts.find({ userIDHash, jwtIDHash }).toArray();
 
     if (result.length == 0) {
 

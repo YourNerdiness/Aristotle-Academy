@@ -557,7 +557,9 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     }
 
-    if (!(await database.getUserID(token.username, password))) {
+    const testUserID = await database.getUserID(token.username, password)
+
+    if (!testUserID || !(crypto.timingSafeEqual(Buffer.from(testUserID, "base64"), Buffer.from(token.userID, "base64")))) {
 
         res.status(401).send("Incorrect password.");
 
@@ -704,7 +706,6 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
         if (data.filter == "true") {
 
-            const username = token.username;
             const userID = token.userID;
 
             const filteredCourseList = [];
@@ -769,7 +770,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         try {
 
-            coursePaidFor = await database.checkIfPaidFor(userID, courseName);
+            coursePaidFor = await database.checkIfPaidFor(token.userID, courseName);
 
         } catch (error) {
 
