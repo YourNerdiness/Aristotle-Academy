@@ -166,9 +166,35 @@ const addNewUser = async (username, email, password) => {
         
         };
 
-        await courses.insertOne( paymentData );
+        await payments.insertOne( paymentData );
 
         return userID;
+
+    }
+
+};
+
+const verifyPassword = async (username, password) => {
+
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+
+    if (result.length == 0) {
+
+        return false;
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        const userData = result[0];
+
+        return crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"));
 
     }
 
@@ -194,13 +220,13 @@ const verifyUserID = async (username, userID) => {
 
         const userData = result[0];
 
-        return crypto.timingSafeEqual(Buffer.from(userID, "base64"), Buffer.from(decrypt(userData.userID, "base64"), "base64"))
+        return crypto.timingSafeEqual(Buffer.from(hash(userID, "base64").digest("base64"), "base64"), Buffer.from(userData.userIDHash, "base64"))
 
     }
 
 }
 
-const getUserID = async (username, password) => {
+const getUserID = async (username) => {
 
     const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
 
@@ -220,17 +246,7 @@ const getUserID = async (username, password) => {
 
         const userData = result[0];
 
-        if (crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"))) {
-
-            return decrypt(userData.userID, "base64");
-
-        }
-
-        else {
-
-            return null;
-
-        }
+        return 
 
     }
 
@@ -272,9 +288,11 @@ const getCustomerID = async (userID, password) => {
 
 }
 
+const addCoursePayment = async (userID, courseName) => {};
+
 const checkIfPaidFor = async (userID, courseName) => {
 
-    const result = await courses.find({ userIDHash : hash(userID, "base64").digest("base64") }).toArray();
+    const result = await payments.find({ userIDHash : hash(userID, "base64").digest("base64") }).toArray();
 
     if (result.length == 0) {
 
@@ -357,6 +375,7 @@ module.exports = {
 
     init,
     addNewUser,
+    verifyPassword,
     verifyUserID,
     getUserID,
     getCustomerID,
