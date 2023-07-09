@@ -4,6 +4,12 @@ html {
 
 }
 
+#title {
+
+    font-size: 64px;
+
+}
+
 a {
 
     color: inherit;
