@@ -7,7 +7,6 @@ const express = require("express");
 const fs = require("fs");
 const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
-const ms = require("ms");
 const stripe = require("stripe");
 const path = require("path");
 require("dotenv").config();
@@ -324,25 +323,28 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
         case "checkout.session.completed":
 
+            res.status(200).json(event);
+
             if (event.data.object.mode == "subscription") {
 
                 return;
 
             }
 
-            console.log(event)
+            const sessionData = await database.getCheckoutSession(event.data.object.metadata.sessionID);
 
-            res.status(200).end();
+            await database.addCoursePayment(sessionData.userID, sessionData.item)
 
             break;
 
         case "customer.subscription.created":
 
-            const subId = event.data.object.id;
+            res.status(200).json(event);
 
-            console.log(subId);
+            const customerID = event.data.object.customer;
+            const subID = event.data.object.id;
 
-            res.status(200).end();
+            await database.updateSubID(customerID, subID)
 
             break;
 
@@ -409,7 +411,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
     try {
 
-        res.status(201).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: ms(process.env.JWT_EXPIRES) }).send("Signed Up Succesfully");
+        res.status(201).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).send("Signed Up Succesfully");
 
     }
 
@@ -476,7 +478,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         try {
 
-            res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: ms(process.env.JWT_EXPIRES) }).send("Signed In Succesfully");
+            res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).send("Signed In Succesfully");
 
         }
 
@@ -492,6 +494,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
 app.post("/learnRedirect", express.json(), async (req, res) => {
 
+    const token = req.headers.auth;
     const courseName = req.body.courseName;
 
     if (!courseName) {
@@ -510,14 +513,11 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
     }
 
-    const token = req.headers.auth;
+    if (!token) {
 
-    if (!req.headers.auth) {
-
-        res.status(200).redirect("/signup");
+        res.status(200).json({ url : `/getPro?courseName=${encodeURIComponent(courseName)}`})
 
     }
-
     const paidFor = await database.checkIfPaidFor(token.userID, courseName);
 
     if (paidFor) {
@@ -541,6 +541,14 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     const token = req.headers.auth;
 
+    if (!token) {
+
+        res.status(401).send("Please sign in before purchasing a course.");
+
+        return;
+
+    }
+
     if (!item || password === undefined) {
 
         res.status(400).send("Missing request data.");
@@ -557,19 +565,9 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     }
 
-    const testUserID = await database.getUserID(token.username, password)
-
-    if (!testUserID || !(crypto.timingSafeEqual(Buffer.from(testUserID, "base64"), Buffer.from(token.userID, "base64")))) {
+    if (!(await database.verifyPassword(token.username, password))) {
 
         res.status(401).send("Incorrect password.");
-
-        return;
-
-    }
-
-    if (!token) {
-
-        res.status(401).send("Please sign in before purchasing a course.");
 
         return;
 
@@ -585,60 +583,19 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     const customerID = await database.getCustomerID(token.userID, password);
 
-    let session;
+    let line_items;
 
     switch (item) {
 
         case "monthly-sub":
-            
-            session = await stripeAPI.checkout.sessions.create({
 
-                metadata : {
-
-                    item
-                    
-                },
-
-                customer : customerID,
-
-                success_url : process.env.DOMAIN_NAME + "/learn",
-                cancel_url : process.env.DOMAIN_NAME + "/learn",
-
-                currency:  "aud",
-                mode : "subscription",
-                payment_method_types : ["card"],
-
-                line_items : [{ price : subIds.monthly, quantity : 1 }]
-
-
-            });
-
+            line_items = [{ price : subIds.monthly, quantity : 1 }];
 
             break;
     
         case "yearly-sub":
 
-            session = await stripeAPI.checkout.sessions.create({
-
-                metadata : {
-
-                    item
-                    
-                },
-
-                customer : customerID,
-
-                success_url : process.env.DOMAIN_NAME + "/learn",
-                cancel_url : process.env.DOMAIN_NAME + "/learn",
-
-                currency : "aud",
-                mode : "subscription",
-                payment_method_types : ["card"],
-
-                line_items : [{ price : subIds.yearly, quantity : 1 }]
-
-
-            });
+            line_items = [{ price : subIds.yearly, quantity : 1 }]
 
             break;
 
@@ -646,27 +603,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
             if (courseList.includes(item)) {
 
-                session = await stripeAPI.checkout.sessions.create({
-
-                    metadata : {
-
-                        item
-                        
-                    },
-
-                    customer : customerID,
-    
-                    success_url : process.env.DOMAIN_NAME + `/course/${encodeURIComponent(item)}`,
-                    cancel_url : process.env.DOMAIN_NAME + "/learn",
-    
-                    currency : "aud",
-                    mode : "payment",
-                    payment_method_types : ["card"],
-    
-                    line_items : [{ price : courseData[item].stripe_price_id, quantity : 1 }]
-    
-    
-                });
+                line_items = [{ price : courseData[item].stripe_price_id, quantity : 1 }]
 
             }
 
@@ -681,12 +618,33 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
             break;
 
     }
+    const sessionID = crypto.randomBytes(256).toString("base64")
 
-    if (session.url) {
+    await database.createCheckoutSession(sessionID, token.userID, customerID, item)
 
-        res.status(200).json({ url : session.url });
+    const session = await stripeAPI.checkout.sessions.create({
 
-    }
+        metadata : {
+
+            sessionID
+            
+        },
+
+        customer : customerID,
+
+        success_url : process.env.DOMAIN_NAME + "/learn",
+        cancel_url : process.env.DOMAIN_NAME + "/learn",
+
+        currency : "aud",
+        mode : item.slice(-3) == "sub" ? "subscription" : "payment",
+        payment_method_types : ["card"],
+
+        line_items
+
+
+    });
+
+    res.status(200).json({ url : session.url });
 
 });
 

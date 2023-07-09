@@ -2,7 +2,6 @@ const crypto = require("crypto");
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const stripe = require("stripe");
 const fs = require("fs");
-const ms = require("ms");
 
 require("dotenv").config();
 
@@ -17,10 +16,10 @@ let db;
 let users;
 let payments;
 let jwts;
+let checkoutSessions;
 
 let courseData;
 let courseNames;
-let defaultCoursePaymentData;
 
 const hash = (data, encoding) => {
 
@@ -72,20 +71,13 @@ const init = async () => {
     users = db.collection("users");
     payments = db.collection("payments");
     jwts = db.collection("jwts");
+    checkoutSessions = db.collection("checkout-sessions");
 
-    jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: ms(process.env.JWT_EXPIRES)/1000 });
+    jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.JWT_EXPIRES_MS)/1000 });
+    checkoutSessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.CHECKOUT_SESSION_TIMEOUT_MS)/1000 });
 
     courseData = JSON.parse(fs.readFileSync("course_data.json")); 
     courseNames = Object.keys(courseData);
-    defaultCoursePaymentData = {};
-
-    for (const courseName in courseNames) {
-
-        defaultCoursePaymentData[courseName] = false;
-
-    }
-
-    defaultCoursePaymentData = encrypt(JSON.stringify(defaultCoursePaymentData), "utf-8");
 
 };
 
@@ -138,6 +130,7 @@ const addNewUser = async (username, email, password) => {
 
         const usernameHash = hash(username, "utf-8").digest("base64"); 
         const userIDHash = hash(userID, "base64").digest("base64");
+        const stripeCustomerIDHash = hash(customer.id, "utf-8").digest("base64");
 
         const passwordSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
 
@@ -145,27 +138,28 @@ const addNewUser = async (username, email, password) => {
 
         const userData = {
 
-                            userID : encrypt(userID, "base64"),
-                            stripeCustomerID : encrypt(customer.id, "utf-8"), 
-                            username : encrypt(username, "utf-8"),
-                            email : encrypt(email, "utf-8"), 
-                            passwordHash : encrypt(passwordDigest, "base64"),
-                            passwordSalt : encrypt(passwordSalt, "base64"),
-                            usernameHash,
-                            userIDHash
+            userID: encrypt(userID, "base64"),
+            stripeCustomerID: encrypt(customer.id, "utf-8"),
+            username: encrypt(username, "utf-8"),
+            email: encrypt(email, "utf-8"),
+            passwordHash: encrypt(passwordDigest, "base64"),
+            passwordSalt: encrypt(passwordSalt, "base64"),
+            usernameHash,
+            userIDHash,
 
-                        };
+        };
 
-        await users.insertOne(userData);
 
         const paymentData = { 
         
-            userIDHash, 
-            sub_id : null, 
-            courses : defaultCoursePaymentData 
+            userIDHash,
+            stripeCustomerIDHash,
+            subID : null, 
+            courses : null
         
         };
 
+        await users.insertOne(userData);
         await payments.insertOne( paymentData );
 
         return userID;
@@ -288,7 +282,136 @@ const getCustomerID = async (userID, password) => {
 
 }
 
-const addCoursePayment = async (userID, courseName) => {};
+const createCheckoutSession = async (sessionID, userID, item) => {
+
+    const result = await users.find({ userIDHash : hash(userID, "base64").digest("base64") }).toArray();
+
+    if (result.length == 0) {
+
+        throw new Error("userID does not exist.");
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple users with the same userID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        checkoutSessions.insertOne({ sessionIDHash : hash(sessionID, "base64").digest("base64"), userID : encrypt(userID, "base64"), item : encrypt(item, "utf-8") });    
+
+    }
+
+};
+
+const getCheckoutSession = async (sessionID) => {
+
+    const result = await checkoutSessions.find({ sessionIDHash : hash(sessionID, "base64").digest("base64") })
+
+    if (result.length == 0) {
+
+        throw new Error("Session does not exist or has timed out.");
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple sessions with the same sessionID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        const userID = decrypt(result[0].userID, "base64");
+        const item = decrypt(result[0].item, "utf-8");
+
+        return { userID, item };
+
+    }
+
+};
+
+const deleteCheckoutSession = async (sessionID) => {
+
+    const result = await checkoutSessions.find({ sessionIDHash : hash(sessionID, "base64").digest("base64") })
+
+    if (result.length == 0) {
+
+        throw new Error("Session does not exist or has timed out.");
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple sessions with the same sessionID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        await checkoutSessions.deleteOne(result[0])
+
+    }
+
+};
+
+const addCoursePayment = async (userID, courseName) => {
+
+    const result = await payments.find({ userIDHash : hash(userID, "base64").digest("base64") }).toArray();
+
+    if (result.length == 0) {
+
+        // TODO : refund payment if userID is not found in payments database
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple users with the same userID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        if (courseNames.includes(item)) {
+
+            let courseData = result[0].courses ? result[0].courses : {};
+            
+            courseData[courseName] = true;
+
+            await payments.updateOne({ userIDHash : hash(userID, "base64").digest("base64") }, { $set : { courses :  courseData } })
+
+        }
+
+    }
+
+};
+
+const updateSubID = async (customerID, newSubID) => {
+
+    const result = await payments.find({ stripeCustomerIDHash : hash(customerID, "utf-8").digest("base64") }).toArray();
+
+    if (result.length == 0) {
+
+        // TODO : refund payment if userID is not found in payments database
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple users with the same userID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        await payments.updateOne({ stripeCustomerIDHash : hash(customerID, "utf-8").digest("base64")  }, { $set : { subID : newSubID } });
+
+    }
+
+};
 
 const checkIfPaidFor = async (userID, courseName) => {
 
@@ -308,9 +431,23 @@ const checkIfPaidFor = async (userID, courseName) => {
 
     else {
 
-        const courseData = JSON.parse(decrypt(result[0].courses, "utf-8"));
+        const paymentData = result[0];
 
-        return (!!(courseData[courseName])) && courseData[courseName].paidFor;
+        if (paymentData.subID) {
+
+            const subscription = await stripeAPI.subscriptions.retrieve(paymentData.subID);
+
+            if (subscription.status == "active") {
+         
+                return true;
+    
+            }
+
+        }
+
+        const courseData = paymentData.courses;
+
+        return courseData && courseData[courseName];
 
     }
 
@@ -379,6 +516,11 @@ module.exports = {
     verifyUserID,
     getUserID,
     getCustomerID,
+    createCheckoutSession,
+    getCheckoutSession,
+    deleteCheckoutSession,
+    addCoursePayment,
+    updateSubID,
     checkIfPaidFor,
     saveJWTId,
     verifyJWTId
