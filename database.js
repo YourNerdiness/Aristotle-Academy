@@ -194,58 +194,6 @@ const verifyPassword = async (username, password) => {
 
 };
 
-const verifyUserID = async (username, userID) => {
-
-    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
-
-    if (result.length == 0) {
-
-        return false;
-
-    }
-
-    else if (result.length > 1) {
-
-        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
-
-    }
-
-    else {
-
-        const userData = result[0];
-
-        return crypto.timingSafeEqual(Buffer.from(hash(userID, "base64").digest("base64"), "base64"), Buffer.from(userData.userIDHash, "base64"))
-
-    }
-
-}
-
-const getUserID = async (username) => {
-
-    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
-
-    if (result.length == 0) {
-
-        return undefined;
-
-    }
-
-    else if (result.length > 1) {
-
-        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
-
-    }
-
-    else {
-
-        const userData = result[0];
-
-        return 
-
-    }
-
-};
-
 const getCustomerID = async (userID, password) => {
 
     const result = await users.find({ userIDHash : hash(userID, "base64").digest("base64") }).toArray();
@@ -281,6 +229,81 @@ const getCustomerID = async (userID, password) => {
     }
 
 }
+
+const deleteUser = async (username, userID, password) => {
+
+    if (await verifyPassword(username, password)) {
+
+        const userIDHash = hash(userID, "base64").digest("base64");
+        const customerID = await getCustomerID(userID, password);
+
+        await stripeAPI.customers.del(customerID);
+
+        users.deleteOne({ userIDHash });
+        payments.deleteOne({ userIDHash });
+        jwts.deleteMany({ userIDHash });
+
+    }
+    
+    else {
+
+        throw new Error("Incorrect password.");
+
+    }
+
+}
+
+const verifyUserID = async (username, userID) => {
+
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+
+    if (result.length == 0) {
+
+        return false;
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        const userData = result[0];
+
+        return crypto.timingSafeEqual(Buffer.from(hash(userID, "base64").digest("base64"), "base64"), Buffer.from(userData.userIDHash, "base64"));
+
+    }
+
+}
+
+const getUserID = async (username) => {
+
+    const result = await users.find({ usernameHash : hash(username, "utf-8").digest("base64") }).toArray();
+
+    if (result.length == 0) {
+
+        return undefined;
+
+    }
+
+    else if (result.length > 1) {
+
+        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+
+    }
+
+    else {
+
+        const userData = result[0];
+
+        return 
+
+    }
+
+};
 
 const createCheckoutSession = async (sessionID, userID, item) => {
 
@@ -512,6 +535,7 @@ module.exports = {
 
     init,
     addNewUser,
+    deleteUser,
     verifyPassword,
     verifyUserID,
     getUserID,
