@@ -2,8 +2,6 @@ $(document).ready(function () {
 
     const courseName = new URLSearchParams(window.location.search).get("courseName");
 
-    $("#course-btn").text($("#course-btn").text() + courseName + " course");
-
     $(".checkout-btn").click((event) => {
 
         let item;

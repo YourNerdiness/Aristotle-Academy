@@ -107,6 +107,7 @@ const ejsVars = {
             coursePrice : "20",
             monthlyPrice : "30",
             yearlyPrice : "60",
+            courseName : req.query.courseName
 
         }
 
@@ -517,7 +518,10 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         res.status(200).json({ url : `/getPro?courseName=${encodeURIComponent(courseName)}`})
 
+        return;
+
     }
+
     const paidFor = await database.checkIfPaidFor(token.userID, courseName);
 
     if (paidFor) {
