@@ -493,6 +493,44 @@ app.post("/signin", express.json(), async (req, res) => {
 
 });
 
+app.post("/deleteAccount", express.json(), async (req, res) => {
+
+    const token = req.headers.auth;
+    const password = req.body.password
+
+    if (!token) {
+
+        res.status(401).send("Please sign in before deleting your account.")
+
+        return;
+
+    }
+
+    if (!password) {
+
+        res.status(400).send("Please enter your password to delete your account.")
+
+        return;
+
+    }
+
+    const username = token.username;
+    const userID = token.userID;
+
+    try {
+
+        await database.deleteUser(username, userID, password);
+
+    } catch (error) {
+
+        res.status(500).send(error.toString())
+
+    }
+
+    res.status(200).clearCookie("jwt").end();
+
+});
+
 app.post("/learnRedirect", express.json(), async (req, res) => {
 
     const token = req.headers.auth;
@@ -624,7 +662,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
     }
     const sessionID = crypto.randomBytes(256).toString("base64")
 
-    await database.createCheckoutSession(sessionID, token.userID, customerID, item)
+    await database.createCheckoutSession(sessionID, token.userID, item)
 
     const session = await stripeAPI.checkout.sessions.create({
 

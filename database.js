@@ -239,9 +239,9 @@ const deleteUser = async (username, userID, password) => {
 
         await stripeAPI.customers.del(customerID);
 
-        users.deleteOne({ userIDHash });
-        payments.deleteOne({ userIDHash });
-        jwts.deleteMany({ userIDHash });
+        await users.deleteOne({ userIDHash });
+        await payments.deleteOne({ userIDHash });
+        await jwts.deleteMany({ userIDHash });
 
     }
     
@@ -331,7 +331,7 @@ const createCheckoutSession = async (sessionID, userID, item) => {
 
 const getCheckoutSession = async (sessionID) => {
 
-    const result = await checkoutSessions.find({ sessionIDHash : hash(sessionID, "base64").digest("base64") })
+    const result = await checkoutSessions.find({ sessionIDHash : hash(sessionID, "base64").digest("base64") }).toArray()
 
     if (result.length == 0) {
 
@@ -398,7 +398,7 @@ const addCoursePayment = async (userID, courseName) => {
 
     else {
 
-        if (courseNames.includes(item)) {
+        if (courseNames.includes(courseName)) {
 
             let courseData = result[0].courses ? result[0].courses : {};
             
