@@ -21,6 +21,17 @@ let checkoutSessions;
 let courseData;
 let courseNames;
 
+const propertyEncodings = {
+
+    userID : "base64",
+    stripeCustomerID : "utf-8",
+    username : "utf-8",
+    email : "utf-8",
+    passwordHash : "base64",
+    passwordSalt : "base64"
+
+}
+
 const hash = (data, encoding) => {
 
     return crypto.createHash(process.env.HASHING_ALGORITHM).update(data, encoding);
@@ -193,6 +204,38 @@ const verifyPassword = async (username, password) => {
     }
 
 };
+
+const getUserInfoByUserID = async (query, queryPropertyName, resultPropertyName) => {
+
+    const results = await users.find({ [queryPropertyName] : hash(query, "base64").digest("base64") }).toArray();
+
+    if (results.length == 0) {
+
+        return undefined;
+
+    }
+
+    else if (results.length > 1) {
+
+        throw new Error(`Multiple users with the same ${queryPropertyName} exist.`);
+
+    }
+
+    else {
+
+        const userData = results[0];
+
+        if (userData[resultPropertyName] === undefined) {
+
+            return undefined;
+
+        }
+
+        return decrypt(userData[resultPropertyName], propertyEncodings[resultPropertyName]);
+
+    }
+
+}
 
 const getCustomerID = async (userID, password) => {
 
@@ -547,6 +590,7 @@ module.exports = {
     updateSubID,
     checkIfPaidFor,
     saveJWTId,
-    verifyJWTId
+    verifyJWTId,
+    getUserInfoByUserID
 
 };

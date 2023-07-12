@@ -111,6 +111,35 @@ const ejsVars = {
 
         }
 
+    },
+
+    account : async (req, res) => {
+
+        let username;
+        let email;
+
+        const token = req.headers.auth;
+
+        if (!token) {
+
+            username = email = "Please sign in to view you account info.";
+
+        }
+
+        else {
+
+            username = token.username;
+            email = await database.getUserInfoByUserID(token.userID, "userIDHash", "email")
+
+        }
+
+        return {
+
+            username,
+            email
+
+        }
+
     }
 
 };
