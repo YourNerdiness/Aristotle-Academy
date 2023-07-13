@@ -129,7 +129,7 @@ const ejsVars = {
         else {
 
             username = token.username;
-            email = await database.getUserInfoByUserID(token.userID, "userIDHash", "email")
+            email = await database.getUserInfo(token.userID, "userIDHash", "email")
 
         }
 
@@ -221,6 +221,8 @@ const getToken = async (token) => {
 
         if (!(await database.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
 
+            console.log("Username JWT check failed.");
+            
             return null;
 
         }
@@ -557,6 +559,56 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
     }
 
     res.status(200).clearCookie("jwt").end();
+
+});
+
+app.post("/changeUserDetails", express.json(), async (req, res) => {
+
+    const token = req.headers.auth;
+    const data = req.body;
+
+    console.log(token);
+    console.log(data)
+
+    if (!token) {
+
+        res.status(401).send(`Please sign in to change your ${data.toChangePropertyName}`);
+
+        return;
+
+    }
+
+    if (!data.toChangeValue || !data.toChangePropertyName) {
+
+        res.status(400).send("Missing request parameters.");
+
+        return;
+
+    }
+
+    try { 
+        
+        await database.changeUserInfo(token.userID, "userIDHash", data.toChangeValue, data.toChangePropertyName)
+
+    }
+
+    catch (error) {
+
+        res.status(500).send(error.toString());
+
+        return;
+
+    }
+
+    if (data.toChangePropertyName == "username") {
+
+        res.status(200).cookie("jwt", await generateToken(data.toChangeValue, token.userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite : true }).end();
+
+        return;
+
+    }
+
+    res.status(200).end();
 
 });
 

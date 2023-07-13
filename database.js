@@ -205,9 +205,9 @@ const verifyPassword = async (username, password) => {
 
 };
 
-const getUserInfoByUserID = async (query, queryPropertyName, resultPropertyName) => {
+const getUserInfo = async (query, queryPropertyName, resultPropertyName) => {
 
-    const results = await users.find({ [queryPropertyName] : hash(query, "base64").digest("base64") }).toArray();
+    const results = await users.find({ [queryPropertyName] : hash(query, propertyEncodings[queryPropertyName] || "base64").digest("base64") }).toArray();
 
     if (results.length == 0) {
 
@@ -232,6 +232,58 @@ const getUserInfoByUserID = async (query, queryPropertyName, resultPropertyName)
         }
 
         return decrypt(userData[resultPropertyName], propertyEncodings[resultPropertyName]);
+
+    }
+
+}
+
+const changeUserInfo = async (query, queryPropertyName, toChangeValue, toChangePropertyName) => {
+
+    const results = await users.find({ [queryPropertyName] : hash(query, propertyEncodings[queryPropertyName] || "base64").digest("base64") }).toArray();
+
+    if (results.length == 0) {
+
+        throw new Error("Cannot find user to modify data.")
+
+    }
+
+    else if (results.length > 1) {
+
+        throw new Error(`Multiple users with the same ${queryPropertyName} exist.`);
+
+    }
+
+    else {
+
+        const userData = results[0];
+
+        if (userData[toChangePropertyName] === undefined) {
+
+            throw new Error(`${toChangePropertyName} does not exist so it cannot be changed.`);
+
+        }
+
+        let processedToChangeValue = toChangeValue;
+
+        if (toChangePropertyName == "passwordHash") {
+
+            processedToChangeValue = passwordHash(toChangeValue + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64).toString("base64");
+
+        }
+
+        if (toChangePropertyName == "username") {
+
+            if((await users.find({ usernaeHash : hash(query, "utf-8").digest("base64") }).toArray().length) > 1) {
+
+                throw new Error("Username already exists.");
+
+            }
+
+            await users.updateOne({ [queryPropertyName] : hash(query, propertyEncodings[queryPropertyName] || "base64").digest("base64") }, { $set : { usernameHash : hash(toChangeValue, "utf-8").digest("base64") } })
+
+        }
+
+        await users.updateOne({ [queryPropertyName] : hash(query, propertyEncodings[queryPropertyName] || "base64").digest("base64") }, { $set : { [toChangePropertyName] : encrypt(processedToChangeValue, propertyEncodings[toChangePropertyName] || "utf-8") } })
 
     }
 
@@ -527,13 +579,13 @@ const saveJWTId = async (userID, jwtID) => {
 
     if (result.length == 0) {
 
-        throw "Username is invalid."
+        throw "userID is invalid."
 
     }
 
     else if (result.length > 1) {
 
-        throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+        throw new Error("Multiple users with the same userID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
 
     }
 
@@ -591,6 +643,7 @@ module.exports = {
     checkIfPaidFor,
     saveJWTId,
     verifyJWTId,
-    getUserInfoByUserID
+    getUserInfo,
+    changeUserInfo
 
 };
