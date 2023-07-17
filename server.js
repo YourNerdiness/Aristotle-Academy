@@ -11,13 +11,6 @@ const stripe = require("stripe");
 const path = require("path");
 require("dotenv").config();
 
-let courseData = {};
-let courseList = [];
-let courseDescriptions = {};
-let courseTags = {};
-
-let subIds = {};
-
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
 
 const pageRedirectCallbacks = {
@@ -80,7 +73,7 @@ const pageRedirectCallbacks = {
 
             }
 
-            if (await database.checkIfPaidFor(token.userID, courseName)) {
+            if (await database.payments.checkIfPaidFor(token.userID, courseName)) {
 
                 res.redirect(`/course/${courseName}`)
 
@@ -129,7 +122,7 @@ const ejsVars = {
         else {
 
             username = token.username;
-            email = await database.getUserInfo(token.userID, "userIDHash", "email")
+            email = await database.users.getUserInfo(token.userID, "userIDHash", "email")
 
         }
 
@@ -159,6 +152,12 @@ const filterChildProperties = (obj, property) => {
     return toReturn;
 
 };
+
+const courseData = JSON.parse(fs.readFileSync("course_data.json"));
+const courseList = Object.keys(courseData);
+const courseDescriptions = filterChildProperties(courseData, "description");
+const courseTags = filterChildProperties(courseData, "tags");
+const subIds = JSON.parse(fs.readFileSync("sub_ids.json"));
 
 const passwordHash = (password, salt, size) => {
 
@@ -205,7 +204,7 @@ const generateToken = async (username, userID) => {
 
     const jwtID = crypto.randomBytes(Number(process.env.JWT_ID_SIZE)).toString("base64");
 
-    await database.saveJWTId(userID, jwtID);
+    await database.authorization.saveJWTId(userID, jwtID);
 
     return jwt.sign({ username: encrypt(username, "utf-8"), userID: encrypt(userID, "base64"), jwtID: encrypt(jwtID, "base64") }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
 
@@ -219,7 +218,7 @@ const getToken = async (token) => {
 
         const decryptedToken = { username : decrypt(encryptedToken.username, "utf-8"), userID : decrypt(encryptedToken.userID, "base64") }
 
-        if (!(await database.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
+        if (!(await database.verification.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
 
             console.log("Username JWT check failed.");
             
@@ -227,7 +226,7 @@ const getToken = async (token) => {
 
         }
 
-        if (!(await database.verifyJWTId(decryptedToken.userID, decrypt(encryptedToken.jwtID, "base64")))) {
+        if (!(await database.authorization.verifyJWTId(decryptedToken.userID, decrypt(encryptedToken.jwtID, "base64")))) {
 
             return null;
 
@@ -317,6 +316,8 @@ const ejsRenderMiddleware = async (req, res, next) => {
 
 morgan.token("client-ip", (req) => {
 
+    // attempts to reveal original ip address when client using proxies
+
     const header = req.headers["x-forwarded-for"];
 
     if (header) {
@@ -325,7 +326,7 @@ morgan.token("client-ip", (req) => {
 
     }
 
-    return req.ip == "::1" ? "127.0.0.1" : req.ip;
+    return req.ip;
 
 });
 
@@ -335,50 +336,70 @@ const app = express();
 
 app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
 
-    let event = req.body;
-
-    const sig = req.headers["stripe-signature"];
-
     try {
 
-        event = stripeAPI.webhooks.constructEvent(event, sig, process.env.STRIPE_WEBHOOK_SIGNING);
+        let event = req.body;
 
-    } catch (error) {
+        const sig = req.headers["stripe-signature"];
 
-        res.status(400).send(error);
+        try {
 
-        return;
+            event = stripeAPI.webhooks.constructEvent(event, sig, process.env.STRIPE_WEBHOOK_SIGNING);
+
+        } 
+        
+        catch (error) {
+
+            console.log(error);
+
+            res.status(400).send(error);
+
+            return;
+
+        }
+
+        switch (event.type) {
+
+            case "checkout.session.completed":
+
+                if (event.data.object.mode == "subscription") {
+
+                    res.status(204).end();
+
+                    return;
+
+                }
+
+                const sessionID = event.data.object.metadata.sessionID;
+
+                res.status(200).json({ sessionID });
+
+                const sessionData = await database.payments.getCheckoutSession(sessionID);
+
+                await database.payments.addCoursePayment(sessionData.userID, sessionData.item)
+
+                break;
+
+            case "customer.subscription.created":
+
+                const customerID = event.data.object.customer;
+                const subID = event.data.object.id;
+
+                res.status(200).json({ customerID, subID });
+
+                await database.payments.updateSubID(customerID, subID)
+
+                break;
+
+        }
 
     }
 
-    switch (event.type) {
+    catch (error) {
 
-        case "checkout.session.completed":
+        console.log(error);
 
-            res.status(200).json(event);
-
-            if (event.data.object.mode == "subscription") {
-
-                return;
-
-            }
-
-            const sessionData = await database.getCheckoutSession(event.data.object.metadata.sessionID);
-
-            await database.addCoursePayment(sessionData.userID, sessionData.item)
-
-            break;
-
-        case "customer.subscription.created":
-
-            res.status(200).json(event);
-
-            const customerID = event.data.object.customer;
-            const subID = event.data.object.id;
-
-            await database.updateSubID(customerID, subID)
-
-            break;
+        res.status(500).json({ msg : error.toString() })
 
     }
 
@@ -431,7 +452,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
     try {
 
-        userID = await database.addNewUser(username, email, password);
+        userID = await database.users.addNewUser(username, email, password);
 
     } catch (error) {
 
@@ -490,7 +511,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         try {
 
-            userID = await database.getUserID(username, password);
+            userID = await database.users.getUserID(username, password);
 
         } catch (error) {
 
@@ -550,7 +571,7 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
     try {
 
-        await database.deleteUser(username, userID, password);
+        await database.users.deleteUser(username, userID, password);
 
     } catch (error) {
 
@@ -566,9 +587,6 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
 
     const token = req.headers.auth;
     const data = req.body;
-
-    console.log(token);
-    console.log(data)
 
     if (!token) {
 
@@ -588,7 +606,7 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
 
     try { 
         
-        await database.changeUserInfo(token.userID, "userIDHash", data.toChangeValue, data.toChangePropertyName)
+        await database.users.changeUserInfo(token.userID, "userIDHash", data.toChangeValue, data.toChangePropertyName)
 
     }
 
@@ -704,7 +722,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
     }
 
-    const customerID = await database.getCustomerID(token.userID, password);
+    const customerID = await database.users.getCustomerID(token.userID, password);
 
     let line_items;
 
@@ -743,7 +761,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
     }
     const sessionID = crypto.randomBytes(256).toString("base64")
 
-    await database.createCheckoutSession(sessionID, token.userID, item)
+    await database.payments.createCheckoutSession(sessionID, token.userID, item)
 
     const session = await stripeAPI.checkout.sessions.create({
 
@@ -795,7 +813,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
                 try {
 
-                    if ((await database.checkIfPaidFor(userID, courseList[i]))) {
+                    if ((await database.payments.checkIfPaidFor(userID, courseList[i]))) {
 
                         filteredCourseList.push(courseList[i])
 
@@ -851,7 +869,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         try {
 
-            coursePaidFor = await database.checkIfPaidFor(token.userID, courseName);
+            coursePaidFor = await database.payments.checkIfPaidFor(token.userID, courseName);
 
         } catch (error) {
 
@@ -930,35 +948,8 @@ app.get("/video", express.json(), async (req, res) => {
 
 });
 
-app.listen(process.env.PORT || 3000, async () => {
+app.listen(process.env.PORT || 3000, () => {
 
-    console.log("task 1/2 : initializing database");
-
-    const t1 = database.init();
-
-    t1.then(_ => {
-
-        console.log("task 1/2 : database initialization successful");
-
-    }).catch(error => {
-
-        console.log(`task 1/2 : ${error}`);
-
-    });
-
-    console.log("task 2/2 : loading course data");
-
-    courseData = JSON.parse(fs.readFileSync("course_data.json"));
-    courseList = Object.keys(courseData);
-    courseDescriptions = filterChildProperties(courseData, "description");
-    courseTags = filterChildProperties(courseData, "tags");
-
-    subIds = JSON.parse(fs.readFileSync("sub_ids.json"));
-
-    console.log("task 2/2 : course data loaded");
-
-    await t1;
-
-    console.log("tasks complete, listening on port " + process.env.PORT || 3000);
+    console.log(`listening on port ${process.env.PORT || 3000}`);
 
 });
