@@ -1,7 +1,7 @@
-const crypto = require("crypto");
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const stripe = require("stripe");
-const fs = require("fs");
+import crypto from "crypto"
+import { MongoClient, ServerApiVersion } from "mongodb"
+import stripe from "stripe"
+import fs from "fs"
 
 require("dotenv").config();
 
@@ -634,7 +634,7 @@ const payments = {
 
 };
 
-module.exports = {
+export default {
     
     users,
     authentication,

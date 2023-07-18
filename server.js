@@ -1,15 +1,17 @@
-const cookieParser = require("cookie-parser");
-const cors = require('cors');
-const crypto = require("crypto");
-const database = require("./database");
-const ejs = require("ejs");
-const express = require("express");
-const fs = require("fs");
-const jwt = require("jsonwebtoken");
-const morgan = require("morgan");
-const stripe = require("stripe");
-const path = require("path");
-require("dotenv").config();
+import cookieParser from "cookie-parser";
+import cors from "cors"
+import crypto from "crypto"
+import database from "./database"
+import dotenv from "dotenv"
+import ejs from "ejs"
+import express from "express";
+import fs from "fs"
+import jwt from "jsonwebtoken"
+import morgan from "morgan"
+import stripe from "stripe"
+import path from "path"
+
+dotenv.config();
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
 
