@@ -1,9 +1,10 @@
 import crypto from "crypto"
+import dotenv from "dotenv"
+import fs from "fs"
 import { MongoClient, ServerApiVersion } from "mongodb"
 import stripe from "stripe"
-import fs from "fs"
 
-require("dotenv").config();
+dotenv.config();
 
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
@@ -36,7 +37,7 @@ const propertyEncodings = {
     stripeCustomerID : "utf-8",
     username : "utf-8",
     email : "utf-8",
-    passwordHash : "base64",
+    passwordDigest : "base64",
     passwordSalt : "base64",
     subID : "utf-8",
     courses : "object" // passing object encoding to hash or encrypt functions just returns the original object without hashing or encrypting
@@ -219,21 +220,51 @@ const users = {
             await collections.users.insertOne(userDocument);
             await collections.payments.insertOne(paymentDocument);
 
-            return userID;
+            return allData.userID;
 
         }
 
     },
 
-    getUserInfo: async (query, queryPropertyName, resultPropertyName) => {
+    getUserInfo: async (query, queryPropertyName, resultPropertyNames=[]) => {
 
-        if (!indexProperties.includes(queryPropertyName) || !propertyEncodings[queryPropertyName]) {
+        if (!userIndexProperties.includes(queryPropertyName)) {
 
             throw new Error(`${queryPropertyName} does not exist in the user index`);
 
         }
 
-        const results = await collections.users.find({ [queryPropertyName]: hash(query, propertyEncodings[queryPropertyName]) }).toArray();
+        const nonexistantResultPropertyNames = resultPropertyNames.filter((resultPropertyName) => !userDataProperties.includes(resultPropertyName))
+
+        if (nonexistantResultPropertyNames.length > 0) {
+
+            throw new Error(`${nonexistantResultPropertyNames[0]} does not exist in the user data`)
+
+        }
+
+        if (!propertyEncodings[queryPropertyName]) {
+
+            throwError(`Encoding information missing for ${queryPropertyName}`)
+
+        }
+
+        const missingEncodingPropertyNames = resultPropertyNames.filter((resultPropertyName) => !(Object.keys(propertyEncodings)).includes(resultPropertyName));
+
+        if (missingEncodingPropertyNames.length > 0) {
+
+            throwError(`Encoding information missing for ${missingEncodingPropertyNames[0]}`);
+
+        }
+
+        const projection = resultPropertyNames.reduce((obj, resultPropertyName) => {
+
+            obj[resultPropertyName] = 1;
+            
+            return obj;
+
+        }, {}); 
+
+        const results = await collections.users.find({ [`index.${queryPropertyName}`]: hash(query, propertyEncodings[queryPropertyName]) }, { projection } ).toArray();
 
         if (results.length == 0) {
 
@@ -251,21 +282,22 @@ const users = {
 
             const userData = results[0];
 
-            if (userData[resultPropertyName] === undefined) {
+            const decryptedUserData = Object.keys(userData).reduce((obj, key) => { 
+                
+                obj[key] = decrypt(userData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`)) 
+            
+                return obj;
+                
+            }, {});
 
-                return undefined;
-
-            }
-
-            return decrypt(userData[resultPropertyName], propertyEncodings[resultPropertyName]);
-
+            return decryptedUserData;
         }
 
     },
 
     changeUserInfo: async (query, queryPropertyName, toChangeValue, toChangePropertyName) => {
 
-        const results = await collections.users.find({ [queryPropertyName]: hash(query, propertyEncodings[queryPropertyName] || "base64") }).toArray();
+        const results = await collections.users.find({ [`index.${queryPropertyName}`]: hash(query, propertyEncodings[queryPropertyName] || "base64") }).toArray();
 
         if (results.length == 0) {
 
