@@ -45,9 +45,11 @@ const propertyEncodings = {
 };
 
 const userDataProperties = ["userID", "stripeCustomerID", "username", "email", "passwordDigest", "passwordSalt"]
-const userIndexProperties = ["username", "email", "userID", "stripeCustomerID"];
+const userIndexProperties = ["username", "email", "userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
 const paymentDataProperties = ["subID", "courses"]
-const paymentIndexProperties = ["userID", "stripeCustomerID"];
+const paymentIndexProperties = ["userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
+
+const allProperties = Array.from(new Set([...userDataProperties, ...userIndexProperties, ...paymentDataProperties, ...paymentIndexProperties]))
 
 const hash = (content="", encoding) => {
 
@@ -145,7 +147,7 @@ const users = {
 
                     case "email_invalid":
 
-                        throw new Error("Please enter a valid email.");
+                        throwError("Please enter a valid email.");
 
                     default:
 
@@ -169,6 +171,18 @@ const users = {
                 courses : {}
 
             };
+
+            if (Object.keys(allData).reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || allProperties.includes(propertyName) }, false)) {
+
+                throwError("Unexpected property exists in allData.");
+
+            }
+
+            if (allProperties.reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || Object.keys(allData).includes(propertyName) }, false)) {
+
+                throwError("Missing property in allData.");
+
+            }
 
             const userData = Object.keys(allData).filter(key => userDataProperties.includes(key)).reduce((obj, key) => {
 
@@ -226,7 +240,7 @@ const users = {
 
     },
 
-    getUserInfo: async (query, queryPropertyName, resultPropertyNames=[]) => {
+    getUserInfo: async (query, queryPropertyName, resultPropertyNames) => {
 
         if (!userIndexProperties.includes(queryPropertyName)) {
 
@@ -258,7 +272,7 @@ const users = {
 
         const projection = resultPropertyNames.reduce((obj, resultPropertyName) => {
 
-            obj[resultPropertyName] = 1;
+            obj[`data.${resultPropertyName}`] = 1;
             
             return obj;
 
@@ -272,32 +286,32 @@ const users = {
 
         }
 
-        else if (results.length > 1) {
-
-            throw new Error(`Multiple users with the same ${queryPropertyName} exist.`);
-
-        }
-
         else {
 
-            const userData = results[0];
+            const usersData = results.map((userData) => {
 
-            const decryptedUserData = Object.keys(userData).reduce((obj, key) => { 
+                const decryptedUserData = Object.keys(userData.data).reduce((obj, key) => { 
                 
-                obj[key] = decrypt(userData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`)) 
+                    obj[key] = decrypt(userData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`)) 
+                
+                    return obj;
+                    
+                }, {});
+    
+                return decryptedUserData;
+
+            });
+
+            return usersData;
+
             
-                return obj;
-                
-            }, {});
-
-            return decryptedUserData;
         }
 
     },
 
     changeUserInfo: async (query, queryPropertyName, toChangeValue, toChangePropertyName) => {
 
-        const results = await collections.users.find({ [`index.${queryPropertyName}`]: hash(query, propertyEncodings[queryPropertyName] || "base64") }).toArray();
+        const results = await users.getUserInfo(query, queryPropertyName, ["userID"]);
 
         if (results.length == 0) {
 
@@ -307,33 +321,21 @@ const users = {
 
         else if (results.length > 1) {
 
-            throw new Error(`Multiple users with the same ${queryPropertyName} exist.`);
+            throwError(`Multiple users with the same ${queryPropertyName} exist, so please pass a different value to find the exact user.`);
 
         }
 
         else {
 
-            const userData = results[0];
+            const userData = results[0].userData;
 
-            if (userData[toChangePropertyName] === undefined) {
+            const userIDHash = hash(userData.userID, propertyEncodings["userID"]);
 
-                throw new Error(`${toChangePropertyName} does not exist so it cannot be changed.`);
+            if (userIndexProperties.includes(toChangePropertyName)) {
 
-            }
+                if ((await users.getUserInfo(toChangeValue, toChangePropertyName, ["userID"])).length > 0) {
 
-            let processedToChangeValue = toChangeValue;
-
-            if (toChangePropertyName == "passwordHash") {
-
-                processedToChangeValue = passwordHash(toChangeValue + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64).toString("base64");
-
-            }
-
-            if (toChangePropertyName == "username") {
-
-                if ((await users.find({ usernaeHash: hash(query, "utf-8") }).toArray().length) > 1) {
-
-                    throw new Error("Username already exists.");
+                    throwError(`The same ${toChangePropertyName} already has an account associated with it.`)
 
                 }
 
@@ -341,32 +343,45 @@ const users = {
 
             }
 
-            await users.updateOne({ [queryPropertyName]: hash(query, propertyEncodings[queryPropertyName] || "base64") }, { $set: { [toChangePropertyName]: encrypt(processedToChangeValue, propertyEncodings[toChangePropertyName] || "utf-8") } })
+            if (toChangePropertyName == "password") {
+
+                const passwordSalt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
+
+                const passwordDigest = passwordHash(toChangeValue + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64");
+
+                await users.updateOne({ "index.userID" : userIDHash }, { $set: { 
+
+                    passwordDigest : encrypt(passwordDigest, propertyEncodings["passwordDigest"]), 
+                    passwordSalt : encrypt(passwordSalt, propertyEncodings["passwordSalt"])
+
+                }});
+                
+                return;
+
+            }
+
+            await users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || "utf-8") } })
 
         }
 
     },
 
-    deleteUser : async (username, userID, password) => {
+    deleteUser : async (username, userID) => {
 
-        if (await verifyPassword(username, password)) {
+        if (!(await verification.verifyUserID(username, userID))) {
 
-            const userIDHash = hash(userID, "base64");
-            const customerID = await getCustomerID(userID, password);
+            throwError("Cannot verify userID with username.");
 
-            await stripeAPI.customers.del(customerID);
+        };
 
-            await collections.users.deleteOne({ userIDHash });
-            await collections.payments.deleteOne({ userIDHash });
-            await collections.jwts.deleteMany({ userIDHash });
+        const userIDHash = hash(userID, "base64");
+        const stripeCustomerID = await users.getUserInfo(userID, "userID", ["stripeCustomerID"]);
 
-        }
+        await stripeAPI.customers.del(stripeCustomerID);
 
-        else {
-
-            throw new Error("Incorrect password.");
-
-        }
+        await collections.users.deleteOne({ "inder.userID" : userID });
+        await collections.payments.deleteOne({ "index.userID" : userID });
+        await collections.jwts.deleteMany({ userIDHash });
 
     }
 
