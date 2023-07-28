@@ -114,129 +114,138 @@ const users = {
 
     addNewUser: async (username, email, password) => {
 
-        const results = await collections.users.find({ usernameHash: hash(username, "utf-8") }).toArray();
+        let userID = crypto.randomBytes(256).toString("base64");
 
-        if (results.length == 1) {
+        let userIDResults = await users.getUserInfo(userID, "userID", ["userID"]);
+        const usernameResults = (await users.getUserInfo(username, "username", ["userID"]));
+        const emailResults = (await users.getUserInfo(email, "email", ["userID"]));
+        
+        while (userIDResults.length > 0) {
 
-            throw new Error("Username is taken.");
+            userID = crypto.randomBytes(256).toString("base64");
+
+             userIDResults = await users.getUserInfo(userID, "userID", ["userID"]);
+
+        }
+
+        if (usernameResults.length > 0) {
+
+            throwError("Username is taken, maybe try signing in.");
 
         }
 
-        else if (results.length > 1) {
+        if (emailResults.length > 0) {
 
-            throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+            throwError("Email is already in use, maybe try signing in.");
+
+        }
+
+        let customer
+
+        try {
+
+            customer = await stripeAPI.customers.create({
+
+                name: username,
+                email
+
+            });
+
+        } catch (error) {
+
+            switch (error.raw.code) {
+
+                case "email_invalid":
+
+                    throwError("Please enter a valid email.");
+
+                default:
+
+                    throw error.raw.code;
+
+            }
 
         }
 
-        else {
+        const passwordSalt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
 
-            let customer
+        const allData = {
 
-            try {
+            userID,
+            stripeCustomerID: customer.id,
+            username,
+            email,
+            passwordDigest: passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
+            passwordSalt,
+            subID: undefined,
+            courses: {}
 
-                customer = await stripeAPI.customers.create({
+        };
 
-                    name: username,
-                    email
+        if (Object.keys(allData).reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || !allProperties.includes(propertyName) }, false)) {
 
-                });
-
-            } catch (error) {
-
-                switch (error.raw.code) {
-
-                    case "email_invalid":
-
-                        throwError("Please enter a valid email.");
-
-                    default:
-
-                        throw error.raw.code;
-
-                }
-
-            }
-
-            const passwordSalt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
-
-            const allData = {
-
-                userID : crypto.randomBytes(256).toString("base64"),
-                stripeCustomerID : customer.id,
-                username,
-                email,
-                passwordDigest : passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
-                passwordSalt,
-                subID : undefined,
-                courses : {}
-
-            };
-
-            if (Object.keys(allData).reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || allProperties.includes(propertyName) }, false)) {
-
-                throwError("Unexpected property exists in allData.");
-
-            }
-
-            if (allProperties.reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || Object.keys(allData).includes(propertyName) }, false)) {
-
-                throwError("Missing property in allData.");
-
-            }
-
-            const userData = Object.keys(allData).filter(key => userDataProperties.includes(key)).reduce((obj, key) => {
-
-                obj[key] = encrypt(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
-
-                return obj;
-
-            }, {});
-
-            const userIndex = Object.keys(allData).filter(key => userIndexProperties.includes(key)).reduce((obj, key) => {
-
-                obj[key] = hash(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
-
-                return obj;
-
-            }, {});
-
-            const paymentData = Object.keys(allData).filter(key => paymentDataProperties.includes(key)).reduce((obj, key) => {
-
-                obj[key] = encrypt(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
-
-                return obj;
-
-            }, {});
-
-            const paymentIndex = Object.keys(allData).filter(key => paymentIndexProperties.includes(key)).reduce((obj, key) => {
-
-                obj[key] = hash(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
-
-                return obj;
-
-            }, {});
-
-            const userDocument = {
-
-                userData,
-                userIndex
-
-            };
-
-
-            const paymentDocument = {
-
-                paymentData,
-                paymentIndex
-
-            };
-
-            await collections.users.insertOne(userDocument);
-            await collections.payments.insertOne(paymentDocument);
-
-            return allData.userID;
+            throwError("Unexpected property exists in allData.");
 
         }
+
+        if (allProperties.reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || !Object.keys(allData).includes(propertyName) }, false)) {
+
+            throwError("Missing property in allData.");
+
+        }
+
+        const userData = Object.keys(allData).filter(key => userDataProperties.includes(key)).reduce((obj, key) => {
+
+            obj[key] = encrypt(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+
+            return obj;
+
+        }, {});
+
+        const userIndex = Object.keys(allData).filter(key => userIndexProperties.includes(key)).reduce((obj, key) => {
+
+            obj[key] = hash(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+
+            return obj;
+
+        }, {});
+
+        const paymentData = Object.keys(allData).filter(key => paymentDataProperties.includes(key)).reduce((obj, key) => {
+
+            obj[key] = encrypt(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+
+            return obj;
+
+        }, {});
+
+        const paymentIndex = Object.keys(allData).filter(key => paymentIndexProperties.includes(key)).reduce((obj, key) => {
+
+            obj[key] = hash(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+
+            return obj;
+
+        }, {});
+
+        const userDocument = {
+
+            data : userData,
+            index : userIndex
+
+        };
+
+
+        const paymentDocument = {
+
+            data : paymentData,
+            index : paymentIndex
+
+        };
+
+        await collections.users.insertOne(userDocument);
+        await collections.payments.insertOne(paymentDocument);
+
+        return allData.userID;
+
 
     },
 
@@ -244,7 +253,7 @@ const users = {
 
         if (!userIndexProperties.includes(queryPropertyName)) {
 
-            throw new Error(`${queryPropertyName} does not exist in the user index`);
+            throwError(`${queryPropertyName} does not exist in the user index`);
 
         }
 
@@ -280,32 +289,21 @@ const users = {
 
         const results = await collections.users.find({ [`index.${queryPropertyName}`]: hash(query, propertyEncodings[queryPropertyName]) }, { projection } ).toArray();
 
-        if (results.length == 0) {
-
-            return undefined;
-
-        }
-
-        else {
-
-            const usersData = results.map((userData) => {
+        const usersData = results.map((userData) => {
 
                 const decryptedUserData = Object.keys(userData.data).reduce((obj, key) => { 
                 
-                    obj[key] = decrypt(userData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`)) 
+                        obj[key] = decrypt(userData.data[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`)) 
                 
-                    return obj;
+                        return obj;
                     
-                }, {});
+                    }, {});
     
                 return decryptedUserData;
 
             });
 
-            return usersData;
-
-            
-        }
+        return usersData;
 
     },
 
@@ -375,12 +373,12 @@ const users = {
         };
 
         const userIDHash = hash(userID, "base64");
-        const stripeCustomerID = await users.getUserInfo(userID, "userID", ["stripeCustomerID"]);
+        const stripeCustomerID = (await users.getUserInfo(userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
 
         await stripeAPI.customers.del(stripeCustomerID);
 
-        await collections.users.deleteOne({ "inder.userID" : userID });
-        await collections.payments.deleteOne({ "index.userID" : userID });
+        await collections.users.deleteOne({ "index.userID" : userIDHash });
+        await collections.payments.deleteOne({ "index.userID" : userIDHash });
         await collections.jwts.deleteMany({ userIDHash });
 
     }
@@ -391,25 +389,25 @@ const authentication = {
 
     verifyPassword: async (username, password) => {
 
-        const result = await collections.users.find({ usernameHash: hash(username, "utf-8") }).toArray();
+        const results = await users.getUserInfo(username, "username", ["passwordDigest", "passwordSalt"])
 
-        if (result.length == 0) {
+        if (results.length == 0) {
 
             return false;
 
         }
 
-        else if (result.length > 1) {
+        else if (results.length > 1) {
 
-            throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+            throwError("Multiple users with the same username exist.");
 
         }
 
         else {
 
-            const userData = result[0];
+            const userData = results[0];
 
-            return crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, decrypt(userData.passwordSalt, "base64"), 64), Buffer.from(decrypt(userData.passwordHash, "base64"), "base64"));
+            return crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, userData.passwordSalt, 64), Buffer.from(userData.passwordDigest, "base64"));
 
         }
 
@@ -421,24 +419,23 @@ const authorization = {
 
     saveJWTId: async (userID, jwtID) => {
 
-        const userIDHash = hash(userID, "base64");
+        const results = await users.getUserInfo(userID, "userID", ["userID"]);
 
-        const result = await collections.users.find({ userIDHash }).toArray();
+        if (results.length == 0) {
 
-        if (result.length == 0) {
-
-            throw "userID is invalid."
+            throwError("userID is invalid.");
 
         }
 
-        else if (result.length > 1) {
+        else if (results.length > 1) {
 
-            throw new Error("Multiple users with the same userID exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+            throwError("Multiple users with the same userID exist.");
 
         }
 
         else {
 
+            const userIDHash = hash(userID, "base64");
             const jwtIDHash = hash(jwtID, "base64");
 
             await collections.jwts.insertOne({ userIDHash, jwtIDHash });
@@ -462,7 +459,7 @@ const authorization = {
 
         else if (result.length > 1) {
 
-            throw new Error("JWT ID is not unique. THIS SHOULD NOT NORMALLY HAPPEN.");
+            throwError("JWT ID is not unique. THIS SHOULD NOT NORMALLY HAPPEN.");
 
         }
 
@@ -480,25 +477,25 @@ const verification = {
 
     verifyUserID: async (username, userID) => {
 
-        const result = await collections.users.find({ usernameHash: hash(username, "utf-8") }).toArray();
+        const results = await users.getUserInfo(username, "username",  ["userID"])
 
-        if (result.length == 0) {
+        if (results.length == 0) {
 
             return false;
 
         }
 
-        else if (result.length > 1) {
+        else if (results.length > 1) {
 
-            throw new Error("Multiple users with the same username exist. THIS SHOULD NOT NORMALLY HAPPEN.");
+            throw new Error("Multiple users with the same username exist.");
 
         }
 
         else {
 
-            const userData = result[0];
+            const databaseUserID = results[0].userID;
 
-            return crypto.timingSafeEqual(Buffer.from(hash(userID, "base64"), "base64"), Buffer.from(userData.userIDHash, "base64"));
+            return crypto.timingSafeEqual(Buffer.from(hash(userID, "base64"), "base64"), Buffer.from(hash(databaseUserID, "base64"), "base64"));
 
         }
 

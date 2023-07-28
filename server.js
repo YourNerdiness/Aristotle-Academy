@@ -1,7 +1,7 @@
 import cookieParser from "cookie-parser";
 import cors from "cors"
 import crypto from "crypto"
-import database from "./database"
+import database from "./database.js"
 import dotenv from "dotenv"
 import ejs from "ejs"
 import express from "express";
@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken"
 import morgan from "morgan"
 import stripe from "stripe"
 import path from "path"
+import { captureRejectionSymbol } from "events";
 
 dotenv.config();
 
@@ -124,7 +125,7 @@ const ejsVars = {
         else {
 
             username = token.username;
-            email = await database.users.getUserInfo(token.userID, "userIDHash", "email")
+            email = (await database.users.getUserInfo(token.userID, "userID", ["email"]))[0].email;
 
         }
 
@@ -204,7 +205,7 @@ const wait = (t) => {
 
 const generateToken = async (username, userID) => {
 
-    const jwtID = crypto.randomBytes(Number(process.env.JWT_ID_SIZE)).toString("base64");
+    const jwtID = crypto.randomBytes(+process.env.JWT_ID_SIZE).toString("base64");
 
     await database.authorization.saveJWTId(userID, jwtID);
 
@@ -221,8 +222,6 @@ const getToken = async (token) => {
         const decryptedToken = { username : decrypt(encryptedToken.username, "utf-8"), userID : decrypt(encryptedToken.userID, "base64") }
 
         if (!(await database.verification.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
-
-            console.log("Username JWT check failed.");
             
             return null;
 
@@ -352,8 +351,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
         
         catch (error) {
 
-            console.log(error);
-
             res.status(400).send(error);
 
             return;
@@ -398,8 +395,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
     }
 
     catch (error) {
-
-        console.log(error);
 
         res.status(500).json({ msg : error.toString() })
 
@@ -509,39 +504,15 @@ app.post("/signin", express.json(), async (req, res) => {
 
     else {
 
-        let userID;
-
-        try {
-
-            userID = await database.users.getUserID(username, password);
-
-        } catch (error) {
-
-            res.status(500).send(error.toString());
-
-            return;
-
-        }
-
-        if (!userID) {
+        if (!(await database.authentication.verifyPassword(username, password))) {
 
             res.status(401).send("Incorrect username or password.");
 
-            return;
-
         }
 
-        try {
+        const userID = (await database.users.getUserInfo(username, "username", ["userID"]))[0].userID;
 
-            res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).send("Signed In Succesfully");
-
-        }
-
-        catch (error) {
-
-            res.status(500).send(error.toString());
-
-        }
+        res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).send("Signed In Succesfully");
 
     }
 
@@ -577,7 +548,9 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
     } catch (error) {
 
-        res.status(500).send(error.toString())
+        res.status(500).send(error.toString());
+
+        return;
 
     }
 
