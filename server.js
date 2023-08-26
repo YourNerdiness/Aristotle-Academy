@@ -9,8 +9,7 @@ import fs from "fs"
 import jwt from "jsonwebtoken"
 import morgan from "morgan"
 import stripe from "stripe"
-import path from "path"
-import { captureRejectionSymbol } from "events";
+import utils from "./utils.js"
 
 dotenv.config();
 
@@ -68,7 +67,7 @@ const pageRedirectCallbacks = {
 
         if (token) {
 
-            if (!courseList.includes(courseName)) {
+            if (!courseNames.includes(courseName)) {
 
                 res.redirect("/learn");
 
@@ -140,68 +139,11 @@ const ejsVars = {
 
 };
 
-const filterChildProperties = (obj, property) => {
-
-    const keys = Object.keys(obj);
-
-    const toReturn = {};
-
-    for (let i = 0; i < keys.length; i++) {
-
-        toReturn[keys[i]] = obj[keys[i]][property];
-
-    }
-
-    return toReturn;
-
-};
-
 const courseData = JSON.parse(fs.readFileSync("course_data.json"));
-const courseList = Object.keys(courseData);
-const courseDescriptions = filterChildProperties(courseData, "description");
-const courseTags = filterChildProperties(courseData, "tags");
+const courseNames = Object.keys(courseData);
+const courseDescriptions = utils.filterChildProperties(courseData, "description");
+const courseTags = utils.filterChildProperties(courseData, "tags");
 const subIds = JSON.parse(fs.readFileSync("sub_ids.json"));
-
-const passwordHash = (password, salt, size) => {
-
-    return crypto.scryptSync(password, salt, size);
-
-};
-
-const encrypt = (content, encoding) => {
-
-    const encryptionSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
-
-    const key = passwordHash(process.env.AES_KEY, encryptionSalt, 32);
-    const iv = crypto.randomBytes(12);
-
-    const cipher = crypto.createCipheriv(process.env.ENCRYPTION_ALGORITHM, key, iv);
-
-    const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
-
-    return { content: output, encryptionSalt, iv: iv.toString("base64"), authTag: cipher.getAuthTag().toString("base64") };
-
-};
-
-const decrypt = (encryptionData, encoding) => {
-
-    const key = passwordHash(process.env.AES_KEY, encryptionData.encryptionSalt, 32);
-
-    const decipher = crypto.createDecipheriv(process.env.ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
-
-    decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
-
-    const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
-
-    return output;
-
-};
-
-const wait = (t) => {
-
-    return new Promise((resolve) => { setTimeout(() => { resolve(); }, t); });
-
-};
 
 const generateToken = async (username, userID) => {
 
@@ -209,7 +151,7 @@ const generateToken = async (username, userID) => {
 
     await database.authorization.saveJWTId(userID, jwtID);
 
-    return jwt.sign({ username: encrypt(username, "utf-8"), userID: encrypt(userID, "base64"), jwtID: encrypt(jwtID, "base64") }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
+    return jwt.sign({ username: utils.encrypt(username, "utf-8"), userID: utils.encrypt(userID, "base64"), jwtID: utils.encrypt(jwtID, "base64") }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
 
 };
 
@@ -219,7 +161,7 @@ const getToken = async (token) => {
 
         const encryptedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-        const decryptedToken = { username : decrypt(encryptedToken.username, "utf-8"), userID : decrypt(encryptedToken.userID, "base64") }
+        const decryptedToken = { username : utils.decrypt(encryptedToken.username, "utf-8"), userID : utils.decrypt(encryptedToken.userID, "base64") }
 
         if (!(await database.verification.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
             
@@ -227,7 +169,7 @@ const getToken = async (token) => {
 
         }
 
-        if (!(await database.authorization.verifyJWTId(decryptedToken.userID, decrypt(encryptedToken.jwtID, "base64")))) {
+        if (!(await database.authorization.verifyJWTId(decryptedToken.userID, utils.decrypt(encryptedToken.jwtID, "base64")))) {
 
             return null;
 
@@ -618,7 +560,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
     }
 
-    if (!courseList.includes(courseName)) {
+    if (!courseNames.includes(courseName)) {
 
         res.send(404).send("Course does not exist.");
 
@@ -717,7 +659,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
         default:
 
-            if (courseList.includes(item)) {
+            if (courseNames.includes(item)) {
 
                 line_items = [{ price : courseData[item].stripe_price_id, quantity : 1 }]
 
@@ -784,13 +726,13 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
             const filteredCourseList = [];
 
-            for (let i = 0; i < courseList.length; i++) {
+            for (let i = 0; i < courseNames.length; i++) {
 
                 try {
 
-                    if ((await database.payments.checkIfPaidFor(userID, courseList[i]))) {
+                    if ((await database.payments.checkIfPaidFor(userID, courseNames[i]))) {
 
-                        filteredCourseList.push(courseList[i])
+                        filteredCourseList.push(courseNames[i])
 
                     }
 
@@ -804,13 +746,13 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
             }
 
-            res.status(200).json({ courseList: filteredCourseList, courseDescriptions, courseTags });
+            res.status(200).json({ courseNames: filteredCourseList, courseDescriptions, courseTags });
 
         }
 
         else {
 
-            res.status(200).json({ courseList, courseDescriptions, courseTags });
+            res.status(200).json({ courseNames, courseDescriptions, courseTags });
 
         }
 
@@ -832,7 +774,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         const courseName = req.query.courseName;
 
-        if (!courseList.includes(courseName)) {
+        if (!courseNames.includes(courseName)) {
 
             res.status(404).send("Course does not exist.");
 

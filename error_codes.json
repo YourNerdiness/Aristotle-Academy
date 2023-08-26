@@ -1,0 +1,33 @@
+{
+    "0x000000": "Reserved for  generic/custom errors.",
+    "0x000001": {
+        "msg": "Multiple documents exist with matching fields that where expected to be unqiue.",
+        "http_error_code": 409,
+        "severity": "ERROR"
+    },
+    "0x000002": {
+        "msg": "Client sent incorrect type.",
+        "http_error_code": 400,
+        "severity": "ERROR"
+    },
+    "0x000003": {
+        "msg": "Server used incorrect type for parameter to internal function",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
+    "0x000004": {
+        "msg": "Multiple documents found when one and only one was required",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
+    "0x000005": {
+        "msg": "Documents with those properties already exist, and those properties are expected to be unique.",
+        "http_error_code": 409,
+        "severity": "INFO"
+    },
+    "0x000006": {
+        "msg": "User entered invalid information.",
+        "http_error_code": 400,
+        "severity": "INFO"
+    }
+}
