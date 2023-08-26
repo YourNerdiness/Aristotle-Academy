@@ -3,6 +3,7 @@ import dotenv from "dotenv"
 import fs from "fs"
 import { MongoClient, ServerApiVersion } from "mongodb"
 import stripe from "stripe"
+import utils from "./utils.js"
 
 dotenv.config();
 
@@ -28,7 +29,7 @@ const collections = {
 await collections.jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.JWT_EXPIRES_MS)/1000 });
 await collections.checkoutSessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.CHECKOUT_SESSION_TIMEOUT_MS)/1000 });
 
-const courseData = JSON.parse(fs.readFileSync("course_data.json")); 
+const courseData = JSON.parse(fs.readFileSync("course_data.json"));
 const courseNames = Object.keys(courseData);
 
 const propertyEncodings = {
@@ -51,65 +52,6 @@ const paymentIndexProperties = ["userID", "stripeCustomerID"]; // placing a prop
 
 const allProperties = Array.from(new Set([...userDataProperties, ...userIndexProperties, ...paymentDataProperties, ...paymentIndexProperties]))
 
-const hash = (content="", encoding) => {
-
-    if (encoding === "object") {
-
-        return content;
-
-    }
-
-    return crypto.createHash(process.env.HASHING_ALGORITHM).update(content, encoding).digest("base64");
-
-};
-
-const passwordHash = (password, salt, size) => {
-
-    return crypto.scryptSync(password, salt, size);
-
-};
-
-const encrypt = (content="", encoding) => {
-
-    if (encoding === "object") {
-
-        return content;
-
-    }
-
-    const encryptionSalt = crypto.randomBytes(Number(process.env.SALT_SIZE)).toString("base64");
-
-    const key = passwordHash(process.env.AES_KEY, encryptionSalt, 32);
-    const iv = crypto.randomBytes(12);
-
-    const cipher = crypto.createCipheriv(process.env.ENCRYPTION_ALGORITHM, key, iv);
-
-    const output = cipher.update(content, encoding, "base64") + cipher.final("base64");
-
-    return { content : output, encryptionSalt, iv : iv.toString("base64"), authTag : cipher.getAuthTag().toString("base64") };
-
-};
-
-const decrypt = (encryptionData, encoding) => {
-
-    const key = passwordHash(process.env.AES_KEY, encryptionData.encryptionSalt, 32);
-
-    const decipher = crypto.createDecipheriv(process.env.ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));
-    
-    decipher.setAuthTag(Buffer.from(encryptionData.authTag, "base64"));
-
-    const output = decipher.update(encryptionData.content, "base64", encoding) + decipher.final(encoding);
-
-    return output;
-
-};
-
-const throwError = async (msg) => {
-
-    throw new Error(msg);
-
-};
-
 const users = {
 
     addNewUser: async (username, email, password) => {
@@ -130,17 +72,17 @@ const users = {
 
         if (usernameResults.length > 0) {
 
-            throwError("Username is taken, maybe try signing in.");
+            utils.throwError("0x000005", "Username is already in use.");
 
         }
 
         if (emailResults.length > 0) {
 
-            throwError("Email is already in use, maybe try signing in.");
+            utils.throwError("0x000005", "Email is already in use.");
 
         }
 
-        let customer
+        let customer;
 
         try {
 
@@ -157,11 +99,11 @@ const users = {
 
                 case "email_invalid":
 
-                    throwError("Please enter a valid email.");
+                    utils.throwError("0x000006", "Email is invalid.");
 
                 default:
 
-                    throw error.raw.code;
+                    utils.throwError("0x000000", error.raw.message);
 
             }
 
@@ -175,7 +117,7 @@ const users = {
             stripeCustomerID: customer.id,
             username,
             email,
-            passwordDigest: passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
+            passwordDigest: utils.passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
             passwordSalt,
             subID: undefined,
             courses: {}
@@ -184,19 +126,19 @@ const users = {
 
         if (Object.keys(allData).reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || !allProperties.includes(propertyName) }, false)) {
 
-            throwError("Unexpected property exists in allData.");
+            utils.throwError("Unexpected property exists in allData.");
 
         }
 
         if (allProperties.reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || !Object.keys(allData).includes(propertyName) }, false)) {
 
-            throwError("Missing property in allData.");
+            utils.throwError("Missing property in allData.");
 
         }
 
         const userData = Object.keys(allData).filter(key => userDataProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = encrypt(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+            obj[key] = utils.encrypt(allData[key], propertyEncodings[key] || utils.throwError(`Encoding information missing for ${key}`))
 
             return obj;
 
@@ -204,7 +146,7 @@ const users = {
 
         const userIndex = Object.keys(allData).filter(key => userIndexProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = hash(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+            obj[key] = utils.hash(allData[key], propertyEncodings[key] || utils.throwError(`Encoding information missing for ${key}`))
 
             return obj;
 
@@ -212,7 +154,7 @@ const users = {
 
         const paymentData = Object.keys(allData).filter(key => paymentDataProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = encrypt(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+            obj[key] = utils.encrypt(allData[key], propertyEncodings[key] || utils.throwError(`Encoding information missing for ${key}`))
 
             return obj;
 
@@ -220,7 +162,7 @@ const users = {
 
         const paymentIndex = Object.keys(allData).filter(key => paymentIndexProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = hash(allData[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`))
+            obj[key] = utils.hash(allData[key], propertyEncodings[key] || utils.throwError(`Encoding information missing for ${key}`))
 
             return obj;
 
@@ -253,7 +195,7 @@ const users = {
 
         if (!userIndexProperties.includes(queryPropertyName)) {
 
-            throwError(`${queryPropertyName} does not exist in the user index`);
+            utils.throwError(`${queryPropertyName} does not exist in the user index`);
 
         }
 
@@ -267,7 +209,7 @@ const users = {
 
         if (!propertyEncodings[queryPropertyName]) {
 
-            throwError(`Encoding information missing for ${queryPropertyName}`)
+            utils.throwError(`Encoding information missing for ${queryPropertyName}`)
 
         }
 
@@ -275,7 +217,7 @@ const users = {
 
         if (missingEncodingPropertyNames.length > 0) {
 
-            throwError(`Encoding information missing for ${missingEncodingPropertyNames[0]}`);
+            utils.throwError(`Encoding information missing for ${missingEncodingPropertyNames[0]}`);
 
         }
 
@@ -287,13 +229,13 @@ const users = {
 
         }, {}); 
 
-        const results = await collections.users.find({ [`index.${queryPropertyName}`]: hash(query, propertyEncodings[queryPropertyName]) }, { projection } ).toArray();
+        const results = await collections.users.find({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName]) }, { projection } ).toArray();
 
         const usersData = results.map((userData) => {
 
                 const decryptedUserData = Object.keys(userData.data).reduce((obj, key) => { 
                 
-                        obj[key] = decrypt(userData.data[key], propertyEncodings[key] || throwError(`Encoding information missing for ${key}`)) 
+                        obj[key] = utils.decrypt(userData.data[key], propertyEncodings[key] || utils.throwError(`Encoding information missing for ${key}`)) 
                 
                         return obj;
                     
@@ -319,7 +261,7 @@ const users = {
 
         else if (results.length > 1) {
 
-            throwError(`Multiple users with the same ${queryPropertyName} exist, so please pass a different value to find the exact user.`);
+            utils.throwError(`Multiple users with the same ${queryPropertyName} exist, so please pass a different value to find the exact user.`);
 
         }
 
@@ -327,17 +269,17 @@ const users = {
 
             const userData = results[0].userData;
 
-            const userIDHash = hash(userData.userID, propertyEncodings["userID"]);
+            const userIDHash = utils.hash(userData.userID, propertyEncodings["userID"]);
 
             if (userIndexProperties.includes(toChangePropertyName)) {
 
                 if ((await users.getUserInfo(toChangeValue, toChangePropertyName, ["userID"])).length > 0) {
 
-                    throwError(`The same ${toChangePropertyName} already has an account associated with it.`)
+                    utils.throwError(`The same ${toChangePropertyName} already has an account associated with it.`)
 
                 }
 
-                await users.updateOne({ [queryPropertyName]: hash(query, propertyEncodings[queryPropertyName] || "base64") }, { $set: { usernameHash: hash(toChangeValue, "utf-8") } })
+                await users.updateOne({ [queryPropertyName]: utils.hash(query, propertyEncodings[queryPropertyName] || "base64") }, { $set: { usernameHash: utils.hash(toChangeValue, "utf-8") } })
 
             }
 
@@ -345,12 +287,12 @@ const users = {
 
                 const passwordSalt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
 
-                const passwordDigest = passwordHash(toChangeValue + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64");
+                const passwordDigest = utils.passwordHash(toChangeValue + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64");
 
                 await users.updateOne({ "index.userID" : userIDHash }, { $set: { 
 
-                    passwordDigest : encrypt(passwordDigest, propertyEncodings["passwordDigest"]), 
-                    passwordSalt : encrypt(passwordSalt, propertyEncodings["passwordSalt"])
+                    passwordDigest : utils.encrypt(passwordDigest, propertyEncodings["passwordDigest"]), 
+                    passwordSalt : utils.encrypt(passwordSalt, propertyEncodings["passwordSalt"])
 
                 }});
                 
@@ -358,7 +300,7 @@ const users = {
 
             }
 
-            await users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || "utf-8") } })
+            await users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: utils.encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || "utf-8") } })
 
         }
 
@@ -368,11 +310,11 @@ const users = {
 
         if (!(await verification.verifyUserID(username, userID))) {
 
-            throwError("Cannot verify userID with username.");
+            utils.throwError("Cannot verify userID with username.");
 
         };
 
-        const userIDHash = hash(userID, "base64");
+        const userIDHash = utils.hash(userID, "base64");
         const stripeCustomerID = (await users.getUserInfo(userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
 
         await stripeAPI.customers.del(stripeCustomerID);
@@ -399,7 +341,7 @@ const authentication = {
 
         else if (results.length > 1) {
 
-            throwError("Multiple users with the same username exist.");
+            utils.throwError("Multiple users with the same username exist.");
 
         }
 
@@ -407,7 +349,7 @@ const authentication = {
 
             const userData = results[0];
 
-            return crypto.timingSafeEqual(passwordHash(password + process.env.PASSWORD_PEPPER, userData.passwordSalt, 64), Buffer.from(userData.passwordDigest, "base64"));
+            return crypto.timingSafeEqual(utils.passwordHash(password + process.env.PASSWORD_PEPPER, userData.passwordSalt, 64), Buffer.from(userData.passwordDigest, "base64"));
 
         }
 
@@ -423,20 +365,20 @@ const authorization = {
 
         if (results.length == 0) {
 
-            throwError("userID is invalid.");
+            utils.throwError("userID is invalid.");
 
         }
 
         else if (results.length > 1) {
 
-            throwError("Multiple users with the same userID exist.");
+            utils.throwError("Multiple users with the same userID exist.");
 
         }
 
         else {
 
-            const userIDHash = hash(userID, "base64");
-            const jwtIDHash = hash(jwtID, "base64");
+            const userIDHash = utils.hash(userID, "base64");
+            const jwtIDHash = utils.hash(jwtID, "base64");
 
             await collections.jwts.insertOne({ userIDHash, jwtIDHash });
 
@@ -446,8 +388,8 @@ const authorization = {
 
     verifyJWTId: async (userID, jwtID) => {
 
-        const userIDHash = hash(userID, "base64");
-        const jwtIDHash = hash(jwtID, "base64");
+        const userIDHash = utils.hash(userID, "base64");
+        const jwtIDHash = utils.hash(jwtID, "base64");
 
         const result = await collections.jwts.find({ userIDHash, jwtIDHash }).toArray();
 
@@ -459,7 +401,7 @@ const authorization = {
 
         else if (result.length > 1) {
 
-            throwError("JWT ID is not unique. THIS SHOULD NOT NORMALLY HAPPEN.");
+            utils.throwError("JWT ID is not unique. THIS SHOULD NOT NORMALLY HAPPEN.");
 
         }
 
@@ -495,7 +437,7 @@ const verification = {
 
             const databaseUserID = results[0].userID;
 
-            return crypto.timingSafeEqual(Buffer.from(hash(userID, "base64"), "base64"), Buffer.from(hash(databaseUserID, "base64"), "base64"));
+            return crypto.timingSafeEqual(Buffer.from(utils.hash(userID, "base64"), "base64"), Buffer.from(utils.hash(databaseUserID, "base64"), "base64"));
 
         }
 
@@ -507,7 +449,7 @@ const payments = {
 
     createCheckoutSession: async (sessionID, userID, item) => {
 
-        const result = await collections.users.find({ userIDHash: hash(userID, "base64") }).toArray();
+        const result = await collections.users.find({ userIDHash: utils.hash(userID, "base64") }).toArray();
 
         if (result.length == 0) {
 
@@ -523,7 +465,7 @@ const payments = {
 
         else {
 
-            collections.checkoutSessions.insertOne({ sessionIDHash: hash(sessionID, "base64"), userID: encrypt(userID, "base64"), item: encrypt(item, "utf-8") });
+            collections.checkoutSessions.insertOne({ sessionIDHash: utils.hash(sessionID, "base64"), userID: utils.encrypt(userID, "base64"), item: utils.encrypt(item, "utf-8") });
 
         }
 
@@ -531,7 +473,7 @@ const payments = {
 
     getCheckoutSession: async (sessionID) => {
 
-        const result = await collections.checkoutSessions.find({ sessionIDHash: hash(sessionID, "base64") }).toArray()
+        const result = await collections.checkoutSessions.find({ sessionIDHash: utils.hash(sessionID, "base64") }).toArray()
 
         if (result.length == 0) {
 
@@ -547,8 +489,8 @@ const payments = {
 
         else {
 
-            const userID = decrypt(result[0].userID, "base64");
-            const item = decrypt(result[0].item, "utf-8");
+            const userID = utils.decrypt(result[0].userID, "base64");
+            const item = utils.decrypt(result[0].item, "utf-8");
 
             return { userID, item };
 
@@ -558,7 +500,7 @@ const payments = {
 
     deleteCheckoutSession: async (sessionID) => {
 
-        const result = await collections.checkoutSessions.find({ sessionIDHash: hash(sessionID, "base64") })
+        const result = await collections.checkoutSessions.find({ sessionIDHash: utils.hash(sessionID, "base64") })
 
         if (result.length == 0) {
 
@@ -582,7 +524,7 @@ const payments = {
 
     addCoursePayment: async (userID, courseName) => {
 
-        const result = await collections.payments.find({ userIDHash: hash(userID, "base64") }).toArray();
+        const result = await collections.payments.find({ userIDHash: utils.hash(userID, "base64") }).toArray();
 
         if (result.length == 0) {
 
@@ -604,7 +546,7 @@ const payments = {
 
                 courseData[courseName] = true;
 
-                await collections.payments.updateOne({ userIDHash: hash(userID, "base64") }, { $set: { courses: courseData } })
+                await collections.payments.updateOne({ userIDHash: utils.hash(userID, "base64") }, { $set: { courses: courseData } })
 
             }
 
@@ -614,7 +556,7 @@ const payments = {
 
     updateSubID: async (customerID, newSubID) => {
 
-        const result = await collections.payments.find({ stripeCustomerIDHash: hash(customerID, "utf-8") }).toArray();
+        const result = await collections.payments.find({ stripeCustomerIDHash: utils.hash(customerID, "utf-8") }).toArray();
 
         if (result.length == 0) {
 
@@ -630,7 +572,7 @@ const payments = {
 
         else {
 
-            await collections.payments.updateOne({ stripeCustomerIDHash: hash(customerID, "utf-8") }, { $set: { subID: newSubID } });
+            await collections.payments.updateOne({ stripeCustomerIDHash: utils.hash(customerID, "utf-8") }, { $set: { subID: newSubID } });
 
         }
 
@@ -638,7 +580,7 @@ const payments = {
 
     checkIfPaidFor: async (userID, courseName) => {
 
-        const result = await collections.payments.find({ userIDHash: hash(userID, "base64") }).toArray();
+        const result = await collections.payments.find({ userIDHash: utils.hash(userID, "base64") }).toArray();
 
         if (result.length == 0) {
 
