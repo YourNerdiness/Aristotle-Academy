@@ -11,7 +11,7 @@
         "severity": "ERROR"
     },
     "0x000003": {
-        "msg": "Server used incorrect type for parameter to internal function",
+        "msg": "Used incorrect type for parameter to internal function",
         "http_error_code": 500,
         "severity": "ERROR"
     },

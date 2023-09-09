@@ -1,3 +1,5 @@
+import fs from "fs"
+
 const errorCodes = JSON.parse(fs.readFileSync("error_codes.json")); 
 
 const hash = (content="", encoding) => {
