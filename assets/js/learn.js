@@ -1,4 +1,4 @@
-let courseList;
+let courseNames;
 let courseDescriptions;
 let courseTags;
 
@@ -30,7 +30,9 @@ const redirectCallback = async (courseName) => {
 
     else {
 
-        document.getElementById("error").textContent = await res.text();
+        const error = await res.json();
+
+        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
     }
 
@@ -111,11 +113,11 @@ const generateCourseElems = () => {
 
     const filterTags = getFilterTags();
 
-    let filteredCourseList = [];
+    let filteredcourseNames = [];
 
-    for (let i = 0; i < courseList.length; i++) {
+    for (let i = 0; i < courseNames.length; i++) {
 
-        const elemTags = courseTags[courseList[i]];
+        const elemTags = courseTags[courseNames[i]];
 
         let shouldFilter = true;
 
@@ -127,19 +129,19 @@ const generateCourseElems = () => {
 
         if (!shouldFilter) {
 
-            filteredCourseList.push(courseList[i]);
+            filteredcourseNames.push(courseNames[i]);
 
         }
 
     }
 
-    filteredCourseList = filteredCourseList.length == 0 ? courseList : filteredCourseList;
+    filteredcourseNames = filteredcourseNames.length == 0 ? courseNames : filteredcourseNames;
 
-    for (let i = 0; i < filteredCourseList.length; i += rowLength) {
+    for (let i = 0; i < filteredcourseNames.length; i += rowLength) {
 
         const tableRow = document.createElement("tr");
 
-        for (let j = i; j < Math.min(i + rowLength, filteredCourseList.length); j++) {
+        for (let j = i; j < Math.min(i + rowLength, filteredcourseNames.length); j++) {
 
             const tableData = document.createElement("td");
 
@@ -149,13 +151,13 @@ const generateCourseElems = () => {
             div.className = "display-container";
             btn.className = "course-title"
 
-            btn.addEventListener("click", () => { redirectCallback(filteredCourseList[j]) });
+            btn.addEventListener("click", () => { redirectCallback(filteredcourseNames[j]) });
 
             const title = document.createElement("h4");
             const description = document.createElement("h5");
 
-            title.textContent = filteredCourseList[j];
-            description.textContent = courseDescriptions[filteredCourseList[j]];
+            title.textContent = filteredcourseNames[j];
+            description.textContent = courseDescriptions[filteredcourseNames[j]];
 
             btn.appendChild(title);
 
@@ -192,13 +194,9 @@ const getCourseData = async () => {
 
     if (!res.ok) {
 
-        document.getElementById("error").textContent = await res.text();
+        const error = await res.json();
 
-        if(res.status == 401) {
-
-            document.getElementById("paidOnly").checked = false;
-
-        }
+        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
     }
 
@@ -206,7 +204,7 @@ const getCourseData = async () => {
 
         const courseData = await (res).json();
 
-        courseList = courseData.courseList;
+        courseNames = courseData.courseNames;
         courseDescriptions = courseData.courseDescriptions;
         courseTags = courseData.courseTags;
 

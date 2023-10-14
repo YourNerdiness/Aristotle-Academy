@@ -1,23 +1,27 @@
 {
-    "0x000000": "Reserved for  generic/custom errors.",
+    "0x000000": {
+        "msg": "",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
     "0x000001": {
         "msg": "Multiple documents exist with matching fields that where expected to be unqiue.",
         "http_error_code": 409,
         "severity": "ERROR"
     },
     "0x000002": {
-        "msg": "Client sent incorrect type.",
+        "msg": "Client parameter error.",
         "http_error_code": 400,
         "severity": "ERROR"
     },
     "0x000003": {
-        "msg": "Used incorrect type for parameter to internal function",
+        "msg": "Function parameter error.",
         "http_error_code": 500,
         "severity": "ERROR"
     },
     "0x000004": {
-        "msg": "Multiple documents found when one and only one was required",
-        "http_error_code": 500,
+        "msg": "Client provided invalid information.",
+        "http_error_code": 422,
         "severity": "ERROR"
     },
     "0x000005": {
@@ -27,7 +31,52 @@
     },
     "0x000006": {
         "msg": "User entered invalid information.",
-        "http_error_code": 400,
+        "http_error_code": 422,
         "severity": "INFO"
+    },
+    "0x000007": {
+        "msg": "Database document property does not exist.",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
+    "0x000008": {
+        "msg": "Hardcoded configuration was invalid or missing.",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
+    "0x000009": {
+        "msg": "Cross-check of client provided information failed.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x00000A": {
+        "msg": "Could not find document based on client data.",
+        "http_error_code": 404,
+        "severity": "WARNING"
+    },
+    "0x00000B": {
+        "msg": "Could not find document based on user data.",
+        "http_error_code": 404,
+        "severity": "INFO"
+    },
+    "0x00000C": {
+        "msg": "Search was attempted by field that returned multiple results when function requires a single document.",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
+    "0x00000D": {
+        "msg": "Could not find document based on API data.",
+        "http_error_code": 500,
+        "severity": "WARNING"
+    },
+    "0x00000E": {
+        "msg": "API request faliure",
+        "http_error_code": 500,
+        "severity": "CRITICAL"
+    },
+    "0x00000F": {
+        "msg": "Could not verify webhook signature.",
+        "http_error_code": 400,
+        "severity": "WARNING"
     }
 }

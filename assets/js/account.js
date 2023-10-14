@@ -30,7 +30,9 @@ $(document).ready(() => {
 
             else {
 
-                $("#error").text(await res.text());
+                const error = await res.json();
+
+                $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
             }
         
@@ -68,7 +70,9 @@ $(document).ready(() => {
 
             else {
 
-                $("#error").text(await res.text());
+                const error = await res.json();
+
+                $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
             }
         

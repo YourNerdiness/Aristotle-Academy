@@ -15,6 +15,24 @@ dotenv.config();
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
 
+const handleRequestError = (error, res) => {
+
+    if (error.throwErrorToClient) {
+            
+        error.throwErrorToClient(res);
+
+    }
+
+    else {
+
+        utils.createLog(error.toString(), "ERROR", "0x000000");
+
+        res.status(500).json({ error });
+
+    }
+
+};
+
 const pageRedirectCallbacks = {
 
     account : async (req, res) => {
@@ -34,8 +52,6 @@ const pageRedirectCallbacks = {
     signin : async (req, res) => {
 
         if (req.headers.auth) {
-
-            res.status(409).redirect("/account");
 
             return true;
 
@@ -189,8 +205,6 @@ const getToken = async (token) => {
 
 const getTokenMiddleware = async (req, res, next) => {
 
-    await wait(crypto.randomInt(Number(process.env.MAX_DELAY_LENGTH)));
-
     const token = req.cookies.jwt ? (await getToken(req.cookies.jwt)) : null;
 
     req.headers.auth = token;
@@ -234,7 +248,7 @@ const ejsRenderMiddleware = async (req, res, next) => {
 
         if (pageVarFunc) {
 
-            pageVars = await pageVarFunc(req, res)
+            pageVars = await pageVarFunc(req, res);
 
         }
 
@@ -263,13 +277,7 @@ morgan.token("client-ip", (req) => {
 
     const header = req.headers["x-forwarded-for"];
 
-    if (header) {
-
-        return header;
-
-    }
-
-    return req.ip;
+    return header || req.ip;
 
 });
 
@@ -293,9 +301,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
         
         catch (error) {
 
-            res.status(400).send(error);
-
-            return;
+            new utils.ErrorHandler("0x00000F").throwError();
 
         }
 
@@ -305,7 +311,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 if (event.data.object.mode == "subscription") {
 
-                    res.status(204).end();
+                    res.status(204).json({ msg : "OK." });
 
                     return;
 
@@ -313,7 +319,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 const sessionID = event.data.object.metadata.sessionID;
 
-                res.status(200).json({ sessionID });
+                res.status(200).json({ msg : "OK." });
 
                 const sessionData = await database.payments.getCheckoutSession(sessionID);
 
@@ -326,7 +332,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
                 const customerID = event.data.object.customer;
                 const subID = event.data.object.id;
 
-                res.status(200).json({ customerID, subID });
+                res.status(200).json({ msg : "OK." });
 
                 await database.payments.updateSubID(customerID, subID)
 
@@ -338,7 +344,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
     catch (error) {
 
-        res.status(500).json({ msg : error.toString() })
+        handleRequestError(error, res);
 
     }
 
@@ -358,58 +364,49 @@ app.use(express.static("assets"));
 
 app.post("/signup", express.json(), async (req, res) => {
 
-    if (req.headers.auth) {
-
-        res.status(409).send("You are already signed in.");
-
-        return;
-
-    }
-    const data = req.body;
-
-    if (!data) {
-
-        res.status(400).send("Missing requeust data.");
-
-        return;
-
-    }
-
-    const username = data.username;
-    const email = data.email;
-    const password = data.password;
-
-    if (!username || !email || !password) {
-
-        res.status(400).send("Mising sign up data.");
-
-        return;
-
-    }
-
-    let userID;
-
     try {
 
-        userID = await database.users.addNewUser(username, email, password);
+        if (req.headers.auth) {
 
-    } catch (error) {
+            res.status(409).json({ msg : "You are already signed in." });
 
-        res.status(500).send(error.toString());
+            return;
 
-        return;
+        }
 
-    }
+        const data = req.body;
 
-    try {
+        if (!data) {
 
-        res.status(201).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).send("Signed Up Succesfully");
+            res.status(400).json({ msg : "Missing requeust data." });
+
+            return;
+
+        }
+
+        const username = data.username;
+        const email = data.email;
+        const password = data.password;
+
+        if (!username || !email || !password) {
+
+            res.status(400).json({ msg : "Mising sign up data." });
+
+            return;
+
+        }a
+
+        const userID = await database.users.addNewUser(username, email, password);
+
+        const jwtToken = await generateToken(username, userID);
+
+        res.status(201).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).json({ msg : "OK." });
 
     }
 
     catch (error) {
 
-        res.status(500).send(error.toString());
+        handleRequestError(error, res);
 
     }
 
@@ -417,44 +414,56 @@ app.post("/signup", express.json(), async (req, res) => {
 
 app.post("/signin", express.json(), async (req, res) => {
 
-    if (req.headers.auth) {
+    try {
 
-        res.status(409).send("You are already signed in.");
+        if (req.headers.auth) {
 
-        return;
+            res.status(409).json({ msg : "You are already signed in." });
 
-    }
-
-    const data = req.body;
-
-    if (!data) {
-
-        res.status(400).send("Missing request data.");
-
-        return;
-
-    }
-
-    const username = data.username;
-    const password = data.password;
-
-    if (!data || !username || !password) {
-
-        res.status(400).send("Mising sign in data.");
-
-    }
-
-    else {
-
-        if (!(await database.authentication.verifyPassword(username, password))) {
-
-            res.status(401).send("Incorrect username or password.");
+            return;
 
         }
 
-        const userID = (await database.users.getUserInfo(username, "username", ["userID"]))[0].userID;
+        const data = req.body;
 
-        res.status(200).cookie("jwt", await generateToken(username, userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).send("Signed In Succesfully");
+        if (!data) {
+
+            res.status(400).json({ msg : "Missing request data." });
+
+            return;
+
+        }
+
+        const username = data.username;
+        const password = data.password;
+
+        if (!username || !password) {
+
+            res.status(400).json({ msg : "Mising sign in data." });
+
+        }
+
+        else {
+
+            if (!(await database.authentication.verifyPassword(username, password))) {
+
+                res.status(401).json({ msg : "Incorrect username or password." });
+
+            }
+
+            const userID = (await database.users.getUserInfo(username, "username", ["userID"]))[0].userID;
+
+            const jwtToken = await generateToken(username, userID);
+
+            res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).json({ msg : "OK." });
+
+        }
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
 
     }
 
@@ -462,131 +471,146 @@ app.post("/signin", express.json(), async (req, res) => {
 
 app.post("/deleteAccount", express.json(), async (req, res) => {
 
-    const token = req.headers.auth;
-    const password = req.body.password
-
-    if (!token) {
-
-        res.status(401).send("Please sign in before deleting your account.")
-
-        return;
-
-    }
-
-    if (!password) {
-
-        res.status(400).send("Please enter your password to delete your account.")
-
-        return;
-
-    }
-
-    const username = token.username;
-    const userID = token.userID;
-
     try {
 
-        await database.users.deleteUser(username, userID, password);
+        const token = req.headers.auth;
+        const password = req.body.password
 
-    } catch (error) {
+        if (!token) {
 
-        res.status(500).send(error.toString());
+            res.status(401).json({ msg : "Please sign in before deleting your account." });
 
-        return;
+            return;
 
-    }
+        }
 
-    res.status(200).clearCookie("jwt").end();
+        if (!password) {
 
-});
+            res.status(400).json({ msg : "Please enter your password to delete your account." });
 
-app.post("/changeUserDetails", express.json(), async (req, res) => {
+            return;
 
-    const token = req.headers.auth;
-    const data = req.body;
+        }
 
-    if (!token) {
+        const username = token.username;
+        const userID = token.userID;
 
-        res.status(401).send(`Please sign in to change your ${data.toChangePropertyName}`);
+        if (!(await database.authentication.verifyPassword(username, password))) {
 
-        return;
+            res.status(401).json({ msg : "Incorrect password."});
 
-    }
+        }
 
-    if (!data.toChangeValue || !data.toChangePropertyName) {
+        await database.users.deleteUser(username, userID);
 
-        res.status(400).send("Missing request parameters.");
-
-        return;
-
-    }
-
-    try { 
-        
-        await database.users.changeUserInfo(token.userID, "userIDHash", data.toChangeValue, data.toChangePropertyName)
+        res.status(200).clearCookie("jwt").json({ msg : "OK." });
 
     }
 
     catch (error) {
 
-        res.status(500).send(error.toString());
-
-        return;
+        handleRequestError(error, res);
 
     }
-
-    if (data.toChangePropertyName == "username") {
-
-        res.status(200).cookie("jwt", await generateToken(data.toChangeValue, token.userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite : true }).end();
-
-        return;
-
-    }
-
-    res.status(200).end();
 
 });
 
+app.post("/changeUserDetails", express.json(), async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+        const data = req.body;
+
+        if (!token) {
+
+            res.status(401).json({ msg : `Please sign in to change your ${data.toChangePropertyName}` });
+
+            return;
+
+        }
+
+        if (!data.toChangeValue || !data.toChangePropertyName) {
+
+            res.status(400).json({ msg : "Missing request parameters." });
+
+            return;
+
+        }
+
+        await database.users.changeUserInfo(token.userID, "userID", data.toChangeValue, data.toChangePropertyName);
+
+        if (data.toChangePropertyName == "username") {
+
+            res.status(200).cookie("jwt", await generateToken(data.toChangeValue, token.userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite: true }).json({ msg : "OK." });
+
+            return;
+
+        }
+
+        res.status(200).json({ msg : "OK." });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+
 app.post("/learnRedirect", express.json(), async (req, res) => {
 
-    const token = req.headers.auth;
-    const courseName = req.body.courseName;
+    try {
 
-    if (!courseName) {
+        const token = req.headers.auth;
+        const courseName = req.body.courseName;
 
-        res.status(400).send("Missing request data.");
+        if (!courseName) {
 
-        return;
+            res.status(400).json({ msg: "Missing request data." });
+
+            return;
+
+        }
+
+        if (!courseNames.includes(courseName)) {
+
+            res.send(404).json({ msg: "Course does not exist." });
+
+            return;
+
+        }
+
+        const paidFor = await database.payments.checkIfPaidFor(token.userID, courseName);
+
+        if (!token) {
+
+            res.status(200).json({ msg: "OK.", url: `/getPro?courseName=${encodeURIComponent(courseName)}` });
+
+            return;
+
+        }
+
+        if (paidFor) {
+
+            res.status(200).json({ msg: "OK.", url: `/course/${encodeURIComponent(courseName)}` });
+
+        }
+
+        else {
+
+            res.status(200).json({ msg: "OK.", url: `/getPro?courseName=${encodeURIComponent(courseName)}` });
+
+        }
 
     }
 
-    if (!courseNames.includes(courseName)) {
+    catch (error) {
 
-        res.send(404).send("Course does not exist.");
-
-        return;
-
-    }
-
-    if (!token) {
-
-        res.status(200).json({ url : `/getPro?courseName=${encodeURIComponent(courseName)}`})
-
-        return;
-
-    }
-
-    const paidFor = await database.checkIfPaidFor(token.userID, courseName);
-
-    if (paidFor) {
-
-        res.status(200).json({ url : `/course/${encodeURIComponent(courseName)}`});
-
-    }
-
-    else {
-
-        res.status(200).json({ url : `/getPro?courseName=${encodeURIComponent(courseName)}`})
+        handleRequestError(error, res);
 
     }
 
@@ -594,141 +618,152 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
 app.post("/buyRedirect", express.json(), async (req, res) => {
 
-    const item = req.body.item;
-    const password = req.body.password;
+    try {
 
-    const token = req.headers.auth;
+        const item = req.body.item;
+        const password = req.body.password;
 
-    if (!token) {
+        const token = req.headers.auth;
 
-        res.status(401).send("Please sign in before purchasing a course.");
+        if (!token) {
 
-        return;
+            res.status(401).json({ msg: "Please sign in before purchasing a course." });
+
+            return;
+
+        }
+
+        if (!item || password === undefined) {
+
+            res.status(400).json({ msg: "Missing request data." });
+
+            return;
+
+        }
+
+        if (!password) {
+
+            res.status(400).json({ msg: "Please enter your password." });
+
+            return;
+
+        }
+
+        if (!(await database.authentication.verifyPassword(token.username, password))) {
+
+            res.status(401).json({ msg: "Incorrect password." });
+
+            return;
+
+        }
+
+        const paidFor = await database.payments.checkIfPaidFor(token.userID, item);
+
+        if (paidFor) {
+
+            res.status(409).json({ msg : "You have already paid for this course." });
+
+        }
+
+        const customerID = (await database.users.getUserInfo(token.userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
+
+        let line_items;
+
+        switch (item) {
+
+            case "monthly-sub":
+
+                line_items = [{ price: subIds.monthly, quantity: 1 }];
+
+                break;
+
+            case "yearly-sub":
+
+                line_items = [{ price: subIds.yearly, quantity: 1 }]
+
+                break;
+
+            default:
+
+                if (courseNames.includes(item)) {
+
+                    line_items = [{ price: courseData[item].stripe_price_id, quantity: 1 }]
+
+                }
+
+                else {
+
+                    res.status(404).json({ msg : "Course does not exist." });
+
+                    return;
+
+                }
+
+                break;
+
+        }
+
+        const sessionID = crypto.randomBytes(256).toString("base64")
+
+        await database.payments.createCheckoutSession(sessionID, token.userID, item)
+
+        const session = await stripeAPI.checkout.sessions.create({
+
+            metadata: {
+
+                sessionID
+
+            },
+
+            customer: customerID,
+
+            success_url: process.env.DOMAIN_NAME + "/learn",
+            cancel_url: process.env.DOMAIN_NAME + "/learn",
+
+            currency: "aud",
+            mode: item.slice(-3) == "sub" ? "subscription" : "payment",
+            payment_method_types: ["card"],
+
+            line_items
+
+
+        });
+
+        res.status(200).json({ msg : "OK.", url : session.url });
 
     }
 
-    if (!item || password === undefined) {
+    catch (error) {
 
-        res.status(400).send("Missing request data.");
-
-        return;
+        handleRequestError(error, res);
 
     }
-
-    if (!password) {
-
-        res.status(400).send("Please enter your password.");
-        
-        return;
-
-    }
-
-    if (!(await database.verifyPassword(token.username, password))) {
-
-        res.status(401).send("Incorrect password.");
-
-        return;
-
-    }
-
-    const paidFor = await database.checkIfPaidFor(token.userID, item);
-
-    if (paidFor) {
-
-        res.status(409).send("You have already paid for this course.");
-
-    }
-
-    const customerID = await database.users.getCustomerID(token.userID, password);
-
-    let line_items;
-
-    switch (item) {
-
-        case "monthly-sub":
-
-            line_items = [{ price : subIds.monthly, quantity : 1 }];
-
-            break;
-    
-        case "yearly-sub":
-
-            line_items = [{ price : subIds.yearly, quantity : 1 }]
-
-            break;
-
-        default:
-
-            if (courseNames.includes(item)) {
-
-                line_items = [{ price : courseData[item].stripe_price_id, quantity : 1 }]
-
-            }
-
-            else {
-
-                res.status(404).send("Course does not exist.");
-
-                return;
-
-            }
-
-            break;
-
-    }
-    const sessionID = crypto.randomBytes(256).toString("base64")
-
-    await database.payments.createCheckoutSession(sessionID, token.userID, item)
-
-    const session = await stripeAPI.checkout.sessions.create({
-
-        metadata : {
-
-            sessionID
-            
-        },
-
-        customer : customerID,
-
-        success_url : process.env.DOMAIN_NAME + "/learn",
-        cancel_url : process.env.DOMAIN_NAME + "/learn",
-
-        currency : "aud",
-        mode : item.slice(-3) == "sub" ? "subscription" : "payment",
-        payment_method_types : ["card"],
-
-        line_items
-
-
-    });
-
-    res.status(200).json({ url : session.url });
 
 });
 
 app.get("/getCourseData", express.json(), async (req, res) => {
 
-    const data = req.headers;
+    try {
 
-    const token = req.headers.auth;
+        const data = req.headers;
 
-    if (!token && data.filter == "true") {
+        const token = req.headers.auth;
 
-        res.status(401).send("You are not signed in, please sign in to see your paid for courses.");
+        if (!token && data.filter == "true") {
 
-    }
+            res.status(401).json({ msg : "You are not signed in, please sign in to see your paid for courses." });
 
-    else {
+        }
 
-        if (data.filter == "true") {
+        else {
 
-            const userID = token.userID;
+            if (data.filter == "true") {
 
-            const filteredCourseList = [];
+                const userID = token.userID;
 
-            for (let i = 0; i < courseNames.length; i++) {
+                const filteredCourseList = [];
 
-                try {
+                for (let i = 0; i < courseNames.length; i++) {
 
                     if ((await database.payments.checkIfPaidFor(userID, courseNames[i]))) {
 
@@ -736,25 +771,23 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
                     }
 
-                } catch (error) {
-
-                    res.status(500).send(error.toString());
-
-                    return;
-
                 }
+
+                res.status(200).json({ msg : "OK.", courseNames: filteredCourseList, courseDescriptions, courseTags });
 
             }
 
-            res.status(200).json({ courseNames: filteredCourseList, courseDescriptions, courseTags });
+            else {
+
+                res.status(200).json({ msg : "OK.", courseNames, courseDescriptions, courseTags });
+
+            }
 
         }
 
-        else {
+    } catch (error) {
 
-            res.status(200).json({ courseNames, courseDescriptions, courseTags });
-
-        }
+        handleRequestError(error, res);
 
     }
 
@@ -766,7 +799,7 @@ app.get("/video", express.json(), async (req, res) => {
 
     if (!token) {
 
-        res.status(401).send("You are not signed in, please sign in to access your course.");
+        res.status(401).json({ msg : "You are not signed in, please sign in to access your course." });
 
     }
 
@@ -776,29 +809,17 @@ app.get("/video", express.json(), async (req, res) => {
 
         if (!courseNames.includes(courseName)) {
 
-            res.status(404).send("Course does not exist.");
+            res.status(404).json({ msg : "Course does not exist." });
 
             return;
 
         }
 
-        let coursePaidFor;
-
-        try {
-
-            coursePaidFor = await database.payments.checkIfPaidFor(token.userID, courseName);
-
-        } catch (error) {
-
-            res.status(500).send(error.toString());
-
-            return;
-
-        }
+        const coursePaidFor = await database.payments.checkIfPaidFor(token.userID, courseName);
 
         if (!coursePaidFor) {
 
-            res.send(403).send("You have not paid for this course.");
+            res.send(403).json({ msg : "You have not paid for this course." });
 
             return;
 
@@ -808,7 +829,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         if (!range) {
 
-            res.status(400).send("No range provided.");
+            res.status(400).json({ msg : "No range provided." });
 
         }
 
@@ -818,16 +839,12 @@ app.get("/video", express.json(), async (req, res) => {
 
             if (!fs.existsSync(filePath)) {
 
-                res.status(404).send("Can't find video.");
+                    res.status(404).json({ msg : "Can't find video." });
 
             }
 
             else {
-
-                range = range.substring(6).split("-");
-
-                const videoSize = fs.statSync(filePath).size;
-
+                document.getElementById("error").textContent = await res.text();
                 const chunkLength = 2 ** 20;
 
                 const start = Math.min(Number(range[0]), videoSize - 1);

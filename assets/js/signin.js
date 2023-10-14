@@ -37,7 +37,9 @@ const signin = async () => {
 
     else {
 
-        document.getElementById("error").textContent = await res.text();
+        const error = await res.json();
+
+        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
     }
 

@@ -1,6 +1,51 @@
+import crypto from "crypto"
 import fs from "fs"
 
-const errorCodes = JSON.parse(fs.readFileSync("error_codes.json")); 
+const errorCodes = JSON.parse(fs.readFileSync("error_codes.json"));
+
+const createLog = async (msg, severity, errorCode) => {
+
+    console.log(`${severity} - ${errorCode}: ${msg}`);
+
+}
+
+class ErrorHandler {
+
+    constructor(errorCode, additionalMessage="") {
+
+        this.errorCode = errorCode;
+        this.msg = errorCodes[errorCode].msg += additionalMessage;
+        this.userMsg = additionalMessage || errorCodes[errorCode].msg;
+        this.httpErrorCode = errorCodes[errorCode].http_error_code;
+        this.severity = errorCodes[errorCode].severity
+
+        createLog(this.msg, this.severity, this.errorCode);
+
+    }
+
+    throwError() {
+
+        throw this;
+
+    }
+
+    throwErrorToClient(res) {
+
+        try {
+
+            res.status(this.httpErrorCode).json(this);
+
+        }
+
+        catch (error) {
+
+            createLog("Couuld not send error to client.", "ERROR", "0x000000");
+
+        }
+
+    }
+
+}
 
 const hash = (content="", encoding) => {
 
@@ -55,30 +100,6 @@ const decrypt = (encryptionData, encoding) => {
 
 };
 
-const createLog = async (msg, severity) => {
-
-    console.log(`${severity}: ${msg}`);
-
-}
-
-const throwError = (errorCode, additionalMessage="") => {
-
-    if (errorCode == "0x000000" || !errorCodes[errorCode]) {
-
-        throw { msg : additionalMessage, http_error_code : 500 }
-
-    }
-
-    const errorObj = errorCodes[errorCode];
-
-    errorObj.msg += "" + additionalMessage;
-
-    createLog(errorObj.msg, errorObj.severity);
-
-    throw errorObj;
-
-};
-
 const filterChildProperties = (obj, property) => {
 
     const keys = Object.keys(obj);
@@ -102,7 +123,7 @@ export default {
     encrypt,
     decrypt,
     createLog,
-    throwError,
+    ErrorHandler,
     filterChildProperties
 
 }
