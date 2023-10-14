@@ -394,7 +394,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
             return;
 
-        }a
+        }
 
         const userID = await database.users.addNewUser(username, email, password);
 
