@@ -14,7 +14,7 @@ class ErrorHandler {
     constructor(errorCode, additionalMessage="") {
 
         this.errorCode = errorCode;
-        this.msg = errorCodes[errorCode].msg + "" + additionalMessage;
+        this.msg = errorCodes[errorCode].msg + " " + additionalMessage;
         this.userMsg = additionalMessage || errorCodes[errorCode].msg;
         this.httpErrorCode = errorCodes[errorCode].http_error_code;
         this.severity = errorCodes[errorCode].severity
