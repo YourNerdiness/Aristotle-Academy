@@ -81,3 +81,7 @@ $(document).ready(() => {
     })
 
 });
+
+$("#knowInfoToggle").hover(() => { document.getElementById("knowInfoDialog").show() }, () => { document.getElementById("knowInfoDialog").close() });
+$("#haveInfoToggle").hover(() => { document.getElementById("haveInfoDialog").show() }, () => { document.getElementById("haveInfoDialog").close() });
+$("#areInfoToggle").hover(() => { document.getElementById("areInfoDialog").show() }, () => { document.getElementById("areInfoDialog").close() });

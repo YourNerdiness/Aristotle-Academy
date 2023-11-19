@@ -32,15 +32,16 @@
 
             <tr>
 
-                <td>Something you know:</td>
-                
+                <td>Something you know: <p id="knowInfoToggle">ⓘ</p></td>
+
+                <dialog id="knowInfoDialog">Authenticates you using something you know, such as a password.</dialog>
+
                 <td>
                     
                     <select>
 
                         <option>None</option>
                         <option>Password</option>
-                        <option>Pattern</option>
 
                     </select>
 
@@ -51,8 +52,10 @@
             </tr>
 
             <tr>
-                <td>Something you have:</td>
-                
+                <td>Something you have: <p id="haveInfoToggle">ⓘ</p></td>
+
+                <dialog id="haveInfoDialog">Authenticates you using an external device of software, such as sending a code to your email.</dialog>
+
                 <td>
 
                     <select>
@@ -61,7 +64,6 @@
                         <option>None</option>
                         <option>Email</option>
                         <option>Authenitcator App</option>
-                        <option>Hardware Key</option>
 
                     </select>
 
@@ -73,15 +75,15 @@
 
             <tr>
 
-                <td>Something you are:</td>
+                <td>Something you are: <p id="areInfoToggle">ⓘ</p></td>
+
+                <dialog id="areInfoDialog">Sorry, this feature has not been implemented yet.</dialog>
 
                 <td>
 
                     <select>
 
                         <option>None</option>
-                        <option>Face Recognition</option>
-                        <option>Voice Recognition</option>
 
                     </select>
 
