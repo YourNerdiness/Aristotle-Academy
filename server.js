@@ -53,6 +53,8 @@ const pageRedirectCallbacks = {
 
         if (req.headers.auth) {
 
+            res.status(409).redirect("/account");
+
             return true;
 
         }
@@ -350,8 +352,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
 });
 
-app.use(cors({ origin : true }))
-app.use(morgan(":date - :client-ip - :user-agent - :url"));
+app.use(morgan(":date - :client-ip - :user-agent - :method :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
 app.use(indexRouteMiddle);
@@ -400,6 +401,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
         const jwtToken = await generateToken(username, userID);
 
+
         res.status(201).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).json({ msg : "OK." });
 
     }
@@ -424,7 +426,8 @@ app.post("/signin", express.json(), async (req, res) => {
 
         }
 
-        const data = req.body;
+        const data = req.body
+
 
         if (!data) {
 
@@ -441,6 +444,8 @@ app.post("/signin", express.json(), async (req, res) => {
 
             res.status(400).json({ msg : "Mising sign in data." });
 
+            return;
+
         }
 
         else {
@@ -448,6 +453,8 @@ app.post("/signin", express.json(), async (req, res) => {
             if (!(await database.authentication.verifyPassword(username, password))) {
 
                 res.status(401).json({ msg : "Incorrect username or password." });
+
+                return;
 
             }
 
@@ -464,6 +471,8 @@ app.post("/signin", express.json(), async (req, res) => {
     catch (error) {
 
         handleRequestError(error, res);
+
+        return;
 
     }
 
@@ -498,6 +507,8 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
         if (!(await database.authentication.verifyPassword(username, password))) {
 
             res.status(401).json({ msg : "Incorrect password."});
+
+            return;
 
         }
 
@@ -567,6 +578,14 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         const token = req.headers.auth;
         const courseName = req.body.courseName;
+
+        if (!token) {
+
+            res.status(401).json({ msg: "Please sign in to purchase courses. "});
+
+            return;
+
+        }
 
         if (!courseName) {
 

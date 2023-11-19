@@ -39,6 +39,9 @@ const propertyEncodings = {
     username : "utf-8",
     email : "utf-8",
     passwordDigest : "base64",
+    passwordSalt : "base64",
+    subID : "utf-8",
+    courses : "object"
 }
 
 const userDataProperties = ["userID", "stripeCustomerID", "username", "email", "passwordDigest", "passwordSalt"]
@@ -244,7 +247,6 @@ const users = {
 
         return allData.userID;
 
-
     },
 
     getUserInfo: async (query, queryPropertyName, resultPropertyNames) => {
@@ -291,7 +293,7 @@ const users = {
 
                 const decryptedUserData = Object.keys(userData.data).reduce((obj, key) => { 
                 
-                        obj[key] = utils.decrypt(userData.data[key], propertyEncodings[key] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`)).throwError();
+                        obj[key] = utils.decrypt(userData.data[key], propertyEncodings[key] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError());
                 
                         return obj;
                     
@@ -335,25 +337,25 @@ const users = {
 
             if (userIndexProperties.includes(toChangePropertyName)) {
 
-                if ((await (collections.users.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError()) })).toArray()).length > 0) {
+                if ((await (collections.users.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
 
                     new utils.ErrorHandler("0x000005 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
 
                 }
 
-                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError()) } })
+                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
 
             }
 
             if (paymentIndexProperties.includes(toChangePropertyName)) {
 
-                if ((await (collections.payments.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError()) })).toArray()).length > 0) {
+                if ((await (collections.payments.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
 
                     new utils.ErrorHandler("0x000005 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
 
                 }
 
-                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError()) } })
+                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
 
             }
 
@@ -374,7 +376,7 @@ const users = {
 
             }
 
-            await collections.users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: utils.encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError()) } });
+            await collections.users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: utils.encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } });
 
         }
 
@@ -405,7 +407,7 @@ const authentication = {
 
     verifyPassword: async (username, password) => {
 
-        const results = await users.getUserInfo(username, "username", ["passwordDigest", "passwordSalt"])
+        const results = await users.getUserInfo(username, "username", ["passwordDigest", "passwordSalt"]);
 
         if (results.length == 0) {
 
@@ -630,9 +632,6 @@ const payments = {
 
     updateSubID: async (customerID, newSubID) => {
 
-        console.log(customerID);
-        console.log(utils.hash(customerID, "utf-8"))
-
         const result = await collections.payments.find({ "index.stripeCustomerID" : utils.hash(customerID, "utf-8") }).toArray();
 
         if (result.length == 0) {
@@ -677,7 +676,7 @@ const payments = {
 
             const paymentData = result[0].data;
 
-            if (paymentData.subID) {
+            if (paymentData.subID.content) {
 
                 const subscription = await stripeAPI.subscriptions.retrieve(utils.decrypt(paymentData.subID, "utf-8"));
 
