@@ -39,7 +39,7 @@ class ErrorHandler {
 
         catch (error) {
 
-            createLog("Couuld not send error to client.", "ERROR", "0x000000");
+            createLog("Could not send error to client.", "ERROR", "0x000000");
 
         }
 
