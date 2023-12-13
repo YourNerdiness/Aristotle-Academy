@@ -70,13 +70,18 @@
         "severity": "WARNING"
     },
     "0x00000E": {
-        "msg": "API request faliure",
+        "msg": "API request faliure.",
         "http_error_code": 500,
         "severity": "CRITICAL"
     },
     "0x00000F": {
         "msg": "Could not verify webhook signature.",
         "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x000010": {
+        "msg": "Email faliure.",
+        "http_error_code": 500,
         "severity": "WARNING"
     }
 }

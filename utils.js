@@ -1,7 +1,9 @@
 import crypto from "crypto"
 import fs from "fs"
+import nodemailer from "nodemailer"
 
 const errorCodes = JSON.parse(fs.readFileSync("error_codes.json"));
+const bannedPasswordRegexPatterns = fs.readFileSync("password_regex_blacklist.txt").toString("utf-8").split("\n");
 
 const createLog = async (msg, severity, errorCode) => {
 
@@ -22,7 +24,7 @@ class ErrorHandler {
         createLog(this.msg, this.severity, this.errorCode);
 
     }
-
+    
     throwError() {
 
         throw this;
@@ -116,6 +118,99 @@ const filterChildProperties = (obj, property) => {
 
 };
 
+// returns integer, if password is valid, 0 is returned, otherwise, some other positive integer is returned. see password_check_statuses.json for more detail
+const checkNewPassword = async (password) => {
+
+    if (!(typeof password === 'string' || password instanceof String)) {
+
+        return 1;
+
+    }
+
+    if (password.length < 8) {
+
+        return 2;
+
+    }
+
+
+
+    for (let i = 0; i < bannedPasswordRegexPatterns.length; i++) {
+
+        const regex = new RegExp(bannedPasswordRegexPatterns[i], "i");
+
+        if (regex.test(password) == true) {
+
+            return 3;
+
+        }
+
+    }
+
+    const passwordDigest = crypto.createHash('sha1').update(password).digest('hex').toUpperCase();
+
+    const hashPrefix = passwordDigest.substring(0, 5);
+    const hashSuffix = passwordDigest.substring(5);
+
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${hashPrefix}`);
+
+    if (!res.ok) {
+
+        new utils.ErrorHandler("0x00000E", await res.text()).throwError();
+
+    }
+
+    const data = await res.text();
+
+    const passwordSuffixes = data.split("\n").map(elem => elem.split(":")[0]);
+
+    return passwordSuffixes.includes(hashSuffix) ? 4 : 0;
+
+};
+
+const sendEmail = async (transport, subject, content, to, useTemplate=true, name="") => {
+
+    if (name && !useTemplate) {
+
+        new ErrorHandler("0x000003", "Recipient name was provided but template was disabled.").throwError();
+
+    }
+
+    try {
+
+        let html = "";
+
+        if (useTemplate) {
+
+            html = `<section style="background-color: rgb(64, 64, 64); color: white;"><h1>Hi ${name}, </h1> <br> ${content} <br> <h3>Thanks, <br> Aristotle Academy</h3></section>`
+
+        }
+
+        else {
+
+            html = content;
+
+        }
+
+        await transport.sendMail({
+            
+            to,
+            subject,
+            html
+
+
+        });
+
+    }
+
+    catch (error) {
+
+        new ErrorHandler("0x000010", error).throwError();
+
+    }
+
+};
+
 export default {
 
     hash,
@@ -124,6 +219,7 @@ export default {
     decrypt,
     createLog,
     ErrorHandler,
-    filterChildProperties
-
+    filterChildProperties,
+    checkNewPassword,
+    sendEmail
 }

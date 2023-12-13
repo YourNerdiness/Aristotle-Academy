@@ -2,6 +2,8 @@ import crypto from "crypto"
 import dotenv from "dotenv"
 import fs from "fs"
 import { MongoClient, ServerApiVersion } from "mongodb"
+import nodemailer from "nodemailer"
+import process from "process"
 import stripe from "stripe"
 import utils from "./utils.js"
 
@@ -9,7 +11,7 @@ dotenv.config();
 
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
-const mongodbURI = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_HOSTNAME}/?retryWrites=true&w=majority`;
+const mongodbURI = `mongodb+srv://${encodeURIComponent(process.env.MONGODB_USERNAME)}:${encodeURIComponent(process.env.MONGODB_PASSWORD)}@${encodeURIComponent(process.env.MONGODB_HOSTNAME)}/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
@@ -20,17 +22,29 @@ const db = client.db(process.env.MONGODB_DB_NAME);
 const collections = {
 
     users : db.collection("users"),
+    authentication : db.collection("authentication"),
     payments : db.collection("payments"),
     jwts : db.collection("jwts"), 
     checkoutSessions : db.collection("checkout-sessions")
     
-}
+};
 
 await collections.jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.JWT_EXPIRES_MS)/1000 });
 await collections.checkoutSessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.CHECKOUT_SESSION_TIMEOUT_MS)/1000 });
 
 const courseData = JSON.parse(fs.readFileSync("course_data.json"));
 const courseNames = Object.keys(courseData);
+
+const authEmailTransport = nodemailer.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.AUTH_EMAIL_ADDRESS,
+        pass: process.env.AUTH_EMAIL_APP_PASSWORD
+    },
+});
 
 const propertyEncodings = {
 
@@ -51,58 +65,7 @@ const paymentIndexProperties = ["userID", "stripeCustomerID"]; // placing a prop
 
 const allProperties = Array.from(new Set([...userDataProperties, ...userIndexProperties, ...paymentDataProperties, ...paymentIndexProperties]));
 
-const bannedPasswordRegexPatterns = fs.readFileSync("password_regex_blacklist.txt").toString("utf-8").split("\n");
 const passwordCheckStatuses = JSON.parse(fs.readFileSync("password_check_statuses.json"));
-
-// returns integer, if password is valid, 0 is returned, otherwise, some other positive integer is returned. see password_check_statuses.json for more detail
-const checkNewPassword = async (password) => {
-
-    if (!(typeof password === 'string' || password instanceof String)) {
-
-        return 1;
-
-    }
-
-    if (password.length < 8) {
-
-        return 2;
-
-    }
-
-
-
-    for (let i = 0; i < bannedPasswordRegexPatterns.length; i++) {
-
-        const regex = new RegExp(bannedPasswordRegexPatterns[i], "i");
-
-        if (regex.test(password) == true) {
-
-            return 3;
-
-        }
-
-    }
-
-    const passwordDigest = crypto.createHash('sha1').update(password).digest('hex').toUpperCase();
-
-    const hashPrefix = passwordDigest.substring(0, 5);
-    const hashSuffix = passwordDigest.substring(5);
-
-    const res = await fetch(`https://api.pwnedpasswords.com/range/${hashPrefix}`);
-
-    if (!res.ok) {
-
-        new utils.ErrorHandler("0x00000E").throwError();
-
-    }
-
-    const data = await res.text();
-
-    const passwordSuffixes = data.split("\n").map(elem => elem.split(":")[0]);
-
-    return passwordSuffixes.includes(hashSuffix) ? 4 : 0;
-
-};
 
 const users = {
 
@@ -134,7 +97,7 @@ const users = {
 
         }
 
-        const passwordStatus = await checkNewPassword(password);
+        const passwordStatus = await utils.checkNewPassword(password);
 
         if (passwordStatus != 0) {
 
@@ -244,6 +207,21 @@ const users = {
 
         await collections.users.insertOne(userDocument);
         await collections.payments.insertOne(paymentDocument);
+
+        const emailVerifcationCode = crypto.randomBytes(4).toString("hex");
+
+        await collections.authentication.insertOne({
+            
+            usernameHash : utils.hash(username, "utf-8"),
+            code : emailVerifcationCode,
+            timestamp : Date.now()
+
+
+        });
+
+        const welcomeEmailContent = `Welcome to Aristotle Academy, we hope you'll benefit from our service. Here is your code to verify your email: <br> <h5>${emailVerifcationCode}</h5>`;
+
+        await utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
 
         return allData.userID;
 
@@ -360,6 +338,14 @@ const users = {
             }
 
             if (toChangePropertyName == "password") {
+
+                const passwordStatus = await utils.checkNewPassword(password);
+
+                if (passwordStatus != 0) {
+
+                    new utils.ErrorHandler("0x000006", passwordCheckStatuses[passwordStatus] || "Password is invalid.").throwError();
+
+                }
 
                 const passwordSalt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
 
