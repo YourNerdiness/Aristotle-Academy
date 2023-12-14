@@ -6,6 +6,15 @@
 
   <div class="center">
 
+    <dialog id="mfaDialog">
+
+      <h5>We have sent a code to your email, please enter it here to complete sign in: </h5>
+      <p id="mfaError"></p>
+      <input type="text" id="code" name="code">
+      <button onclick="completeMFA()">Compelte Sign In</button>
+
+    </dialog>
+
     <form onsubmit="return false;">
 
       <div id="usernameDiv">

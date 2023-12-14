@@ -18,7 +18,7 @@ const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`)
 const handleRequestError = (error, res) => {
 
     if (error.throwErrorToClient) {
-            
+
         error.throwErrorToClient(res);
 
     }
@@ -35,9 +35,9 @@ const handleRequestError = (error, res) => {
 
 const pageRedirectCallbacks = {
 
-    account : async (req, res) => {
+    account: async (req, res) => {
 
-        if (!req.headers.auth) {
+        if (!req.headers.auth || req.headers.auth.mfaRequired) {
 
             res.status(401).redirect("/signup");
 
@@ -49,23 +49,9 @@ const pageRedirectCallbacks = {
 
     },
 
-    signin : async (req, res) => {
+    signin: async (req, res) => {
 
-        if (req.headers.auth) {
-
-            res.status(409).redirect("/account");
-
-            return true;
-
-        }
-
-        return false;
-
-    },
-
-    signup : async (req, res) => {
-
-        if (req.headers.auth) {
+        if (req.headers.auth && !req.headers.auth.mfaRequired) {
 
             res.status(409).redirect("/account");
 
@@ -77,13 +63,27 @@ const pageRedirectCallbacks = {
 
     },
 
-    getPro : async (req, res) => {
+    signup: async (req, res) => {
+
+        if (req.headers.auth && !req.headers.auth.mfaRequired) {
+
+            res.status(409).redirect("/account");
+
+            return true;
+
+        }
+
+        return false;
+
+    },
+
+    getPro: async (req, res) => {
 
         const token = req.headers.auth;
-        
+
         const courseName = req.query.courseName;
 
-        if (token) {
+        if (token && !token.mfaRequired) {
 
             if (!courseNames.includes(courseName)) {
 
@@ -113,20 +113,20 @@ const pageRedirectCallbacks = {
 
 const ejsVars = {
 
-    getPro : async (req, res) => {
-        
+    getPro: async (req, res) => {
+
         return {
 
-            coursePrice : "20",
-            monthlyPrice : "30",
-            yearlyPrice : "60",
-            courseName : req.query.courseName
+            coursePrice: "20",
+            monthlyPrice: "30",
+            yearlyPrice: "60",
+            courseName: req.query.courseName
 
         }
 
     },
 
-    account : async (req, res) => {
+    account: async (req, res) => {
 
         let username;
         let email;
@@ -163,13 +163,13 @@ const courseDescriptions = utils.filterChildProperties(courseData, "description"
 const courseTags = utils.filterChildProperties(courseData, "tags");
 const subIds = JSON.parse(fs.readFileSync("sub_ids.json"));
 
-const generateToken = async (username, userID) => {
+const generateToken = async (username, userID, mfaRequired) => {
 
     const jwtID = crypto.randomBytes(+process.env.JWT_ID_SIZE).toString("base64");
 
     await database.authorization.saveJWTId(userID, jwtID);
 
-    return jwt.sign({ username: utils.encrypt(username, "utf-8"), userID: utils.encrypt(userID, "base64"), jwtID: utils.encrypt(jwtID, "base64") }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
+    return jwt.sign({ username: utils.encrypt(username, "utf-8"), userID: utils.encrypt(userID, "base64"), jwtID: utils.encrypt(jwtID, "base64"), mfaRequired }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
 
 };
 
@@ -179,10 +179,10 @@ const getToken = async (token) => {
 
         const encryptedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-        const decryptedToken = { username : utils.decrypt(encryptedToken.username, "utf-8"), userID : utils.decrypt(encryptedToken.userID, "base64") }
+        const decryptedToken = { username: utils.decrypt(encryptedToken.username, "utf-8"), userID: utils.decrypt(encryptedToken.userID, "base64"), mfaRequired: encryptedToken.mfaRequired }
 
         if (!(await database.verification.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
-            
+
             return null;
 
         }
@@ -214,6 +214,18 @@ const getTokenMiddleware = async (req, res, next) => {
     next();
 
 };
+
+const tokenMFARequiredFilterMiddleware = (req, res, next) => {
+
+    if (req.headers.auth?.mfaRequired == true) {
+
+        req.headers.auth = null;
+
+    }
+
+    next();
+
+}
 
 const indexRouteMiddle = (req, res, next) => {
 
@@ -255,10 +267,10 @@ const ejsRenderMiddleware = async (req, res, next) => {
         }
 
         let accountVars = {
-            
-            accountRoute : req.headers.auth ? "/account" : "/signup", 
-            accountText : req.headers.auth ? "Account" : "Signup"
-    
+
+            accountRoute: req.headers.auth ? "/account" : "/signup",
+            accountText: req.headers.auth ? "Account" : "Signup"
+
         };
 
         res.status(200).render("main", Object.assign({ pageName, bodyPath }, accountVars, pageVars));
@@ -299,8 +311,8 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
             event = stripeAPI.webhooks.constructEvent(event, sig, process.env.STRIPE_WEBHOOK_SIGNING);
 
-        } 
-        
+        }
+
         catch (error) {
 
             new utils.ErrorHandler("0x00000F").throwError();
@@ -313,7 +325,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 if (event.data.object.mode == "subscription") {
 
-                    res.status(204).json({ msg : "OK." });
+                    res.status(204).json({ msg: "OK." });
 
                     return;
 
@@ -321,7 +333,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 const sessionID = event.data.object.metadata.sessionID;
 
-                res.status(200).json({ msg : "OK." });
+                res.status(200).json({ msg: "OK." });
 
                 const sessionData = await database.payments.getCheckoutSession(sessionID);
 
@@ -334,7 +346,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
                 const customerID = event.data.object.customer;
                 const subID = event.data.object.id;
 
-                res.status(200).json({ msg : "OK." });
+                res.status(200).json({ msg: "OK." });
 
                 await database.payments.updateSubID(customerID, subID)
 
@@ -369,7 +381,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
         if (req.headers.auth) {
 
-            res.status(409).json({ msg : "You are already signed in." });
+            res.status(409).json({ msg: "You are already signed in." });
 
             return;
 
@@ -379,7 +391,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
         if (!data) {
 
-            res.status(400).json({ msg : "Missing requeust data." });
+            res.status(400).json({ msg: "Missing requeust data." });
 
             return;
 
@@ -391,7 +403,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
         if (!username || !email || !password) {
 
-            res.status(400).json({ msg : "Mising sign up data." });
+            res.status(400).json({ msg: "Mising sign up data." });
 
             return;
 
@@ -399,10 +411,9 @@ app.post("/signup", express.json(), async (req, res) => {
 
         const userID = await database.users.addNewUser(username, email, password);
 
-        const jwtToken = await generateToken(username, userID);
+        const jwtToken = await generateToken(username, userID, true);
 
-
-        res.status(201).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).json({ msg : "OK." });
+        res.status(201).cookie("jwt", jwtToken, { httpOnly: true, maxAge: 1000 * 60 * 30 }).json({ msg: "OK." });
 
     }
 
@@ -418,9 +429,9 @@ app.post("/signin", express.json(), async (req, res) => {
 
     try {
 
-        if (req.headers.auth) {
+        if (req.headers.auth && !req.headers.auth.mfaRequired) {
 
-            res.status(409).json({ msg : "You are already signed in." });
+            res.status(409).json({ msg: "You are already signed in." });
 
             return;
 
@@ -431,7 +442,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         if (!data) {
 
-            res.status(400).json({ msg : "Missing request data." });
+            res.status(400).json({ msg: "Missing request data." });
 
             return;
 
@@ -442,7 +453,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         if (!username || !password) {
 
-            res.status(400).json({ msg : "Mising sign in data." });
+            res.status(400).json({ msg: "Mising sign in data." });
 
             return;
 
@@ -452,7 +463,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
             if (!(await database.authentication.verifyPassword(username, password))) {
 
-                res.status(401).json({ msg : "Incorrect username or password." });
+                res.status(401).json({ msg: "Incorrect username or password." });
 
                 return;
 
@@ -460,9 +471,11 @@ app.post("/signin", express.json(), async (req, res) => {
 
             const userID = (await database.users.getUserInfo(username, "username", ["userID"]))[0].userID;
 
-            const jwtToken = await generateToken(username, userID);
+            await database.authentication.sendMFAEmail(userID);
 
-            res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).json({ msg : "OK." });
+            const jwtToken = await generateToken(username, userID, true);
+
+            res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: 1000 * 60 * 30, }).json({ msg: "OK." });
 
         }
 
@@ -478,6 +491,64 @@ app.post("/signin", express.json(), async (req, res) => {
 
 });
 
+app.post("/completeMFA", express.json(), async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+
+        const code = req.body.code;
+
+        if (!token) {
+
+            res.status(401).json({ msg: "Authentication process has not been started, please start authentication process to complete MFA." });
+
+            return;
+
+        }
+
+        if (!token.mfaRequired) {
+
+            res.status(409).json({ msg: "MFA has already been completed." });
+
+        }
+
+        if (!code) {
+
+            res.status(400).json({ msg: "Missing request data." });
+
+        }
+
+        const codeOK = await database.authentication.verifyMFACode(token.userID, code);
+
+        if (codeOK) {
+
+            const jwtToken = await generateToken(token.username, token.userID, false);
+
+            res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).json({ msg: "OK." });
+
+        }
+
+        else {
+
+            res.status(401).json({ msg: "MFA code is invalid." });
+
+        }
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+        return;
+
+    }
+
+});
+
+app.use(tokenMFARequiredFilterMiddleware);
+
 app.post("/deleteAccount", express.json(), async (req, res) => {
 
     try {
@@ -487,7 +558,7 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
         if (!token) {
 
-            res.status(401).json({ msg : "Please sign in before deleting your account." });
+            res.status(401).json({ msg: "Please sign in before deleting your account." });
 
             return;
 
@@ -495,7 +566,7 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
         if (!password) {
 
-            res.status(400).json({ msg : "Please enter your password to delete your account." });
+            res.status(400).json({ msg: "Please enter your password to delete your account." });
 
             return;
 
@@ -506,7 +577,7 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
         if (!(await database.authentication.verifyPassword(username, password))) {
 
-            res.status(401).json({ msg : "Incorrect password."});
+            res.status(401).json({ msg: "Incorrect password." });
 
             return;
 
@@ -514,7 +585,7 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
         await database.users.deleteUser(username, userID);
 
-        res.status(200).clearCookie("jwt").json({ msg : "OK." });
+        res.status(200).clearCookie("jwt").json({ msg: "OK." });
 
     }
 
@@ -535,7 +606,7 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
 
         if (!token) {
 
-            res.status(401).json({ msg : `Please sign in to change your ${data.toChangePropertyName}` });
+            res.status(401).json({ msg: `Please sign in to change your ${data.toChangePropertyName}` });
 
             return;
 
@@ -543,7 +614,7 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
 
         if (!data.toChangeValue || !data.toChangePropertyName) {
 
-            res.status(400).json({ msg : "Missing request parameters." });
+            res.status(400).json({ msg: "Missing request parameters." });
 
             return;
 
@@ -553,13 +624,13 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
 
         if (data.toChangePropertyName == "username") {
 
-            res.status(200).cookie("jwt", await generateToken(data.toChangeValue, token.userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite: true }).json({ msg : "OK." });
+            res.status(200).cookie("jwt", await generateToken(data.toChangeValue, token.userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite: true }).json({ msg: "OK." });
 
             return;
 
         }
 
-        res.status(200).json({ msg : "OK." });
+        res.status(200).json({ msg: "OK." });
 
     }
 
@@ -581,7 +652,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         if (!token) {
 
-            res.status(401).json({ msg: "Please sign in to purchase courses. "});
+            res.status(401).json({ msg: "Please sign in to purchase courses. " });
 
             return;
 
@@ -680,7 +751,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
         if (paidFor) {
 
-            res.status(409).json({ msg : "You have already paid for this course." });
+            res.status(409).json({ msg: "You have already paid for this course." });
 
         }
 
@@ -712,7 +783,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
                 else {
 
-                    res.status(404).json({ msg : "Course does not exist." });
+                    res.status(404).json({ msg: "Course does not exist." });
 
                     return;
 
@@ -748,7 +819,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
         });
 
-        res.status(200).json({ msg : "OK.", url : session.url });
+        res.status(200).json({ msg: "OK.", url: session.url });
 
     }
 
@@ -770,7 +841,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
         if (!token && data.filter == "true") {
 
-            res.status(401).json({ msg : "You are not signed in, please sign in to see your paid for courses." });
+            res.status(401).json({ msg: "You are not signed in, please sign in to see your paid for courses." });
 
         }
 
@@ -792,13 +863,13 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
                 }
 
-                res.status(200).json({ msg : "OK.", courseNames: filteredCourseList, courseDescriptions, courseTags });
+                res.status(200).json({ msg: "OK.", courseNames: filteredCourseList, courseDescriptions, courseTags });
 
             }
 
             else {
 
-                res.status(200).json({ msg : "OK.", courseNames, courseDescriptions, courseTags });
+                res.status(200).json({ msg: "OK.", courseNames, courseDescriptions, courseTags });
 
             }
 
@@ -818,7 +889,7 @@ app.get("/video", express.json(), async (req, res) => {
 
     if (!token) {
 
-        res.status(401).json({ msg : "You are not signed in, please sign in to access your course." });
+        res.status(401).json({ msg: "You are not signed in, please sign in to access your course." });
 
     }
 
@@ -828,7 +899,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         if (!courseNames.includes(courseName)) {
 
-            res.status(404).json({ msg : "Course does not exist." });
+            res.status(404).json({ msg: "Course does not exist." });
 
             return;
 
@@ -838,7 +909,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         if (!coursePaidFor) {
 
-            res.send(403).json({ msg : "You have not paid for this course." });
+            res.send(403).json({ msg: "You have not paid for this course." });
 
             return;
 
@@ -848,7 +919,7 @@ app.get("/video", express.json(), async (req, res) => {
 
         if (!range) {
 
-            res.status(400).json({ msg : "No range provided." });
+            res.status(400).json({ msg: "No range provided." });
 
         }
 
@@ -858,7 +929,7 @@ app.get("/video", express.json(), async (req, res) => {
 
             if (!fs.existsSync(filePath)) {
 
-                    res.status(404).json({ msg : "Can't find video." });
+                res.status(404).json({ msg: "Can't find video." });
 
             }
 

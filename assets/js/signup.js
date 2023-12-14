@@ -32,7 +32,7 @@ const signup = async () => {
 
     if (res.ok) {
 
-        window.location.reload();
+        document.getElementById("mfaDialog").showModal();
 
     }
 
@@ -44,4 +44,42 @@ const signup = async () => {
 
     }
 
+};
+
+const completeMFA = async () => {
+
+    const code = document.getElementById("code").value;
+
+    const data = { code };
+
+    const req = {
+
+        method : "POST",
+
+        headers : {
+
+            "Content-Type" : "application/json"
+
+        },
+
+        body : JSON.stringify(data)
+
+    }
+
+    const res = await fetch("./completeMFA", req);
+
+    if (res.ok) {
+
+        window.location.reload();
+
+    }
+
+    else {
+
+        const error = await res.json();
+
+        $("#mfaError").text(error.userMsg || error.msg || "An error has occurred.");
+
+    }
+    
 };

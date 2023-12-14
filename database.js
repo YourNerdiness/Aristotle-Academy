@@ -208,12 +208,12 @@ const users = {
         await collections.users.insertOne(userDocument);
         await collections.payments.insertOne(paymentDocument);
 
-        const emailVerifcationCode = crypto.randomBytes(4).toString("hex");
+        const emailVerifcationCode = crypto.randomBytes(6).toString("hex");
 
         await collections.authentication.insertOne({
             
-            usernameHash : utils.hash(username, "utf-8"),
-            code : emailVerifcationCode,
+            userIDHash : utils.hash(userID, "base64"),
+            code : utils.encrypt(emailVerifcationCode, "hex"),
             timestamp : Date.now()
 
 
@@ -391,7 +391,7 @@ const users = {
 
 const authentication = {
 
-    verifyPassword: async (username, password) => {
+    verifyPassword : async (username, password) => {
 
         const results = await users.getUserInfo(username, "username", ["passwordDigest", "passwordSalt"]);
 
@@ -412,6 +412,52 @@ const authentication = {
             const userData = results[0];
 
             return crypto.timingSafeEqual(utils.passwordHash(password + process.env.PASSWORD_PEPPER, userData.passwordSalt, 64), Buffer.from(userData.passwordDigest, "base64"));
+
+        }
+
+    },
+
+    sendMFAEmail : async (userID) => {
+
+        const userData = (await users.getUserInfo(userID, "userID", ["username", "email"]))[0];
+
+        const emailVerifcationCode = crypto.randomBytes(6).toString("hex");
+
+        await collections.authentication.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { code : utils.encrypt(emailVerifcationCode, "hex"), timestamp : Date.now() } });
+
+        const emailContent = `Here is your code to verify your email: <br> <h5>${emailVerifcationCode}</h5>`;
+
+        await utils.sendEmail(authEmailTransport, "Aristotle Acaedemy MFA Code", emailContent, userData.email, true, userData.username);
+
+    },
+
+    verifyMFACode : async (userID, code) => {
+
+        const results = await collections.authentication.find({ userIDHash : utils.hash(userID, "base64")}).toArray();
+
+        if (results.length == 0) {
+
+            return false;
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001", "Multiple users with the same userID exist.").throwError();
+
+        }
+
+        else {
+
+            const authenticationData = results[0];
+
+            if (Date.now() > authentication.timestamp + 1000*60*30) {
+
+                return false;
+
+            }
+
+            return crypto.timingSafeEqual(Buffer.from(code, "hex"), Buffer.from(utils.decrypt(authenticationData.code, "hex"), "hex"));
 
         }
 
