@@ -182,7 +182,15 @@ const sendEmail = async (transport, subject, content, to, useTemplate=true, name
 
         if (useTemplate) {
 
-            html = `<section style="background-color: rgb(64, 64, 64); color: white;"><h1>Hi ${name}, </h1> <br> ${content} <br> <h3>Thanks, <br> Aristotle Academy</h3></section>`
+            html = `
+            
+            <section style="background-color: rgb(64, 64, 64); color: white;">
+            
+            <h1>Hi ${name}, </h1> 
+            ${content} 
+            <h3>Thanks, <br> Aristotle Academy</h3>
+            
+            </section>`
 
         }
 
