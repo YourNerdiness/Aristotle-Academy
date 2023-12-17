@@ -1,7 +1,4 @@
 import utils from "./utils.js"
-import util from "util"
-
-util.inspect.defaultOptions.depth = null;
 
 function calculateDistance(vector1, vector2) {
 
@@ -188,8 +185,91 @@ const calcualateKMeansWithLinearIDs = (data=[], dimension, k, iterations=16, nRu
 
 };
 
+class QLearning {
+
+    constructor(possibleActions) {
+
+        this.qTable = {};
+        this.alpha = 0.3;
+        this.epsilon = 0.05;
+        this.possibleActions = possibleActions;
+        this.defaultActionValues = {};
+
+        for (let possibleAction in possibleActions) {
+
+            this.defaultActionValues[possibleAction] = 0.0;
+
+        }
+
+    }
+
+    calculateQValues(reward, oldState, actionTaken) {
+
+        if (!this.qTable[oldState]) {
+
+            this.qTable[oldState] = this.defaultActionValues;
+
+        }
+
+        let oldQValue = this.qTable[oldState][actionTaken] || 0.0;
+
+        return oldQValue + this.alpha * (reward - oldQValue);
+
+    }
+
+    updateQValues(oldState, actionTaken, reward) {
+        
+        if (!this.qTable[oldState]) {
+
+            this.qTable[oldState] = this.defaultActionValues;
+
+        }
+
+        this.qTable[oldState][actionTaken] = this.calculateQValues(reward, oldState, actionTaken);
+
+    }
+
+    selectAction(state) {
+
+        if (!this.qTable[state]) {
+
+            this.qTable[state] = this.defaultActionValues;
+
+        }
+
+        const actions = Object.keys(this.qTable[state]);
+
+        if (Math.random() < this.epsilon) {
+
+            return actions[Math.floor(Math.random()*actions.length)];
+
+        }
+
+        const actionRewards = this.qTable[state];
+
+        let maxReward = -Infinity;
+        let maxRewardAction = null;
+
+        for (let action in actions) {
+
+            if (actionRewards[action] > maxReward) {
+
+                maxReward = actionRewards[action];
+                maxRewardAction = action;
+
+            }
+
+        }
+
+        return maxRewardAction;
+
+    }
+
+}
+
 export default {
 
-    calcualateKMeansWithLinearIDs
+    calcualateKMeansWithLinearIDs,
+    QLearning
 
 }
