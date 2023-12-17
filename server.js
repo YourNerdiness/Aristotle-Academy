@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken"
 import morgan from "morgan"
 import stripe from "stripe"
 import utils from "./utils.js"
+import ai from "./ai.js"
 
 dotenv.config();
 
@@ -39,7 +40,7 @@ const pageRedirectCallbacks = {
 
         if (!req.headers.auth || req.headers.auth.mfaRequired) {
 
-            res.status(401).redirect("/signup");
+            res.status(401).redirect("/index*");
 
             return true;
 
@@ -102,6 +103,40 @@ const pageRedirectCallbacks = {
             }
 
             return false;
+
+        }
+
+        return false;
+
+    },
+
+    course: async (req, res) => {
+
+        const token = req.headers.auth;
+
+        if (!token || token.mfaRequired) {
+
+            res.status(401).redirect("/index");
+
+            return true;
+
+        }
+
+        if (!req.query.courseName) {
+
+            res.status(400).redirect("/learn");
+
+            return true;
+
+        }
+
+        if (!req.query.contentID) {
+
+            const contentID = ai.getContentID(req.query.courseName, token.userID);
+
+            res.status(200).redirect((`${req.originalUrl}&contentID=${contentID}`));
+
+            return true;
 
         }
 
@@ -686,7 +721,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         if (paidFor) {
 
-            res.status(200).json({ msg: "OK.", url: `/course/${encodeURIComponent(courseName)}` });
+            res.status(200).json({ msg: "OK.", url: `/course?courseName=${encodeURIComponent(courseName)}` });
 
         }
 
