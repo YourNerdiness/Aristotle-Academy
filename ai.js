@@ -31,188 +31,194 @@ const redisFuncs = {
 
 };
 
-function calculateDistance(vector1, vector2) {
+// uses relational cluster IDs, such that cluster IDs numerically closer are more similar to one another than they are both to clusters with with cluster IDs numerically further
+class KMeans {
 
-    if (vector1.length !== vector2.length) {
+    calculateDistance(vector1, vector2) {
 
-        throw new Error("Vectors must have the same dimensionality");
-    
-    }
+        if (vector1.length !== vector2.length) {
 
-    let squaredSum = 0;
-
-    for (let i = 0; i < vector1.length; i++) {
-
-        const diff = vector1[i] - vector2[i];
-
-        squaredSum += diff * diff;
-
-    }
-
-    const distance = Math.sqrt(squaredSum);
-
-    return distance;
-
-}
-
-function calculateAverageVector(vectors) {
-
-    if (vectors.length === 0) {
-
-        throw new Error("No vectors given");
-
-    }
-
-    const dimensions = vectors[0].length;
-
-    for (const vector of vectors) {// Return null for an empty array
-        if (vector.length !== dimensions) {
-
-            throw new Error("All vectors must have the same dimensions");
+            throw new Error("Vectors must have the same dimensionality");
 
         }
 
-    }
+        let squaredSum = 0;
 
-    const sumVector = new Array(dimensions).fill(0);
+        for (let i = 0; i < vector1.length; i++) {
 
-    for (const vector of vectors) {
+            const diff = vector1[i] - vector2[i];
 
-        for (let i = 0; i < dimensions; i++) {
-
-            sumVector[i] += vector[i];
-            
-        }
-
-    }
-
-    const averageVector = sumVector.map(sum => sum / vectors.length);
-
-    return averageVector;
-}
-
-const calcualateKMeansWithLinearIDs = (data=[], dimension, k, iterations=16, nRuns=10) => {
-
-    for (let i = 0; i < data.length; i++) {
-
-        if (data[0].length != dimension) {
-
-            utils.throwError("0x000003")
+            squaredSum += diff * diff;
 
         }
 
+        const distance = Math.sqrt(squaredSum);
+
+        return distance;
+
     }
 
-    let bestClusterCenters = [];
-    let bestClustering = [];
-    let bestClusterCentersAverageDistance = Number.POSITIVE_INFINITY;
+    calculateAverageVector(vectors) {
 
-    for (let run = 0; run < nRuns; run++) {
+        if (vectors.length === 0) {
 
-        let clusterCenters = [];
-        let clustering = [];
-
-        while (clusterCenters.length < k) {
-
-            clusterCenters.push(data[Math.floor(Math.random() * data.length)])
+            throw new Error("No vectors given");
 
         }
 
-        for (let i = 0; i < iterations; i++) {
+        const dimensions = vectors[0].length;
 
-            for (let j = 0; j < k; j++) {
+        for (const vector of vectors) {
 
-                clustering[j] = [];
-    
+            if (vector.length !== dimensions) {
+
+                throw new Error("All vectors must have the same dimensions");
+
             }
 
-            for (let j = 0; j < data.length; j++) {
+        }
 
-                let currentDistance = Number.POSITIVE_INFINITY;
-                let clusterID = 0;
+        const sumVector = new Array(dimensions).fill(0);
 
-                for (let l = 0; l < clusterCenters.length; l++) {
+        for (const vector of vectors) {
 
-                    const distance = calculateDistance(data[j], clusterCenters[l])
+            for (let i = 0; i < dimensions; i++) {
 
-                    if (distance < currentDistance) {
+                sumVector[i] += vector[i];
 
-                        currentDistance = distance;
-                        clusterID = l;
+            }
 
-                    }
+        }
+
+        const averageVector = sumVector.map(sum => sum / vectors.length);
+
+        return averageVector;
+    }
+
+    calcualateKMeansWithLinearIDs(data = [], dimension, k, iterations = 16, nRuns = 10) {
+
+        for (let i = 0; i < data.length; i++) {
+
+            if (data[0].length != dimension) {
+
+                new ErrorHandler("0x000003").throwError();
+
+            }
+
+        }
+
+        let bestClusterCenters = [];
+        let bestClustering = [];
+        let bestClusterCentersAverageDistance = Number.POSITIVE_INFINITY;
+
+        for (let run = 0; run < nRuns; run++) {
+
+            let clusterCenters = [];
+            let clustering = [];
+
+            while (clusterCenters.length < k) {
+
+                clusterCenters.push(data[Math.floor(Math.random() * data.length)])
+
+            }
+
+            for (let i = 0; i < iterations; i++) {
+
+                for (let j = 0; j < k; j++) {
+
+                    clustering[j] = [];
 
                 }
 
-                clustering[clusterID].push(data[j])
+                for (let j = 0; j < data.length; j++) {
+
+                    let currentDistance = Number.POSITIVE_INFINITY;
+                    let clusterID = 0;
+
+                    for (let l = 0; l < clusterCenters.length; l++) {
+
+                        const distance = this.calculateDistance(data[j], clusterCenters[l])
+
+                        if (distance < currentDistance) {
+
+                            currentDistance = distance;
+                            clusterID = l;
+
+                        }
+
+                    }
+
+                    clustering[clusterID].push(data[j])
+
+                }
+
+                for (let j = 0; j < clustering.length; j++) {
+
+                    if (clustering[j].length == 0) {
+
+                        continue;
+
+                    }
+
+                    clusterCenters[j] = this.calculateAverageVector(clustering[j]);
+
+                }
 
             }
 
-            for (let j = 0; j < clustering.length; j++) {
+            const clusterCentersAverageDistance = clustering.reduce((acc, cluster, index) => {
 
-                if (clustering[j].length == 0) {
+                acc += cluster.reduce((clusterAcc, dataPoint) => {
 
-                    continue;
-                    
-                }   
+                    clusterAcc += this.calculateDistance(dataPoint, clusterCenters[index]);
 
-                clusterCenters[j] = calculateAverageVector(clustering[j]);
+                    return clusterAcc;
+
+                }, 0) / cluster.length;
+
+                return acc;
+
+            }, 0) / clustering.length;
+
+            if (clusterCentersAverageDistance < bestClusterCentersAverageDistance) {
+
+                bestClusterCenters = clusterCenters;
+                bestClustering = clustering;
+                bestClusterCentersAverageDistance = clusterCentersAverageDistance;
 
             }
 
         }
 
-        const clusterCentersAverageDistance = clustering.reduce((acc, cluster, index) => {
+        const output = [];
 
-            acc += cluster.reduce((clusterAcc, dataPoint) => {
+        for (let i = 0; i < bestClusterCenters.length; i++) {
 
-                clusterAcc += calculateDistance(dataPoint, clusterCenters[index]);
-
-                return clusterAcc;
-
-            }, 0)/cluster.length;
-
-            return acc;
-
-        }, 0)/clustering.length;
-
-        if (clusterCentersAverageDistance < bestClusterCentersAverageDistance) {
-
-            bestClusterCenters = clusterCenters;
-            bestClustering = clustering;
-            bestClusterCentersAverageDistance = clusterCentersAverageDistance;
+            output.push({ clusterCenter: bestClusterCenters[i], clusterData: bestClustering[i] })
 
         }
 
-    }
+        const baseClusterCenterForSorting = bestClusterCenters.reduce((mostNegativeClusterCenter, clusterCenter) => {
 
-    const output = [];
+            if (clusterCenter.reduce((acc, currentValue) => acc + currentValue, 0) < mostNegativeClusterCenter.reduce((acc, currentValue) => acc + currentValue, 0)) {
 
-    for (let i = 0; i < bestClusterCenters.length; i++) {
+                return clusterCenter;
 
-        output.push({ clusterCenter : bestClusterCenters[i], clusterData : bestClustering[i] })
+            }
 
-    }
+            return mostNegativeClusterCenter;
 
-    const baseClusterCenterForSorting = bestClusterCenters.reduce((mostNegativeClusterCenter, clusterCenter) => {
+        }, bestClusterCenters[0]);
 
-        if (clusterCenter.reduce((acc, currentValue) => acc + currentValue, 0) < mostNegativeClusterCenter.reduce((acc, currentValue) => acc + currentValue, 0)) {
+        output.sort((a, b) => {
 
-            return clusterCenter;
+            return this.calculateDistance(baseClusterCenterForSorting, a.clusterCenter) - this.calculateDistance(baseClusterCenterForSorting, b.clusterCenter);
 
-        }
+        });
 
-        return mostNegativeClusterCenter;
+        return output;
 
-    }, bestClusterCenters[0]);
-
-    output.sort((a, b) => {
-
-        return calculateDistance(baseClusterCenterForSorting, a.clusterCenter) - calculateDistance(baseClusterCenterForSorting, b.clusterCenter);
-
-    });
-
-    return output;
+    };
 
 };
 
@@ -292,6 +298,8 @@ class QLearning {
 const getContentID = async (courseName, userID) => {
 
     // TODO
+
+
 
     return "123456789abcdefg"
 
