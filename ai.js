@@ -1,4 +1,35 @@
 import utils from "./utils.js"
+import dotenv from "dotenv"
+import redis from "redis"
+
+dotenv.config();
+
+const client = redis.createClient({
+
+    password: process.env.REDIS_PASSWORD,
+    socket: {
+
+        host: process.env.REDIS_HOSTNAME,
+        port: 11951
+
+    }
+
+});
+
+client.on("error", err => new utils.ErrorHandler("0x000000", err).throwError() );
+
+await client.connect();
+
+const redisFuncs = {
+
+    set : async (key, val) => await client.set(key, val),
+    setJSON : async (key, val, path="$") => await client.json.set(key, path, val),
+    get : async (key) => await client.get(key),
+    getJSON : async (key, path="$") => await client.json.get(key, { path }),
+    del : async (key) => await client.del(key),
+    delJSON : async (key, path="$") => await client.json.del(key, path)
+
+};
 
 function calculateDistance(vector1, vector2) {
 
@@ -187,74 +218,65 @@ const calcualateKMeansWithLinearIDs = (data=[], dimension, k, iterations=16, nRu
 
 class QLearning {
 
-    constructor(possibleActions) {
+    constructor (possibleActions) {
 
-        this.qTable = {};
         this.alpha = 0.3;
         this.epsilon = 0.05;
+        this.lambda = 0.9;
         this.possibleActions = possibleActions;
-        this.defaultActionValues = {};
-
-        for (let possibleAction in possibleActions) {
-
-            this.defaultActionValues[possibleAction] = 0.0;
-
-        }
+        this.defaultActionValues = possibleActions.reduce((obj, key) => { obj[key] = 0.0; return obj; }, {});
 
     }
 
-    calculateQValues(reward, oldState, actionTaken) {
+    async calculateQValues (reward, state, action) {
 
-        if (!this.qTable[oldState]) {
+        if (!(await redisFuncs.getJSON(state))) {
 
-            this.qTable[oldState] = this.defaultActionValues;
+            await redisFuncs.setJSON(state, this.defaultActionValues);
 
         }
 
-        let oldQValue = this.qTable[oldState][actionTaken] || 0.0;
+        let oldQValue = await redisFuncs.getJSON(state, "." + action) || 0.0;
 
         return oldQValue + this.alpha * (reward - oldQValue);
 
     }
 
-    updateQValues(oldState, actionTaken, reward) {
+    // stateActionPairs is an array of state-action pairs, representing the actions taken in the states before the reward was received. stateActionPairs[0] is the most recent state-action pair, where the reward was received, stateActionPairs[1] is the second most recent state-action pair, etc
+    async updateQValues (reward, stateActionPairs) {
         
-        if (!this.qTable[oldState]) {
+        for (let i = 0; i < stateActionPairs.length; i++) {
 
-            this.qTable[oldState] = this.defaultActionValues;
+            await redisFuncs.setJSON(stateActionPairs[i][0], await this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1]), "." + stateActionPairs[i][1]);
 
         }
-
-        this.qTable[oldState][actionTaken] = this.calculateQValues(reward, oldState, actionTaken);
 
     }
 
-    selectAction(state) {
+    async selectAction (state) {
 
-        if (!this.qTable[state]) {
+        if (!(await redisFuncs.getJSON(state))) {
 
-            this.qTable[state] = this.defaultActionValues;
+            await redisFuncs.setJSON(state, this.defaultActionValues);
 
         }
-
-        const actions = Object.keys(this.qTable[state]);
 
         if (Math.random() < this.epsilon) {
 
-            return actions[Math.floor(Math.random()*actions.length)];
+            return this.possibleActions[Math.floor(Math.random()*this.possibleActions.length)];
 
         }
 
-        const actionRewards = this.qTable[state];
+        const actionRewards = await redisFuncs.getJSON(state);
 
         let maxReward = -Infinity;
         let maxRewardAction = null;
 
-        for (let action in actions) {
+        for (let action of this.possibleActions) {
 
-            if (actionRewards[action] > maxReward) {
+            if ((actionRewards[action] || 0.0) > maxReward) {
 
-                maxReward = actionRewards[action];
+                maxReward = actionRewards[action] || 0.0;
                 maxRewardAction = action;
 
             }
@@ -267,9 +289,16 @@ class QLearning {
 
 }
 
+const getContentID = async (courseName, userID) => {
+
+    // TODO
+
+    return "123456789abcdefg"
+
+};
+
 export default {
 
-    calcualateKMeansWithLinearIDs,
-    QLearning
+    getContentID
 
 }
