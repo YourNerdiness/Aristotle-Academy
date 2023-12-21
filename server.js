@@ -40,7 +40,7 @@ const pageRedirectCallbacks = {
 
         if (!req.headers.auth || req.headers.auth.mfaRequired) {
 
-            res.status(401).redirect("/index*");
+            res.status(401).redirect("/index");
 
             return true;
 
@@ -130,11 +130,37 @@ const pageRedirectCallbacks = {
 
         }
 
+        let additionalQueryParams = "";
+
         if (!req.query.contentID) {
 
-            const contentID = ai.getContentID(req.query.courseName, token.userID);
+            const contentID = await ai.getContentID(req.query.courseName, token.userID);
 
-            res.status(200).redirect((`${req.originalUrl}&contentID=${contentID}`));
+            additionalQueryParams += `&contentID=${contentID}`;
+
+        }
+
+        if (!req.query.lessonNumber || !req.query.lessonChunk) {
+
+            const lessonIndexes = await database.courses.getLessonIndexes(token.userID, req.query.courseName);
+
+            if (!req.query.lessonNumber) {
+
+                additionalQueryParams += `&lessonNumber=${lessonIndexes[0]}`;
+                
+            }
+
+            if (!req.query.lessonChunk) {
+
+                additionalQueryParams += `&lessonChunk=${lessonIndexes[1]}`;
+                
+            }
+
+        }
+
+        if (additionalQueryParams) {
+
+            res.status(200).redirect(req.originalUrl + additionalQueryParams);
 
             return true;
 

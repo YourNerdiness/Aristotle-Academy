@@ -25,7 +25,8 @@ const collections = {
     authentication : db.collection("authentication"),
     payments : db.collection("payments"),
     jwts : db.collection("jwts"), 
-    checkoutSessions : db.collection("checkout-sessions")
+    checkoutSessions : db.collection("checkout-sessions"),
+    courses : db.collection("courses")
     
 };
 
@@ -34,6 +35,14 @@ await collections.checkoutSessions.createIndex({ createdAt: 1 }, { expireAfterSe
 
 const courseData = JSON.parse(fs.readFileSync("course_data.json"));
 const courseNames = Object.keys(courseData);
+const defaultCourseData = courseNames.reduce((obj, key) => {
+
+    obj[key] = { currentLessonNumber : 1, currentLessonChunk : 1, lessonsData : [] };
+
+    return obj;
+
+}, {});
+
 
 const authEmailTransport = nodemailer.createTransport({
     service: "gmail",
@@ -208,6 +217,13 @@ const users = {
         await collections.users.insertOne(userDocument);
         await collections.payments.insertOne(paymentDocument);
 
+        await collections.courses.insertOne({
+
+            userIDHash : utils.hash(userID, "base64"),
+            courseData : defaultCourseData
+
+        });
+
         const emailVerifcationCode = crypto.randomBytes(6).toString("hex");
 
         await collections.authentication.insertOne({
@@ -223,7 +239,7 @@ const users = {
 
         await utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
 
-        return allData.userID;
+        return userID;
 
     },
 
@@ -730,12 +746,50 @@ const payments = {
 
 };
 
+const courses = {
+
+    // retunrs list, first element is the lesson number, second element is the lesson chunk
+    getLessonIndexes: async (userID, courseName) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x00000A").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            const courseData = results[0].courseData;
+
+            if (!courseData[courseName]) {
+
+                new utils.ErrorHandler("0x000000", "Course does not exist").throwError();
+
+            }
+
+            return [courseData[courseName].currentLessonNumber, courseData[courseName].currentLessonChunk];
+
+        }
+
+    }
+
+};
+
 export default {
     
     users,
     authentication,
     authorization,
     verification,
-    payments
+    payments,
+    courses
 
 };
