@@ -26,7 +26,8 @@ const collections = {
     payments : db.collection("payments"),
     jwts : db.collection("jwts"), 
     checkoutSessions : db.collection("checkout-sessions"),
-    courses : db.collection("courses")
+    courses : db.collection("courses"),
+    ai : db.collection("ai")
     
 };
 
@@ -217,10 +218,19 @@ const users = {
         await collections.users.insertOne(userDocument);
         await collections.payments.insertOne(paymentDocument);
 
+        const userIDHash = utils.hash(userID, "base64");
+
         await collections.courses.insertOne({
 
-            userIDHash : utils.hash(userID, "base64"),
+            userIDHash,
             courseData : defaultCourseData
+
+        });
+
+        await collections.ai.insertOne({
+
+            userIDHash,
+            kmeansGroup : -1
 
         });
 
@@ -228,10 +238,9 @@ const users = {
 
         await collections.authentication.insertOne({
             
-            userIDHash : utils.hash(userID, "base64"),
+            userIDHash,
             code : utils.encrypt(emailVerifcationCode, "hex"),
             timestamp : Date.now()
-
 
         });
 
@@ -783,6 +792,40 @@ const courses = {
 
 };
 
+const ai = {
+
+    setKMeansClusterCenters : async (clusterCenters) => {
+
+        await collections.ai.updateOne({ title : "KMeansClusterCenters" }, { clusterCenters }, { upsert : true })
+
+    },
+
+    getKMeansClusterCenters : async () => {
+
+        const results = await collections.ai.find({ title : "KMeansClusterCenters" }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000", "Config data missing").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            return results[0].clusterCenters;
+
+        }
+
+    }
+
+};
+
 export default {
     
     users,
@@ -790,6 +833,7 @@ export default {
     authorization,
     verification,
     payments,
-    courses
+    courses,
+    ai
 
 };
