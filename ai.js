@@ -1,35 +1,5 @@
 import utils from "./utils.js"
-import dotenv from "dotenv"
-import redis from "redis"
-
-dotenv.config();
-
-const client = redis.createClient({
-
-    password: process.env.REDIS_PASSWORD,
-    socket: {
-
-        host: process.env.REDIS_HOSTNAME,
-        port: 11951
-
-    }
-
-});
-
-client.on("error", err => new utils.ErrorHandler("0x000000", err).throwError() );
-
-await client.connect();
-
-const redisFuncs = {
-
-    set : async (key, val) => await client.set(key, val),
-    setJSON : async (key, val, path="$") => await client.json.set(key, path, val),
-    get : async (key) => await client.get(key),
-    getJSON : async (key, path="$") => await client.json.get(key, { path }),
-    del : async (key) => await client.del(key),
-    delJSON : async (key, path="$") => await client.json.del(key, path)
-
-};
+import database from "./database.js";
 
 // uses relational cluster IDs, such that cluster IDs numerically closer are more similar to one another than they are both to clusters with with cluster IDs numerically further
 class KMeans {
@@ -242,13 +212,13 @@ class QLearning {
 
     async calculateQValues (reward, state, action) {
 
-        if (!(await redisFuncs.getJSON(state))) {
+        if (!(await database.ai.redis.getJSON(state))) {
 
-            await redisFuncs.setJSON(state, this.defaultActionValues);
+            await database.ai.redis.setJSON(state, this.defaultActionValues);
 
         }
 
-        let oldQValue = await redisFuncs.getJSON(state, "." + action) || 0.0;
+        let oldQValue = await database.ai.redis.getJSON(state, "." + action) || 0.0;
 
         return oldQValue + this.alpha * (reward - oldQValue);
 
@@ -259,7 +229,7 @@ class QLearning {
         
         for (let i = 0; i < stateActionPairs.length; i++) {
 
-            await redisFuncs.setJSON(stateActionPairs[i][0], await this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1]), "." + stateActionPairs[i][1]);
+            await database.ai.redis.setJSON(stateActionPairs[i][0], await this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1]), "." + stateActionPairs[i][1]);
 
         }
 
@@ -267,9 +237,9 @@ class QLearning {
 
     async selectAction (state) {
 
-        if (!(await redisFuncs.getJSON(state))) {
+        if (!(await database.ai.redis.getJSON(state))) {
 
-            await redisFuncs.setJSON(state, this.defaultActionValues);
+            await database.ai.redis.setJSON(state, this.defaultActionValues);
 
         }
 
@@ -279,7 +249,7 @@ class QLearning {
 
         }
 
-        const actionRewards = await redisFuncs.getJSON(state);
+        const actionRewards = await database.ai.redis.getJSON(state);
 
         let maxReward = -Infinity;
         let maxRewardAction = null;

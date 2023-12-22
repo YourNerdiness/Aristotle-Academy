@@ -13,11 +13,11 @@ const stripeAPI = stripe(process.env.STRIPE_SK);
 
 const mongodbURI = `mongodb+srv://${encodeURIComponent(process.env.MONGODB_USERNAME)}:${encodeURIComponent(process.env.MONGODB_PASSWORD)}@${encodeURIComponent(process.env.MONGODB_HOSTNAME)}/?retryWrites=true&w=majority`;
 
-const client = new MongoClient(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+const mongoClient = new MongoClient(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
-await client.connect();
+await mongoClient.connect();
 
-const db = client.db(process.env.MONGODB_DB_NAME);
+const db = mongoClient.db(process.env.MONGODB_DB_NAME);
 
 const collections = {
 
@@ -33,6 +33,22 @@ const collections = {
 
 await collections.jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.JWT_EXPIRES_MS)/1000 });
 await collections.checkoutSessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.CHECKOUT_SESSION_TIMEOUT_MS)/1000 });
+
+const redisClient = redis.createClient({
+
+    password: process.env.REDIS_PASSWORD,
+    socket: {
+
+        host: process.env.REDIS_HOSTNAME,
+        port: 11951
+
+    }
+
+});
+
+redisClient.on("error", err => new utils.ErrorHandler("0x000000", err).throwError() );
+
+await redisClient.connect();
 
 const courseData = JSON.parse(fs.readFileSync("course_data.json"));
 const courseNames = Object.keys(courseData);
@@ -793,6 +809,17 @@ const courses = {
 };
 
 const ai = {
+
+    redis : {
+
+        set : async (key, val) => await redisClient.set(key, val),
+        setJSON : async (key, val, path="$") => await redisClient.json.set(key, path, val),
+        get : async (key) => await redisClient.get(key),
+        getJSON : async (key, path="$") => await redisClient.json.get(key, { path }),
+        del : async (key) => await redisClient.del(key),
+        delJSON : async (key, path="$") => await redisClient.json.del(key, path)
+    
+    },
 
     setKMeansClusterCenters : async (clusterCenters) => {
 
