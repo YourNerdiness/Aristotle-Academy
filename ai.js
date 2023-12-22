@@ -198,9 +198,15 @@ class KMeans {
 
         }
 
-        const baseClusterCenterForSorting = bestClusterCenters.reduce((mostNegativeClusterCenter, clusterCenter) => {
+        let mostNegativeClusterID = 0;
 
-            if (clusterCenter.reduce((acc, currentValue) => acc + currentValue, 0) < mostNegativeClusterCenter.reduce((acc, currentValue) => acc + currentValue, 0)) {
+        // TODO : convert to for-loop to make handling division by zero errors easier
+
+        const baseClusterCenterForSorting = bestClusterCenters.reduce((mostNegativeClusterCenter, clusterCenter, i) => {
+
+            if (clusterCenter.reduce((acc, currentValue) => acc + currentValue, 0)/bestClustering[i].length < mostNegativeClusterCenter.reduce((acc, currentValue) => acc + currentValue, 0)/bestClustering[mostNegativeClusterID].length ) {
+
+                mostNegativeClusterID = i;
 
                 return clusterCenter;
 
