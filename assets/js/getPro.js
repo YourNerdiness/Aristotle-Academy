@@ -1,6 +1,6 @@
 $(document).ready(function () {
 
-    const courseName = new URLSearchParams(window.location.search).get("courseName");
+    const courseID = new URLSearchParams(window.location.search).get("courseID");
 
     $(".checkout-btn").click((event) => {
 
@@ -10,7 +10,7 @@ $(document).ready(function () {
 
             case "course-btn":
                 
-                item = courseName;
+                item = courseID;
 
                 break;
         

@@ -1,10 +1,26 @@
-let courseNames;
-let courseDescriptions;
+let courseData;
+let courseIDs;
 let courseTags;
 
-const redirectCallback = async (courseName) => {
+const filterChildProperties = (obj, property) => {
 
-    const data = { courseName };
+    const keys = Object.keys(obj);
+
+    const toReturn = {};
+
+    for (let i = 0; i < keys.length; i++) {
+
+        toReturn[keys[i]] = obj[keys[i]][property];
+
+    }
+
+    return toReturn;
+
+};
+
+const redirectCallback = async (courseID) => {
+
+    const data = { courseID };
 
     const req = {
 
@@ -61,31 +77,19 @@ const getFilterTags = () => {
 
 const generateFiltertags = () => {
 
-    let tags = [];
-
-    const keys = Object.keys(courseTags);
-
-    for (let i = 0; i < keys.length; i++) {
-
-        tags = tags.concat(courseTags[keys[i]])
-
-    }
-
-    tags = Array.from(new Set(tags));
-
     const navElem = document.querySelectorAll("main > nav")[1];
 
-    for (let i = 0; i < tags.length; i++) {
+    for (let i = 0; i < courseTags.length; i++) {
 
         const label = document.createElement("label");
         const checkbox = document.createElement("input");
 
-        label.htmlFor = tags[i];
+        label.htmlFor = courseTags[i];
         label.className = "filterElemsL";
-        label.textContent = tags[i];
+        label.textContent = courseTags[i];
 
         checkbox.type = "checkbox";
-        checkbox.id = tags[i]
+        checkbox.id = courseTags[i]
         checkbox.className = "filterElems";
 
         checkbox.addEventListener("change", generateCourseElems);
@@ -113,11 +117,11 @@ const generateCourseElems = () => {
 
     const filterTags = getFilterTags();
 
-    let filteredcourseNames = [];
+    let filteredcourseIDs = [];
 
-    for (let i = 0; i < courseNames.length; i++) {
+    for (let i = 0; i < courseIDs.length; i++) {
 
-        const elemTags = courseTags[courseNames[i]];
+        const elemTags = courseData[courseIDs[i]].tags;
 
         let shouldFilter = true;
 
@@ -129,19 +133,19 @@ const generateCourseElems = () => {
 
         if (!shouldFilter) {
 
-            filteredcourseNames.push(courseNames[i]);
+            filteredcourseIDs.push(courseIDs[i]);
 
         }
 
     }
 
-    filteredcourseNames = filteredcourseNames.length == 0 ? courseNames : filteredcourseNames;
+    filteredcourseIDs = filterTags.length == 0 ? courseIDs : filteredcourseIDs;
 
-    for (let i = 0; i < filteredcourseNames.length; i += rowLength) {
+    for (let i = 0; i < filteredcourseIDs.length; i += rowLength) {
 
         const tableRow = document.createElement("tr");
 
-        for (let j = i; j < Math.min(i + rowLength, filteredcourseNames.length); j++) {
+        for (let j = i; j < Math.min(i + rowLength, filteredcourseIDs.length); j++) {
 
             const tableData = document.createElement("td");
 
@@ -149,15 +153,20 @@ const generateCourseElems = () => {
             const btn = document.createElement("button");
 
             div.className = "display-container";
-            btn.className = "course-title"
+            btn.className = "course-title-btn center"
 
-            btn.addEventListener("click", () => { redirectCallback(filteredcourseNames[j]) });
+            btn.addEventListener("click", () => { redirectCallback(filteredcourseIDs[j]) });
 
-            const title = document.createElement("h4");
-            const description = document.createElement("h5");
+            const title = document.createElement("h5");
+            const description = document.createElement("p");
 
-            title.textContent = filteredcourseNames[j];
-            description.textContent = courseDescriptions[filteredcourseNames[j]];
+            title.className = "course-title";
+
+            title.textContent = courseData[filteredcourseIDs[j]].title;
+            description.textContent = courseData[filteredcourseIDs[j]].description;
+
+            title.style.width = "300px"
+            title.style.whiteSpace = "initial"
 
             btn.appendChild(title);
 
@@ -196,27 +205,34 @@ const getCourseData = async () => {
 
         const error = await res.json();
 
-        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+        if (res.status == 401) {
+
+            document.getElementById("paidOnly").checked = false;
+
+        }
+
+        document.getElementById("error").textContent = error.userMsg || error.msg || "An error has occurred.";
+
+        throw error.userMsg || error.msg || "An error has occurred.";
 
     }
 
     else {
 
-        const courseData = await (res).json();
+        const data = await (res).json();
 
-        courseNames = courseData.courseNames;
-        courseDescriptions = courseData.courseDescriptions;
-        courseTags = courseData.courseTags;
+        courseData = data.courseData;
+        courseIDs = data.courseIDs;
+        courseTags = Object.values(filterChildProperties(courseData, "tags")).flat().sort()
 
     }
 
 };
 
-const getGenerateCourseElems = async () => {
+const getGenerateCourseElems = () => {
 
-    await getCourseData();
+    getCourseData().then(() => { generateCourseElems() });
 
-    generateCourseElems();
 
 };
 

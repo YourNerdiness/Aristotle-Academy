@@ -15,6 +15,9 @@ import ai from "./ai.js"
 dotenv.config();
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
+const subIds = await database.config.getConfigData("sub_ids");
+const courseData = await database.config.getConfigData("course_data");
+const courseIDs = Object.keys(courseData);
 
 const handleRequestError = (error, res) => {
 
@@ -82,11 +85,11 @@ const pageRedirectCallbacks = {
 
         const token = req.headers.auth;
 
-        const courseName = req.query.courseName;
+        const courseID = req.query.courseID;
 
         if (token && !token.mfaRequired) {
 
-            if (!courseNames.includes(courseName)) {
+            if (!courseIDs.includes(courseID)) {
 
                 res.redirect("/learn");
 
@@ -94,9 +97,9 @@ const pageRedirectCallbacks = {
 
             }
 
-            if (await database.payments.checkIfPaidFor(token.userID, courseName)) {
+            if (await database.payments.checkIfPaidFor(token.userID, courseID)) {
 
-                res.redirect(`/course/${courseName}`)
+                res.redirect(`/course?courseID=${courseID}`)
 
                 return true;
 
@@ -122,7 +125,7 @@ const pageRedirectCallbacks = {
 
         }
 
-        if (!req.query.courseName) {
+        if (!req.query.courseID) {
 
             res.status(400).redirect("/learn");
 
@@ -134,7 +137,7 @@ const pageRedirectCallbacks = {
 
         if (!req.query.contentID) {
 
-            const contentID = await ai.getContentID(req.query.courseName, token.userID);
+            const contentID = await ai.getContentID(req.query.courseID, token.userID);
 
             additionalQueryParams += `&contentID=${contentID}`;
 
@@ -142,7 +145,7 @@ const pageRedirectCallbacks = {
 
         if (!req.query.lessonNumber || !req.query.lessonChunk) {
 
-            const lessonIndexes = await database.courses.getLessonIndexes(token.userID, req.query.courseName);
+            const lessonIndexes = await database.courses.getLessonIndexes(token.userID, req.query.courseID);
 
             if (!req.query.lessonNumber) {
 
@@ -181,7 +184,7 @@ const ejsVars = {
             coursePrice: "20",
             monthlyPrice: "30",
             yearlyPrice: "60",
-            courseName: req.query.courseName
+            courseName: courseData[req.query.courseID].title
 
         }
 
@@ -218,11 +221,6 @@ const ejsVars = {
 
 };
 
-const courseData = JSON.parse(fs.readFileSync("course_data.json"));
-const courseNames = Object.keys(courseData);
-const courseDescriptions = utils.filterChildProperties(courseData, "description");
-const courseTags = utils.filterChildProperties(courseData, "tags");
-const subIds = JSON.parse(fs.readFileSync("sub_ids.json"));
 
 const generateToken = async (username, userID, mfaRequired) => {
 
@@ -397,6 +395,8 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
                 res.status(200).json({ msg: "OK." });
 
                 const sessionData = await database.payments.getCheckoutSession(sessionID);
+
+                console.log(sessionData)
 
                 await database.payments.addCoursePayment(sessionData.userID, sessionData.item)
 
@@ -709,7 +709,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
     try {
 
         const token = req.headers.auth;
-        const courseName = req.body.courseName;
+        const courseID = req.body.courseID;
 
         if (!token) {
 
@@ -719,7 +719,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         }
 
-        if (!courseName) {
+        if (!courseID) {
 
             res.status(400).json({ msg: "Missing request data." });
 
@@ -727,7 +727,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         }
 
-        if (!courseNames.includes(courseName)) {
+        if (!courseIDs.includes(courseID)) {
 
             res.send(404).json({ msg: "Course does not exist." });
 
@@ -735,25 +735,25 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         }
 
-        const paidFor = await database.payments.checkIfPaidFor(token.userID, courseName);
-
         if (!token) {
 
-            res.status(200).json({ msg: "OK.", url: `/getPro?courseName=${encodeURIComponent(courseName)}` });
+            res.status(200).json({ msg: "OK.", url: `/getPro?courseID=${encodeURIComponent(courseID)}` });
 
             return;
 
         }
 
+        const paidFor = await database.payments.checkIfPaidFor(token.userID, courseID);
+
         if (paidFor) {
 
-            res.status(200).json({ msg: "OK.", url: `/course?courseName=${encodeURIComponent(courseName)}` });
+            res.status(200).json({ msg: "OK.", url: `/course?courseID=${encodeURIComponent(courseID)}` });
 
         }
 
         else {
 
-            res.status(200).json({ msg: "OK.", url: `/getPro?courseName=${encodeURIComponent(courseName)}` });
+            res.status(200).json({ msg: "OK.", url: `/getPro?courseID=${encodeURIComponent(courseID)}` });
 
         }
 
@@ -836,7 +836,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
             default:
 
-                if (courseNames.includes(item)) {
+                if (courseIDs.includes(item)) {
 
                     line_items = [{ price: courseData[item].stripe_price_id, quantity: 1 }]
 
@@ -868,7 +868,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
             customer: customerID,
 
-            success_url: process.env.DOMAIN_NAME + "/learn",
+            success_url: process.env.DOMAIN_NAME + `/course?courseID=${req.query.courseID}`,
             cancel_url: process.env.DOMAIN_NAME + "/learn",
 
             currency: "aud",
@@ -912,25 +912,25 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
                 const userID = token.userID;
 
-                const filteredCourseList = [];
+                const filteredCourseIDList = [];
 
-                for (let i = 0; i < courseNames.length; i++) {
+                for (let i = 0; i < courseIDs.length; i++) {
 
-                    if ((await database.payments.checkIfPaidFor(userID, courseNames[i]))) {
+                    if ((await database.payments.checkIfPaidFor(userID, courseIDs[i]))) {
 
-                        filteredCourseList.push(courseNames[i])
+                        filteredCourseIDList.push(courseIDs[i])
 
                     }
 
                 }
 
-                res.status(200).json({ msg: "OK.", courseNames: filteredCourseList, courseDescriptions, courseTags });
+                res.status(200).json({ msg: "OK.", courseIDs: filteredCourseIDList, courseData });
 
             }
 
             else {
 
-                res.status(200).json({ msg: "OK.", courseNames, courseDescriptions, courseTags });
+                res.status(200).json({ msg: "OK.", courseIDs, courseIDs, courseData });
 
             }
 
@@ -939,95 +939,6 @@ app.get("/getCourseData", express.json(), async (req, res) => {
     } catch (error) {
 
         handleRequestError(error, res);
-
-    }
-
-});
-
-app.get("/video", express.json(), async (req, res) => {
-
-    const token = req.headers.auth;
-
-    if (!token) {
-
-        res.status(401).json({ msg: "You are not signed in, please sign in to access your course." });
-
-    }
-
-    else {
-
-        const courseName = req.query.courseName;
-
-        if (!courseNames.includes(courseName)) {
-
-            res.status(404).json({ msg: "Course does not exist." });
-
-            return;
-
-        }
-
-        const coursePaidFor = await database.payments.checkIfPaidFor(token.userID, courseName);
-
-        if (!coursePaidFor) {
-
-            res.send(403).json({ msg: "You have not paid for this course." });
-
-            return;
-
-        }
-
-        let range = req.headers.range;
-
-        if (!range) {
-
-            res.status(400).json({ msg: "No range provided." });
-
-        }
-
-        else {
-
-            const filePath = ""; // TODO
-
-            if (!fs.existsSync(filePath)) {
-
-                res.status(404).json({ msg: "Can't find video." });
-
-            }
-
-            else {
-                document.getElementById("error").textContent = await res.text();
-                const chunkLength = 2 ** 20;
-
-                const start = Math.min(Number(range[0]), videoSize - 1);
-
-                if (!range[1]) {
-
-                    range[1] = start + chunkLength;
-
-                }
-
-                const end = Math.min(Number(range[1]), videoSize - 1);
-
-                const contentLength = end - start + 1;
-
-                const headers = {
-
-                    "Content-Range": `bytes ${start}-${end}/${videoSize}`,
-                    "Accept-Ranges": "bytes",
-                    "Content-Length": contentLength,
-                    "Content-Type": "video/mp4"
-
-                };
-
-                res.writeHead(206, headers);
-
-                const videoStream = fs.createReadStream(filePath, { start, end });
-
-                videoStream.pipe(res);
-
-            }
-
-        }
 
     }
 

@@ -24,7 +24,7 @@ a:hover, a:focus, a:active {
 
 }
 
-.course-title {
+.course-title-btn {
 
     width: 300px;
 
@@ -33,5 +33,28 @@ a:hover, a:focus, a:active {
     border-style: none;
 
     color: black;
+
+}
+
+.course-title {
+
+    border-style: solid;
+    border-color: black;
+    border-width: 3px;
+    border-radius: 10px;
+
+}
+
+h5 p {
+
+    display: block;
+
+}
+
+.display-container {
+
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
 
 }

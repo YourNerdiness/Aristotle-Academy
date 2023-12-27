@@ -6,6 +6,7 @@ import nodemailer from "nodemailer"
 import process from "process"
 import stripe from "stripe"
 import utils from "./utils.js"
+import redis from "redis"
 
 dotenv.config();
 
@@ -27,7 +28,8 @@ const collections = {
     jwts : db.collection("jwts"), 
     checkoutSessions : db.collection("checkout-sessions"),
     courses : db.collection("courses"),
-    ai : db.collection("ai")
+    ai : db.collection("ai"),
+    config : db.collection("config")
     
 };
 
@@ -50,16 +52,45 @@ redisClient.on("error", err => new utils.ErrorHandler("0x000000", err).throwErro
 
 await redisClient.connect();
 
-const courseData = JSON.parse(fs.readFileSync("course_data.json"));
-const courseNames = Object.keys(courseData);
-const defaultCourseData = courseNames.reduce((obj, key) => {
+const courseData = await (async (name) => {
+
+    const results = await collections.config.find({ name }).toArray();
+
+    if (results.length == 0) {
+
+        new utils.ErrorHandler("0x000000").throwError();
+
+    }
+
+    else if (results.length > 1) {
+
+        new utils.ErrorHandler("0x000001").throwError();
+
+    }
+
+    else {
+
+        return results[0].data;
+
+    }
+
+})("course_data");
+
+const courseIDs = Object.keys(courseData);
+const defaultCourseData = courseIDs.reduce((obj, key) => {
 
     obj[key] = { currentLessonNumber : 1, currentLessonChunk : 1, lessonsData : [] };
 
     return obj;
 
 }, {});
+const defaultCoursePaymentData = courseIDs.reduce((obj, key) => {
 
+    obj[key] = false;
+
+    return obj;
+
+}, {});
 
 const authEmailTransport = nodemailer.createTransport({
     service: "gmail",
@@ -169,7 +200,7 @@ const users = {
             passwordDigest: utils.passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
             passwordSalt,
             subID: undefined,
-            courses: {}
+            courses : defaultCoursePaymentData
 
         };
 
@@ -240,13 +271,6 @@ const users = {
 
             userIDHash,
             courseData : defaultCourseData
-
-        });
-
-        await collections.ai.insertOne({
-
-            userIDHash,
-            kmeansGroup : -1
 
         });
 
@@ -671,9 +695,11 @@ const payments = {
 
     },
 
-    addCoursePayment: async (userID, courseName) => {
+    addCoursePayment: async (userID, courseID) => {
 
-        const result = await collections.payments.find({ userIDHash: utils.hash(userID, "base64") }).toArray();
+        const result = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
+
+        console.log(result)
 
         if (result.length == 0) {
 
@@ -689,13 +715,15 @@ const payments = {
 
         else {
 
-            if (courseNames.includes(courseName)) {
+            if (courseIDs.includes(courseID)) {
 
-                let courseData = result[0].courses ? result[0].courses : {};
+                await collections.payments.updateOne({ "index.userID": utils.hash(userID, "base64") }, { $set: { [`data.courses.${courseID}`]: true } })
 
-                courseData[courseName] = true;
+            }
 
-                await collections.payments.updateOne({ userIDHash: utils.hash(userID, "base64") }, { $set: { courses: courseData } })
+            else {
+                
+                new utils.ErrorHandler("0x000000", "Course does not exist").throwError();
 
             }
 
@@ -729,7 +757,7 @@ const payments = {
 
     },
 
-    checkIfPaidFor: async (userID, courseName) => {
+    checkIfPaidFor: async (userID, courseID) => {
 
         const result = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
 
@@ -763,7 +791,9 @@ const payments = {
 
             const courseData = paymentData.courses;
 
-            return courseData && courseData[courseName];
+            console.log(courseData)
+
+            return courseData[courseID];
 
         }
 
@@ -774,7 +804,7 @@ const payments = {
 const courses = {
 
     // retunrs list, first element is the lesson number, second element is the lesson chunk
-    getLessonIndexes: async (userID, courseName) => {
+    getLessonIndexes: async (userID, courseID) => {
 
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
@@ -794,13 +824,13 @@ const courses = {
 
             const courseData = results[0].courseData;
 
-            if (!courseData[courseName]) {
+            if (!courseData[courseID]) {
 
                 new utils.ErrorHandler("0x000000", "Course does not exist").throwError();
 
             }
 
-            return [courseData[courseName].currentLessonNumber, courseData[courseName].currentLessonChunk];
+            return [courseData[courseID].currentLessonNumber, courseData[courseID].currentLessonChunk];
 
         }
 
@@ -819,21 +849,19 @@ const ai = {
         del : async (key) => await redisClient.del(key),
         delJSON : async (key, path="$") => await redisClient.json.del(key, path)
     
-    },
+    }
 
-    setKMeansClusterCenters : async (clusterCenters) => {
+};
 
-        await collections.ai.updateOne({ title : "KMeansClusterCenters" }, { clusterCenters }, { upsert : true })
+const config = {
 
-    },
+    getConfigData : async (name) => {
 
-    getKMeansClusterCenters : async () => {
-
-        const results = await collections.ai.find({ title : "KMeansClusterCenters" }).toArray();
+        const results = await collections.config.find({ name }).toArray();
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000", "Config data missing").throwError();
+            new utils.ErrorHandler("0x000000").throwError();
 
         }
 
@@ -845,7 +873,37 @@ const ai = {
 
         else {
 
-            return results[0].clusterCenters;
+            return results[0].data;
+
+        }
+
+    },
+
+    setConfigData : async (name, newData) => {
+
+        await collections.config.updateOne({ name }, { data : newData }, { upsert : true });
+
+    },
+
+    updateConfigData : async (name, property, value) => {
+
+        const results = await collections.config.find({ name }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            await collections.config.updateOne({ name }, { [`data.${property}`] : value });
 
         }
 
@@ -861,6 +919,7 @@ export default {
     verification,
     payments,
     courses,
-    ai
+    ai,
+    config
 
 };
