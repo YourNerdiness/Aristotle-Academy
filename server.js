@@ -137,7 +137,7 @@ const pageRedirectCallbacks = {
 
         if (!req.query.contentID) {
 
-            const contentID = await ai.getContentID(req.query.courseID, token.userID);
+            const contentID = await ai.getContentID(token.userID, req.query.courseID);
 
             additionalQueryParams += `&contentID=${contentID}`;
 
@@ -395,8 +395,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
                 res.status(200).json({ msg: "OK." });
 
                 const sessionData = await database.payments.getCheckoutSession(sessionID);
-
-                console.log(sessionData)
 
                 await database.payments.addCoursePayment(sessionData.userID, sessionData.item)
 
@@ -941,6 +939,122 @@ app.get("/getCourseData", express.json(), async (req, res) => {
         handleRequestError(error, res);
 
     }
+
+});
+
+app.post("/verifyHMACSignature", express.json(), (req, res) => {
+
+    const signature = crypto.createHmac(process.env.HASHING_ALGORITHM, process.env.HMAC_SECRET).update(req.body.data).digest()
+
+    res.status(200).json({ msg : "OK.", verified : crypto.timingSafeEqual(Buffer.from(req.body.signature, "base64url"), signature) })
+
+});
+
+app.post("/completeLessonChunk", express.json(), async (req, res) => {
+
+    const token = req.headers.auth;
+    const data = req.body;
+
+    if (!token) {
+
+        res.status(401).json({ msg : "Please sign in to access learning content. " });
+
+    }
+
+    if (!data.lessonNumber || !data.lessonChunk || !data.courseID) {
+
+        res.status(400).json({ msg : "Missing request data." });
+
+    }
+
+    if ((await database.ai.getUserNumChunks(token.userID)) <= req.lessonChunk) {
+
+        res.status(406).json({ msg : "Lesson is complete, please send request to /completeLesson." });
+
+    }
+
+    await database.courses.incrementLessonIndexes(data.courseID, 1);
+
+    const contentID = await ai.getContentID(token.userID, data.courseID);
+
+    res.status(200).redirect(`/course?lessonNumber=${data.lessonNumber}&lessonChunk=${data.lessonChunnk + 1}&courseID=${data.courseID}contentID=${contentID}`)
+
+});
+
+app.post("/completeLesson", express.json(), async (req, res) => {
+
+    const token = req.headers.auth;
+    const data = req.body;
+
+    if (!token) {
+
+        res.status(401).json({ msg : "Please sign in to access learning content." });
+
+        return;
+ 
+    }
+
+    if (!data.lessonNumber || !data.lessonChunk || !data.courseID || !data.quizScore) {
+
+        res.status(400).json({ msg : "Missing request data." });
+
+        return;
+ 
+    }
+
+    if (!(data.quizScore >= 0 && data.quizScore <= 1)) {
+
+        res.status(406).json({ msg : "Quiz score is invalid." });
+
+        return;
+ 
+    }
+
+    if ((await database.ai.getUserNumChunks(token.userID)) > req.lessonChunk) {
+
+        res.status(406).json({ msg : "Lesson is incomplete, please send request to /completeLessonChunk." });
+
+        return;
+ 
+    }
+
+    await database.courses.incrementLessonIndexes(data.courseID, 0);
+
+    const sessionTimes = await database.courses.getSessionTimes(token.userID, data.courseID)
+
+    const averageSessionTime = (sessionTimes).reduce((acc, elem) => acc + elem)/sessionTimes.length;
+
+    await ai.updateAI(token.userID, data.courseData, data.lessonNumber, data.quizScore, averageSessionTime)
+
+    const contentID = await ai.getContentID(token.userID, data.courseID);
+
+    res.status(200).redirect(`/course?lessonNumber=${datalessonNumber + 1}&lessonChunk=${1}&courseID=${data.courseID}contentID=${contentID}`)
+
+});
+
+app.post("/logSessionTime", express.json(), async (req, res) => {
+
+    const token = req.headers.auth;
+
+    if (!token) {
+
+        res.status(401).json({ msg : "Please sign in to log session times." });
+
+        return;
+ 
+    }
+
+    if (!req.body.sessionTime) {
+
+        res.status(400).json({ msg : "Missing request data." })
+
+        return;
+
+    }
+
+    await database.courses.updateSessionTimes(token.userID, req.body.courseID, req.body.sessionTime);
+
+    res.status(200).json({ msg : "OK." });
 
 });
 

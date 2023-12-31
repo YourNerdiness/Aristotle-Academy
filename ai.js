@@ -1,202 +1,10 @@
+import crypto from "crypto"
 import utils from "./utils.js"
 import database from "./database.js";
+import { availableParallelism } from "os";
 
-// uses relational cluster IDs, such that cluster IDs numerically closer are more similar to one another than they are both to clusters with with cluster IDs numerically further
-class KMeans {
-
-    calculateDistance(vector1, vector2) {
-
-        if (vector1.length !== vector2.length) {
-
-            throw new Error("Vectors must have the same dimensionality");
-
-        }
-
-        let squaredSum = 0;
-
-        for (let i = 0; i < vector1.length; i++) {
-
-            const diff = vector1[i] - vector2[i];
-
-            squaredSum += diff * diff;
-
-        }
-
-        const distance = Math.sqrt(squaredSum);
-
-        return distance;
-
-    }
-
-    calculateAverageVector(vectors) {
-
-        if (vectors.length === 0) {
-
-            throw new Error("No vectors given");
-
-        }
-
-        const dimensions = vectors[0].length;
-
-        for (const vector of vectors) {
-
-            if (vector.length !== dimensions) {
-
-                throw new Error("All vectors must have the same dimensions");
-
-            }
-
-        }
-
-        const sumVector = new Array(dimensions).fill(0);
-
-        for (const vector of vectors) {
-
-            for (let i = 0; i < dimensions; i++) {
-
-                sumVector[i] += vector[i];
-
-            }
-
-        }
-
-        const averageVector = sumVector.map(sum => sum / vectors.length);
-
-        return averageVector;
-    }
-
-    calcualateKMeansWithLinearIDs(data = [], dimension, k, iterations = 16, nRuns = 10) {
-
-        for (let i = 0; i < data.length; i++) {
-
-            if (data[0].length != dimension) {
-
-                new ErrorHandler("0x000003").throwError();
-
-            }
-
-        }
-
-        let bestClusterCenters = [];
-        let bestClustering = [];
-        let bestClusterCentersAverageDistance = Number.POSITIVE_INFINITY;
-
-        for (let run = 0; run < nRuns; run++) {
-
-            let clusterCenters = [];
-            let clustering = [];
-
-            while (clusterCenters.length < k) {
-
-                clusterCenters.push(data[Math.floor(Math.random() * data.length)])
-
-            }
-
-            for (let i = 0; i < iterations; i++) {
-
-                for (let j = 0; j < k; j++) {
-
-                    clustering[j] = [];
-
-                }
-
-                for (let j = 0; j < data.length; j++) {
-
-                    let currentDistance = Number.POSITIVE_INFINITY;
-                    let clusterID = 0;
-
-                    for (let l = 0; l < clusterCenters.length; l++) {
-
-                        const distance = this.calculateDistance(data[j], clusterCenters[l])
-
-                        if (distance < currentDistance) {
-
-                            currentDistance = distance;
-                            clusterID = l;
-
-                        }
-
-                    }
-
-                    clustering[clusterID].push(data[j])
-
-                }
-
-                for (let j = 0; j < clustering.length; j++) {
-
-                    if (clustering[j].length == 0) {
-
-                        continue;
-
-                    }
-
-                    clusterCenters[j] = this.calculateAverageVector(clustering[j]);
-
-                }
-
-            }
-
-            const clusterCentersAverageDistance = clustering.reduce((acc, cluster, index) => {
-
-                acc += cluster.reduce((clusterAcc, dataPoint) => {
-
-                    clusterAcc += this.calculateDistance(dataPoint, clusterCenters[index]);
-
-                    return clusterAcc;
-
-                }, 0) / cluster.length;
-
-                return acc;
-
-            }, 0) / clustering.length;
-
-            if (clusterCentersAverageDistance < bestClusterCentersAverageDistance) {
-
-                bestClusterCenters = clusterCenters;
-                bestClustering = clustering;
-                bestClusterCentersAverageDistance = clusterCentersAverageDistance;
-
-            }
-
-        }
-
-        const output = [];
-
-        for (let i = 0; i < bestClusterCenters.length; i++) {
-
-            output.push({ clusterCenter: bestClusterCenters[i], clusterData: bestClustering[i] })
-
-        }
-
-        let mostNegativeClusterID = 0;
-
-        // TODO : convert to for-loop to make handling division by zero errors easier
-
-        const baseClusterCenterForSorting = bestClusterCenters.reduce((mostNegativeClusterCenter, clusterCenter, i) => {
-
-            if (clusterCenter.reduce((acc, currentValue) => acc + currentValue, 0)/bestClustering[i].length < mostNegativeClusterCenter.reduce((acc, currentValue) => acc + currentValue, 0)/bestClustering[mostNegativeClusterID].length ) {
-
-                mostNegativeClusterID = i;
-
-                return clusterCenter;
-
-            }
-
-            return mostNegativeClusterCenter;
-
-        }, bestClusterCenters[0]);
-
-        output.sort((a, b) => {
-
-            return this.calculateDistance(baseClusterCenterForSorting, a.clusterCenter) - this.calculateDistance(baseClusterCenterForSorting, b.clusterCenter);
-
-        });
-
-        return output;
-
-    };
-
-};
+const courseData = await database.config.getConfigData("course_data");
+const topicData = await database.config.getConfigData("topic_data");
 
 class QLearning {
 
@@ -206,7 +14,7 @@ class QLearning {
         this.epsilon = 0.05;
         this.lambda = 0.9;
         this.possibleActions = possibleActions;
-        this.defaultActionValues = possibleActions.reduce((obj, key) => { obj[key] = 0.0; return obj; }, {});
+        this.defaultActionValues = possibleActions.reduce((obj, key) => { obj[key] = Math.random()/20; return obj; }, {});
 
     }
 
@@ -225,7 +33,7 @@ class QLearning {
     }
 
     // stateActionPairs is an array of state-action pairs, representing the actions taken in the states before the reward was received. stateActionPairs[0] is the most recent state-action pair, where the reward was received, stateActionPairs[1] is the second most recent state-action pair, etc
-    async updateQValues (reward, stateActionPairs) {
+    async updateQValues (stateActionPairs, reward) {
         
         for (let i = 0; i < stateActionPairs.length; i++) {
 
@@ -271,18 +79,116 @@ class QLearning {
 
 }
 
-const getContentID = async (courseName, userID) => {
+const qLearning = new QLearning(["v", "p", "e"]) // video, paragraph, and exercise respectively
 
-    // TODO
+const getContentID = async (userID, courseID) => {
 
+    const userIDHash = utils.hash(userID, "base64");
+    const lessonIndexes = await database.courses.getLessonIndexes(userID, courseID);
 
+    const completedTopics = await database.courses.getCompletedTopics(userID);
 
-    return "123456789abcdefg"
+    let topicID;
+
+    let i = 0;
+
+    do {
+
+        topicID = courseData[courseID].topics[i];
+
+        i++;
+
+    } while(completedTopics.includes(topicID));
+    
+    const state = userIDHash + lessonIndexes[1].toString();
+
+    const contentFormat = await qLearning.selectAction(state);
+
+    let filename;
+
+    switch (contentFormat) {
+
+        case "v":
+
+            filename = "video.mp4"
+
+            break;
+
+        case "p":
+
+            filename = "text.md"
+
+            break;
+
+        case "e":
+
+            filename = "exercise.html"
+
+            break;
+     
+        default:
+
+            new utils.ErrorHandler("0x000000", "Invalid action returned from q-learning").throwError();
+
+            break;
+
+    }
+
+    const contentRoute = `/${topicID}/${lessonIndexes[1].toString()}/${filename}`
+
+    const signature = crypto.createHmac(process.env.HASHING_ALGORITHM, process.env.HMAC_SECRET).update(contentRoute).digest("base64url")
+
+    await database.courses.setChunkContentFormat(userID, courseID, lessonIndexes[0], lessonIndexes[1], contentFormat)
+
+    return contentRoute + "|" + signature;
 
 };
 
+const updateAI = async (userID, courseID, lessonNumber, quizScore, averageSessionTime) => {
+
+    const actions = (await database.courses.getLessonChunkContentFormats(userID, courseID, lessonNumber)).reverse();
+
+    const userIDHash = utils.hash(userID, "base64");
+
+    const stateActionPairs = [];
+
+    for (let i = 0; i < actions.length; i++) {
+
+        stateActionPairs.push([userIDHash + i.toString(), actions[i] || new utils.ErrorHandler().throwError("0x000000", "Action is undefined.")])
+
+    }
+
+    await qLearning.updateQValues(stateActionPairs, quizScore);
+
+    if (averageSessionTime < 600000) {
+
+        if (quizScore > 0.85) {
+
+            const currentUserNumChunks = await database.ai.getUserNumChunks(userID);
+
+            await database.ai.setUserNumChunks(userID, currentUserNumChunks - 1);
+
+        }
+
+    }
+
+    else {
+
+        if (quizScore < 0.75) {
+
+            const currentUserNumChunks = await database.ai.getUserNumChunks(userID);
+
+            await database.ai.setUserNumChunks(userID, currentUserNumChunks + 1);
+    
+        }
+
+    }
+
+}
+
 export default {
 
-    getContentID
+    getContentID,
+    updateAI
 
 }

@@ -79,7 +79,7 @@ const courseData = await (async (name) => {
 const courseIDs = Object.keys(courseData);
 const defaultCourseData = courseIDs.reduce((obj, key) => {
 
-    obj[key] = { currentLessonNumber : 1, currentLessonChunk : 1, lessonsData : [] };
+    obj[key] = { currentLessonNumber : 0, currentLessonChunk : 0, sessionTimes : [], chunkContentTypes : [] };
 
     return obj;
 
@@ -270,9 +270,12 @@ const users = {
         await collections.courses.insertOne({
 
             userIDHash,
-            courseData : defaultCourseData
+            courseData : defaultCourseData,
+            completedTopics : []
 
         });
+
+        await collections.ai.insertOne({ userIDHash, numChunks : 16 });
 
         const emailVerifcationCode = crypto.randomBytes(6).toString("hex");
 
@@ -699,8 +702,6 @@ const payments = {
 
         const result = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
 
-        console.log(result)
-
         if (result.length == 0) {
 
             // TODO : refund payment if userID is not found in payments database
@@ -791,8 +792,6 @@ const payments = {
 
             const courseData = paymentData.courses;
 
-            console.log(courseData)
-
             return courseData[courseID];
 
         }
@@ -804,13 +803,13 @@ const payments = {
 const courses = {
 
     // retunrs list, first element is the lesson number, second element is the lesson chunk
-    getLessonIndexes: async (userID, courseID) => {
+    getLessonIndexes : async (userID, courseID) => {
 
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x00000A").throwError();
+            new utils.ErrorHandler("0x000000").throwError();
 
         }
 
@@ -822,7 +821,7 @@ const courses = {
 
         else {
 
-            const courseData = results[0].courseData;
+            const userCourseData = results[0].courseData;
 
             if (!courseData[courseID]) {
 
@@ -830,7 +829,219 @@ const courses = {
 
             }
 
-            return [courseData[courseID].currentLessonNumber, courseData[courseID].currentLessonChunk];
+            return [userCourseData[courseID].currentLessonNumber, userCourseData[courseID].currentLessonChunk];
+
+        }
+
+    },
+
+    // if indexNum is 0, then currentLessonNumber is increamented, if it is 1, then currentLessonChunk
+
+    incrementLessonIndexes : async (courseID, indexNum) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            const userCourseData = results[0].courseData;
+
+            if (!courseData[courseID]) {
+
+                new utils.ErrorHandler("0x000003", "Course does not exist").throwError();
+
+            }
+
+            if (indexNum == 0) {
+            
+                await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonNumber`] : userCourseData[courseID].currentLessonNumber + 1, [`courseData.${courseID}.currentLessonChunk`] : 1 } });
+
+            }
+
+            else if (indexNum == 1) {
+
+                await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonChunk`] : userCourseData[courseID].currentLessonChunk + 1 } });
+
+            }
+
+            else {
+
+                new utils.ErrorHandler("0x000003").throwError();
+    
+            }
+
+        }
+
+    },
+
+    getCompletedTopics : async (userID) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            return results[0].completedTopics;
+
+        }
+
+    },
+
+    addCompletedTopic : async (userID, completedTopic) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            const newCompletedTopics = results[0].completedTopics;
+
+            newCompletedTopics.push(completedTopic);
+
+            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { completedTopics : newCompletedTopics }});
+
+        }
+
+    },
+
+    getSessionTimes : async (userID, courseID) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            return results[0].courseData[courseID].sessionTimes;
+
+        }
+
+    },
+
+    updateSessionTimes : async (userID, courseID, sessionTime) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            const newSessionTimes = results[0].courseData[courseID].sessionTimes
+
+            newSessionTimes.push(sessionTime);
+
+            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.sessionTimes`] : newSessionTimes }});
+
+        }
+        
+    },
+
+    setChunkContentFormat : async (userID, courseID,  lessonNumber, lessonChunk, contentFormat) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            const newChunkContentTypes = results[0].courseData[courseID].chunkContentTypes
+
+            if (!newChunkContentTypes[lessonNumber]) {
+
+                newChunkContentTypes[lessonNumber] = [];
+
+            }
+            
+            newChunkContentTypes[lessonNumber][lessonChunk] = contentFormat;
+
+            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.chunkContentTypes`] : newChunkContentTypes }});
+
+        }
+
+    },
+
+    getLessonChunkContentFormats : async (userID, courseID, lessonNumber) => {
+
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            return results[0].courseData[courseID].chunkContentTypes[lessonNumber] || [];
 
         }
 
@@ -849,6 +1060,54 @@ const ai = {
         del : async (key) => await redisClient.del(key),
         delJSON : async (key, path="$") => await redisClient.json.del(key, path)
     
+    },
+
+    setUserNumChunks : async (userID, numChunks) => {
+
+        const results = await collections.ai.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { numChunks }});
+
+        }
+
+    },
+
+    getUserNumChunks : async (userID) => {
+
+        const results = await collections.ai.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000000").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000001").throwError();
+
+        }
+
+        else {
+
+            return results[0].numChunks;
+
+        }
+
     }
 
 };
