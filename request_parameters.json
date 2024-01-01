@@ -1,0 +1,357 @@
+{
+
+    "/signup" : {
+
+        "mustBeSignedIn" : false,
+        "mustBeSignedOut" : true,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "username" : {
+
+                "type" : "string"
+
+            },
+
+            "email" : {
+
+                "type" : "string"
+
+            },
+
+            "password" : {
+
+                "type" : "string"
+
+            }
+
+        }
+
+    },
+
+    "/signin" : {
+
+        "mustBeSignedIn" : false,
+        "mustBeSignedOut" : true,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "username" : {
+
+                "type" : "string"
+
+            },
+
+            "password" : {
+
+                "type" : "string"
+
+            }
+
+        }
+
+    },
+
+    "/completeMFA" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : true,
+        "bodyParameters" : {
+
+            "code" : {
+
+                "type" : "string",
+                "format" : "hex"
+
+            }
+
+        }
+
+    },
+
+    "/deleteAccount" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "password" : {
+
+                "type" : "string"
+
+            }
+
+        }
+
+    },
+
+    "/changeUserDetails" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "toChangePropertyName" : {
+
+                "type" : "string",
+                "possibleValues" : ["username", "email"]
+
+            },
+
+            "toChangeValue" : {
+
+                "type" : "string"
+
+            }
+
+        }
+
+    },
+
+    "/learnRedirect" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "courseID" : {
+
+                "type" : "string"
+
+            }
+
+        }
+
+    },
+
+    "/buyRedirect" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "item" : {
+
+                "type" : "string"
+
+            },
+
+            "password" : {
+
+                "type" : "string"
+
+            }
+
+        }
+
+    },
+
+    "/getCourseData" : {
+
+        "mustBeSignedIn" : false,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "filter" : {
+
+                "type" : "string",
+                "possibleValues" : ["true", "false"]
+
+            }
+
+        }
+
+    },
+
+    "/verifyHMACSignature" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "data" : {
+
+                "type" : "string"
+
+            },
+
+            "signature" : {
+
+                "type" : "string",
+                "format" : "base64url"
+
+            }
+
+        }
+
+    },
+
+    "/completeLessonChunk" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters": {
+
+            "lessonNumber": {
+
+                "type" : "number",
+                "format" : "integer",
+                "minimumValue" : 0
+
+            },
+
+            "lessonChunk": {
+
+                "type": "number",
+                "format" : "integer",
+                "minimumValue" : 0
+
+            },
+
+            "courseID": {
+
+                "type": "string",
+                "format": "base64url"
+
+            }
+
+        }
+
+    },
+
+    "/completeLesson" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters": {
+
+            "lessonNumber" : {
+
+                "type": "number",
+                "format" : "integer",
+                "minimumValue" : 0
+
+            },
+
+            "lessonChunk" : {
+
+                "type": "number",
+                "format" : "integer",
+                "minimumValue" : 0
+
+            },
+
+            "courseID" : {
+
+                "type": "string",
+                "format": "base64url"
+
+            },
+
+            "quizScore" : {
+
+                "type": "number",
+                "format" : "float",
+                "minimumValue" : 0,
+                "maximumValue" : 1
+
+            }
+
+        }
+
+    },
+
+    "/logSessionTime" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters": {
+
+            "sessionTime" : {
+
+                "type": "number",
+                "format" : "integer",
+                "minimumValue" : 0
+
+            },
+
+            "courseID" : {
+
+                "type": "string",
+                "format": "base64url"
+
+            }
+
+        }
+
+    },
+
+    "/getPro" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "queryParameters": {
+
+            "courseID" : {
+
+                "type": "string",
+                "format": "base64url"
+
+            }
+
+        }
+
+    },
+
+    "/course" : {
+
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "queryParameters": {
+
+            "courseID" : {
+
+                "type": "string",
+                "format": "base64url"
+
+            },
+
+            "contentID"  : {
+
+                "type": "string"
+
+            },
+
+            "lessonNumber" : {
+
+                "type": "number",
+                "format" : "integer",
+                "minimumValue" : 0
+
+            },
+
+            "lessonChunk" : {
+
+                "type": "number",
+                "format" : "integer",
+                "minimumValue" : 0
+
+            }
+
+        }
+
+    }
+
+}
