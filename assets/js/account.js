@@ -78,10 +78,40 @@ $(document).ready(() => {
         
         });
 
+    });
+
+    $("#changeEmail").click(() => {
+
+        $("#error").text("");
+
+        const data = { password : prompt("Please re-enter your password: "), toChangeValue : prompt("Please enter your new email: "), toChangePropertyName : "email" };
+
+        const req = {
+
+            method : "POST",
+
+            headers : {
+
+                "Content-Type" : "application/json"
+
+            },
+
+            body : JSON.stringify(data)
+
+        };
+
+        fetch("/changeUserDetails", req).then(async res => {
+
+            if (!res.ok) {
+
+                const error = await res.json();
+
+                $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+        
+        });
+
     })
 
 });
-
-$("#knowInfoToggle").hover(() => { document.getElementById("knowInfoDialog").show() }, () => { document.getElementById("knowInfoDialog").close() });
-$("#haveInfoToggle").hover(() => { document.getElementById("haveInfoDialog").show() }, () => { document.getElementById("haveInfoDialog").close() });
-$("#areInfoToggle").hover(() => { document.getElementById("areInfoDialog").show() }, () => { document.getElementById("areInfoDialog").close() });

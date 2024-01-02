@@ -1,13 +1,12 @@
 import crypto from "crypto"
 import fs from "fs"
-import nodemailer from "nodemailer"
 
 const errorCodes = JSON.parse(fs.readFileSync("error_codes.json"));
 const bannedPasswordRegexPatterns = fs.readFileSync("password_regex_blacklist.txt").toString("utf-8").split("\n");
 
-const createLog = async (msg, severity, errorCode) => {
+const createLog = async (msg, severity) => {
 
-    console.log(`${severity} - ${errorCode}: ${msg}`);
+    console.log(`${severity} : ${msg}`);
 
 }
 
@@ -21,7 +20,7 @@ class ErrorHandler {
         this.httpErrorCode = errorCodes[errorCode].http_error_code;
         this.severity = errorCodes[errorCode].severity
 
-        createLog(this.msg, this.severity, this.errorCode);
+        createLog(this.errorCode + "-" + this.msg, this.severity);
 
     }
     
@@ -41,7 +40,7 @@ class ErrorHandler {
 
         catch (error) {
 
-            createLog("Could not send error to client.", "ERROR", "0x000000");
+            createLog("Could not send error to client.", "ERROR");
 
         }
 
@@ -156,7 +155,7 @@ const checkNewPassword = async (password) => {
 
     if (!res.ok) {
 
-        new utils.ErrorHandler("0x00000E", await res.text()).throwError();
+        new utils.ErrorHandler("0x000040", await res.text()).throwError();
 
     }
 
@@ -172,7 +171,7 @@ const sendEmail = async (transport, subject, content, to, useTemplate=true, name
 
     if (name && !useTemplate) {
 
-        new ErrorHandler("0x000003", "Recipient name was provided but template was disabled.").throwError();
+        new ErrorHandler("0x00003E", "Recipient name was provided but template was disabled.").throwError();
 
     }
 
@@ -213,7 +212,7 @@ const sendEmail = async (transport, subject, content, to, useTemplate=true, name
 
     catch (error) {
 
-        new ErrorHandler("0x000010", error).throwError();
+        new ErrorHandler("0x000041", error).throwError();
 
     }
 

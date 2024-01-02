@@ -128,7 +128,7 @@ const getContentID = async (userID, courseID) => {
      
         default:
 
-            new utils.ErrorHandler("0x000000", "Invalid action returned from q-learning").throwError();
+            new utils.ErrorHandler("0x000042", "Invalid action returned from q-learning").throwError();
 
             break;
 
@@ -154,7 +154,7 @@ const updateAI = async (userID, courseID, lessonNumber, quizScore, averageSessio
 
     for (let i = 0; i < actions.length; i++) {
 
-        stateActionPairs.push([userIDHash + i.toString(), actions[i] || new utils.ErrorHandler().throwError("0x000000", "Action is undefined.")])
+        stateActionPairs.push([userIDHash + i.toString(), actions[i] || new utils.ErrorHandler("0x00003F").throwError()])
 
     }
 

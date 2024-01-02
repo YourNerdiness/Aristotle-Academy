@@ -23,8 +23,8 @@ const db = mongoClient.db(process.env.MONGODB_DB_NAME);
 const collections = {
 
     users : db.collection("users"),
-    authentication : db.collection("authentication"),
     payments : db.collection("payments"),
+    authentication : db.collection("authentication"),
     jwts : db.collection("jwts"), 
     checkoutSessions : db.collection("checkout-sessions"),
     courses : db.collection("courses"),
@@ -58,13 +58,13 @@ const courseData = await (async (name) => {
 
     if (results.length == 0) {
 
-        new utils.ErrorHandler("0x000000").throwError();
+        new utils.ErrorHandler("0x000018").throwError();
 
     }
 
     else if (results.length > 1) {
 
-        new utils.ErrorHandler("0x000001").throwError();
+        new utils.ErrorHandler("0x000019").throwError();
 
     }
 
@@ -144,13 +144,13 @@ const users = {
 
         if (usernameResults.length > 0) {
 
-            new utils.ErrorHandler("0x000005", "Username is already in use.").throwError();
+            new utils.ErrorHandler("0x00001A").throwError();
 
         }
 
         if (emailResults.length > 0) {
 
-            new utils.ErrorHandler("0x000005", "Email is already in use.").throwError();
+            new utils.ErrorHandler("0x00001B").throwError();
 
         }
 
@@ -158,7 +158,7 @@ const users = {
 
         if (passwordStatus != 0) {
 
-            new utils.ErrorHandler("0x000006", passwordCheckStatuses[passwordStatus] || "Password is invalid.").throwError();
+            new utils.ErrorHandler("0x00001C", passwordCheckStatuses[passwordStatus] || "Password is invalid.").throwError();
 
         }
 
@@ -179,11 +179,11 @@ const users = {
 
                 case "email_invalid":
 
-                    new utils.ErrorHandler("0x000006", "Email is invalid.").throwError();
+                    new utils.ErrorHandler("0x00001D", "Email is invalid.").throwError();
 
                 default:
 
-                    new utils.ErrorHandler("0x000000", error.raw.message).throwError();
+                    new utils.ErrorHandler("0x00001E", error.raw.message).throwError();
 
             }
 
@@ -206,19 +206,19 @@ const users = {
 
         if (Object.keys(allData).reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || !allProperties.includes(propertyName) }, false)) {
 
-            new utils.ErrorHandler("0x000008", "Unexpected property exists in allData.").throwError();
+            new utils.ErrorHandler("0x00001F", "Unexpected property exists in allData.").throwError();
 
         }
 
         if (allProperties.reduce((hasInvalidProperty, propertyName) => { return hasInvalidProperty || !Object.keys(allData).includes(propertyName) }, false)) {
 
-            new utils.ErrorHandler("0x000008", "Missing property in allData.").throwError();
+            new utils.ErrorHandler("0x00001F", "Missing property in allData.").throwError();
 
         }
 
         const userData = Object.keys(allData).filter(key => userDataProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = utils.encrypt(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError());
+            obj[key] = utils.encrypt(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${key}`).throwError());
 
             return obj;
 
@@ -226,7 +226,7 @@ const users = {
 
         const userIndex = Object.keys(allData).filter(key => userIndexProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = utils.hash(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError());
+            obj[key] = utils.hash(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${key}`).throwError());
 
             return obj;
 
@@ -234,7 +234,7 @@ const users = {
 
         const paymentData = Object.keys(allData).filter(key => paymentDataProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = utils.encrypt(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError());
+            obj[key] = utils.encrypt(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${key}`).throwError());
 
             return obj;
 
@@ -242,7 +242,7 @@ const users = {
 
         const paymentIndex = Object.keys(allData).filter(key => paymentIndexProperties.includes(key)).reduce((obj, key) => {
 
-            obj[key] = utils.hash(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError());
+            obj[key] = utils.hash(allData[key], propertyEncodings[key] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${key}`).throwError());
 
             return obj;
 
@@ -299,7 +299,7 @@ const users = {
 
         if (!userIndexProperties.includes(queryPropertyName)) {
 
-            new utils.ErrorHandler("0x000003", `${queryPropertyName} does not exist in the user index.`).throwError();
+            new utils.ErrorHandler("0x000021", `${queryPropertyName} does not exist in the user index.`).throwError();
 
         }
 
@@ -307,13 +307,13 @@ const users = {
 
         if (nonexistantResultPropertyNames.length > 0) {
 
-            new utils.ErrorHandler("0x000003", `${nonexistantResultPropertyNames[0]} does not exist in the user data.`).throwError();
+            new utils.ErrorHandler("0x000029", `${nonexistantResultPropertyNames[0]} does not exist in the user data.`).throwError();
 
         }
 
         if (!propertyEncodings[queryPropertyName]) {
 
-            new utils.ErrorHandler("0x000008", `Encoding information missing for ${queryPropertyName}`).throwError();
+            new utils.ErrorHandler("0x000020", `Encoding information missing for ${queryPropertyName}`).throwError();
 
         }
 
@@ -321,7 +321,7 @@ const users = {
 
         if (missingEncodingPropertyNames.length > 0) {
 
-            new utils.ErrorHandler("0x000008", `Encoding information missing for ${missingEncodingPropertyNames[0]}`).throwError();
+            new utils.ErrorHandler("0x000020", `Encoding information missing for ${missingEncodingPropertyNames[0]}`).throwError();
 
         }
 
@@ -339,7 +339,7 @@ const users = {
 
                 const decryptedUserData = Object.keys(userData.data).reduce((obj, key) => { 
                 
-                        obj[key] = utils.decrypt(userData.data[key], propertyEncodings[key] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${key}`).throwError());
+                        obj[key] = utils.decrypt(userData.data[key], propertyEncodings[key] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${key}`).throwError());
                 
                         return obj;
                     
@@ -359,13 +359,13 @@ const users = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x00000A").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x00000C", `Multiple users with the same ${queryPropertyName} exist .`).throwError();
+            new utils.ErrorHandler("0x000032", `Multiple users with the same ${queryPropertyName} exist .`).throwError();
 
         }
 
@@ -373,7 +373,7 @@ const users = {
 
             if (!userDataProperties.includes(toChangePropertyName) || toChangePropertyName == "userID") {
 
-                new utils.ErrorHandler("0x000004", "Property either does not exist or is not allowed to be changed.").throwError();
+                new utils.ErrorHandler("0x000029", "Property either does not exist or is not allowed to be changed.").throwError();
 
             }
 
@@ -383,25 +383,25 @@ const users = {
 
             if (userIndexProperties.includes(toChangePropertyName)) {
 
-                if ((await (collections.users.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
+                if ((await (collections.users.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
 
-                    new utils.ErrorHandler("0x000005 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
+                    new utils.ErrorHandler("0x000033 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
 
                 }
 
-                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
+                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
 
             }
 
             if (paymentIndexProperties.includes(toChangePropertyName)) {
 
-                if ((await (collections.payments.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
+                if ((await (collections.payments.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
 
-                    new utils.ErrorHandler("0x000005 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
+                    new utils.ErrorHandler("0x000033 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
 
                 }
 
-                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
+                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
 
             }
 
@@ -411,7 +411,7 @@ const users = {
 
                 if (passwordStatus != 0) {
 
-                    new utils.ErrorHandler("0x000006", passwordCheckStatuses[passwordStatus] || "Password is invalid.").throwError();
+                    new utils.ErrorHandler("0x00003B", passwordCheckStatuses[passwordStatus] || "Password is invalid.").throwError();
 
                 }
 
@@ -430,19 +430,13 @@ const users = {
 
             }
 
-            await collections.users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: utils.encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } });
+            await collections.users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: utils.encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) } });
 
         }
 
     },
 
-    deleteUser : async (username, userID) => {
-
-        if (!(await verification.verifyUserID(username, userID))) {
-
-            new utils.ErrorHandler("0x000009").throwError();
-
-        };
+    deleteUser : async (userID) => {
 
         const userIDHash = utils.hash(userID, "base64");
         const stripeCustomerID = (await users.getUserInfo(userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
@@ -471,7 +465,7 @@ const authentication = {
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001", "Multiple users with the same username exist.").throwError();
+            new utils.ErrorHandler("0x000032", "Multiple users with the same username exist.").throwError();
 
         }
 
@@ -511,7 +505,7 @@ const authentication = {
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001", "Multiple users with the same userID exist.").throwError();
+            new utils.ErrorHandler("0x000032", "Multiple users with the same userID exist.").throwError();
 
         }
 
@@ -541,13 +535,13 @@ const authorization = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x00000A").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -577,7 +571,7 @@ const authorization = {
 
         else if (result.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -605,7 +599,7 @@ const verification = {
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -629,13 +623,13 @@ const payments = {
 
         if (result.length == 0) {
 
-            new utils.ErrorHandler("0x00000A").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (result.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -653,13 +647,13 @@ const payments = {
 
         if (result.length == 0) {
 
-            new utils.ErrorHandler("0x00000D").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (result.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -680,13 +674,13 @@ const payments = {
 
         if (result.length == 0) {
 
-            new utils.ErrorHandler("0x00000D").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (result.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -710,7 +704,7 @@ const payments = {
 
         else if (result.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -738,7 +732,7 @@ const payments = {
 
         if (result.length == 0) {
 
-            new utils.ErrorHandler("0x00000D").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
             // TODO : refund payment if userID is not found in payments database
 
@@ -746,7 +740,7 @@ const payments = {
 
         else if (result.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -770,7 +764,7 @@ const payments = {
 
         else if (result.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -809,13 +803,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -843,13 +837,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -859,7 +853,7 @@ const courses = {
 
             if (!courseData[courseID]) {
 
-                new utils.ErrorHandler("0x000003", "Course does not exist").throwError();
+                new utils.ErrorHandler("0x00003C", "Course does not exist").throwError();
 
             }
 
@@ -877,7 +871,7 @@ const courses = {
 
             else {
 
-                new utils.ErrorHandler("0x000003").throwError();
+                new utils.ErrorHandler("0x00003C").throwError();
     
             }
 
@@ -891,13 +885,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -915,13 +909,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -943,13 +937,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -967,13 +961,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -995,13 +989,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -1029,13 +1023,13 @@ const courses = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -1068,13 +1062,13 @@ const ai = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -1092,13 +1086,13 @@ const ai = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -1120,13 +1114,13 @@ const config = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 
@@ -1150,13 +1144,13 @@ const config = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000000").throwError();
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
         else if (results.length > 1) {
 
-            new utils.ErrorHandler("0x000001").throwError();
+            new utils.ErrorHandler("0x000032").throwError();
 
         }
 

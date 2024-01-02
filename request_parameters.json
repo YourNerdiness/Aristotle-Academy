@@ -94,6 +94,12 @@
         "mfaMustBeRequired" : false,
         "bodyParameters" : {
 
+            "password" : {
+
+                "type" : "string"
+
+            },
+
             "toChangePropertyName" : {
 
                 "type" : "string",

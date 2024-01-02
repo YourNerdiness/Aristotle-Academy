@@ -30,9 +30,9 @@ const handleRequestError = (error, res) => {
 
     else {
 
-        utils.createLog(error.toString(), "ERROR");
+        utils.createLog(error.toString(), "DEFAULT");
 
-        res.status(500).json({ error });
+        res.status(500).json({ msg : error.toString() });
 
     }
 
@@ -283,7 +283,15 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
         if (requestParameters[req.url].mustBeSignedIn && !token) {
 
-            new utils.ErrorHandler("0x000000", `Must be signed in to make a request to ${req.url}.`).throwErrorToClient(res);
+            new utils.ErrorHandler("0x000001", `Must be signed in to make a request to ${req.url}.`).throwErrorToClient(res);
+
+            return;
+
+        }
+
+        if (requestParameters[req.url].mustBeSignedIn && !requestParameters[req.url].mfaMustBeRequired && token.mfaRequired) {
+
+            new utils.ErrorHandler("0x000003", `MFA must be completed to make a request to ${req.url}.`).throwErrorToClient(res);
 
             return;
 
@@ -291,7 +299,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
         if (requestParameters[req.url].mustBeSignedOut && token) {
 
-            new utils.ErrorHandler("0x000000", `Must not be signed in to make a request to ${req.url}.`).throwErrorToClient(res);
+            new utils.ErrorHandler("0x000002", `Must not be signed in to make a request to ${req.url}.`).throwErrorToClient(res);
 
             return;
 
@@ -299,7 +307,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
         if (requestParameters[req.url].mfaMustBeRequired && (!token || !token.mfaRequired)) {
 
-            new utils.ErrorHandler("0x000000", `MFA must not be completed to make a request to ${req.url}.`).throwErrorToClient(res);
+            new utils.ErrorHandler("0x000004", `MFA must not be completed to make a request to ${req.url}.`).throwErrorToClient(res);
 
             return;
 
@@ -316,7 +324,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
             if (!data) {
 
-                new utils.ErrorHandler("0x000000", "Request body is missing.").throwErrorToClient(res);
+                new utils.ErrorHandler("0x000005", "Request body is missing.").throwErrorToClient(res);
 
                 return;
 
@@ -326,7 +334,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                 if (!data[expectedRequestBodyParameters[i]]) {
 
-                    new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is missing.`).throwErrorToClient(res);
+                    new utils.ErrorHandler("0x000006", `Body parameter ${expectedRequestBodyParameters[i]} is missing.`).throwErrorToClient(res);
 
                     return;
 
@@ -334,7 +342,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                 if (expectedRequestBodyData[expectedRequestBodyParameters[i]].type && typeof data[expectedRequestBodyParameters[i]] != expectedRequestBodyData[expectedRequestBodyParameters[i]].type) {
 
-                    new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect type, expected ${expectedRequestBodyData[expectedRequestBodyParameters[i]].type}, received ${typeof data[expectedRequestBodyParameters[i]]}.`).throwErrorToClient(res);
+                    new utils.ErrorHandler("0x000007", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect type, expected ${expectedRequestBodyData[expectedRequestBodyParameters[i]].type}, received ${typeof data[expectedRequestBodyParameters[i]]}.`).throwErrorToClient(res);
 
                     return;
 
@@ -346,7 +354,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[01]+$/.test(data[expectedRequestBodyParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected binary.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected binary.`).throwErrorToClient(res);
 
                             return;
 
@@ -358,7 +366,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[0-9A-Fa-f]+$/.test(data[expectedRequestBodyParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected hex.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected hex.`).throwErrorToClient(res);
 
                             return;
 
@@ -370,7 +378,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[A-Za-z0-9+/]+={0,3}$/.test(data[expectedRequestBodyParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected base64.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected base64.`).throwErrorToClient(res);
 
                             return;
 
@@ -382,7 +390,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[A-Za-z0-9-_]+={0,3}$/.test(data[expectedRequestBodyParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected base64url.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected base64url.`).throwErrorToClient(res);
 
                             return;
 
@@ -394,7 +402,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!Number.isInteger(data[expectedRequestBodyParameters[i]])) {
 
-                            new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected integer.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected integer.`).throwErrorToClient(res);
 
                             return;
 
@@ -406,7 +414,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (Number.isInteger(data[expectedRequestBodyParameters[i]])) {
 
-                            new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected float.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected float.`).throwErrorToClient(res);
 
                             return;
 
@@ -416,11 +424,31 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                 }
 
+                if (expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
+
+                    if (data[expectedRequestBodyParameters[i]] < expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
+
+                        new utils.ErrorHandler("0x000009");
+
+                    }
+
+                }
+
+                if (expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
+
+                    if (data[expectedRequestBodyParameters[i]] > expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
+
+                        new utils.ErrorHandler("0x000009");
+
+                    }
+
+                }
+
                 if (expectedRequestBodyData[expectedRequestBodyParameters[i]].possibleValues) {
 
                     if (!expectedRequestBodyData[expectedRequestBodyParameters[i]].possibleValues.includes(data[expectedRequestBodyParameters[i]])) {
 
-                        new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestBodyParameters[i]} is invalid, value must be one of ${expectedRequestBodyData[expectedRequestBodyParameters[i]].possibleValues.toString()}`).throwErrorToClient(res);
+                        new utils.ErrorHandler("0x00000A", `Body parameter ${expectedRequestBodyParameters[i]} is invalid, value must be one of ${expectedRequestBodyData[expectedRequestBodyParameters[i]].possibleValues.toString()}`).throwErrorToClient(res);
 
                         return;
 
@@ -438,7 +466,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
             if (!data) {
 
-                new utils.ErrorHandler("0x000000", "Request query is missing.").throwErrorToClient(res);
+                new utils.ErrorHandler("0x00000B", "Request query is missing.").throwErrorToClient(res);
 
                 return;
 
@@ -448,7 +476,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                 if (!data[expectedRequestQueryParameters[i]]) {
 
-                    new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is missing.`).throwErrorToClient(res);
+                    new utils.ErrorHandler("0x00000C", `Query parameter ${expectedRequestQueryParameters[i]} is missing.`).throwErrorToClient(res);
 
                     return;
 
@@ -456,7 +484,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                 if (expectedRequestQueryData[expectedRequestQueryParameters[i]].type && typeof data[expectedRequestQueryParameters[i]] != expectedRequestQueryData[expectedRequestQueryParameters[i]].type) {
 
-                    new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect type, expected ${expectedRequestQueryData[expectedRequestQueryParameters[i]].type}, received ${typeof data[expectedRequestQueryParameters[i]]}.`).throwErrorToClient(res);
+                    new utils.ErrorHandler("0x00000D", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect type, expected ${expectedRequestQueryData[expectedRequestQueryParameters[i]].type}, received ${typeof data[expectedRequestQueryParameters[i]]}.`).throwErrorToClient(res);
 
                     return;
 
@@ -468,7 +496,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[01]+$/.test(data[expectedRequestQueryParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected binary.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x00000E", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected binary.`).throwErrorToClient(res);
 
                             return;
 
@@ -480,7 +508,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[0-9A-Fa-f]+$/.test(data[expectedRequestQueryParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected hex.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x00000E", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected hex.`).throwErrorToClient(res);
 
                             return;
 
@@ -492,7 +520,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[A-Za-z0-9+/]+={0,3}$/.test(data[expectedRequestQueryParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected base64.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x00000E", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected base64.`).throwErrorToClient(res);
 
                             return;
 
@@ -504,7 +532,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!(/^[A-Za-z0-9-_]+={0,3}$/.test(data[expectedRequestQueryParameters[i]]))) {
 
-                            new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected base64url.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x00000E", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected base64url.`).throwErrorToClient(res);
 
                             return;
 
@@ -516,7 +544,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (!Number.isInteger(data[expectedRequestQueryParameters[i]])) {
 
-                            new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected integer.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x00000E", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected integer.`).throwErrorToClient(res);
 
                             return;
 
@@ -528,7 +556,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                         if (Number.isInteger(data[expectedRequestQueryParameters[i]])) {
 
-                            new utils.ErrorHandler("0x000000", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected float.`).throwErrorToClient(res);
+                            new utils.ErrorHandler("0x00000E", `Query parameter ${expectedRequestQueryParameters[i]} is of the incorrect format, expected float.`).throwErrorToClient(res);
 
                             return;
 
@@ -538,11 +566,31 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                 }
 
+                if (expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
+
+                    if (data[expectedRequestQueryParameters[i]] < expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
+
+                        new utils.ErrorHandler("0x00000F").throwErrorToClient(res);
+
+                    }
+
+                }
+
+                if (expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
+
+                    if (data[expectedRequestQueryParameters[i]] > expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
+
+                        new utils.ErrorHandler("0x00000F").throwErrorToClient(res);
+
+                    }
+
+                }
+
                 if (expectedRequestQueryData[expectedRequestQueryParameters[i]].possibleValues) {
 
                     if (!expectedRequestQueryData[expectedRequestQueryParameters[i]].possibleValues.includes(data[expectedRequestQueryParameters[i]])) {
 
-                        new utils.ErrorHandler("0x000000", `Body parameter ${expectedRequestQueryParameters[i]} is invalid, value must be one of ${expectedRequestQueryData[expectedRequestQueryParameters[i]].possibleValues.toString()}`).throwErrorToClient(res);
+                        new utils.ErrorHandler("0x000010", `Query parameter ${expectedRequestQueryParameters[i]} is invalid, value must be one of ${expectedRequestQueryData[expectedRequestQueryParameters[i]].possibleValues.toString()}`).throwErrorToClient(res);
 
                         return;
 
@@ -764,7 +812,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
         if (!(await database.authentication.verifyPassword(username, password))) {
 
-            res.status(401).json({ msg: "Incorrect username or password." });
+            new utils.ErrorHandler("0x000012").throwError();
 
             return;
 
@@ -810,7 +858,7 @@ app.post("/completeMFA", express.json(), async (req, res) => {
 
         else {
 
-            res.status(401).json({ msg: "MFA code is invalid." });
+            new utils.ErrorHandler("0x000013").throwError();
 
         }
 
@@ -840,13 +888,13 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
         if (!(await database.authentication.verifyPassword(username, password))) {
 
-            res.status(401).json({ msg: "Incorrect password." });
+            new utils.ErrorHandler("0x000012").throwError();
 
             return;
 
         }
 
-        await database.users.deleteUser(username, userID);
+        await database.users.deleteUser(userID);
 
         res.status(200).clearCookie("jwt").json({ msg: "OK." });
 
@@ -865,6 +913,17 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
     try {
 
         const token = req.headers.auth;
+
+        const username = token.username;
+        const password = req.body.password;
+
+        if (!(await database.authentication.verifyPassword(username, password))) {
+
+            new utils.ErrorHandler("0x000012").throwError();
+
+            return;
+
+        }
 
         await database.users.changeUserInfo(token.userID, "userID", data.toChangeValue, data.toChangePropertyName);
 
@@ -898,7 +957,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
         if (!courseIDs.includes(courseID)) {
 
-            res.send(404).json({ msg: "Course does not exist." });
+            new utils.ErrorHandler("0x000014").throwError();
 
             return;
 
@@ -939,7 +998,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
         if (!(await database.authentication.verifyPassword(token.username, password))) {
 
-            res.status(401).json({ msg: "Incorrect password." });
+            new utils.ErrorHandler("0x000012").throwError();
 
             return;
 
@@ -949,7 +1008,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
         if (paidFor) {
 
-            res.status(409).json({ msg: "You have already paid for this course." });
+            new utils.ErrorHandler("0x000015").throwError();
 
         }
 
@@ -981,7 +1040,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
                 else {
 
-                    res.status(404).json({ msg: "Course does not exist." });
+                    new utils.ErrorHandler("0x000014").throwError();
 
                     return;
 
@@ -1039,7 +1098,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
         if (!token && data.filter == "true") {
 
-            res.status(401).json({ msg: "You are not signed in, please sign in to see your paid for courses." });
+            new utils.ErrorHandler("0x000001").throwError();
 
         }
 
@@ -1106,7 +1165,7 @@ app.post("/completeLessonChunk", express.json(), async (req, res) => {
 
         if ((await database.ai.getUserNumChunks(token.userID)) <= req.lessonChunk) {
 
-            res.status(406).json({ msg: "Lesson is complete, please send request to /completeLesson." });
+            new utils.ErrorHandler("0x000016").throwError();
 
         }
 
@@ -1133,7 +1192,7 @@ app.post("/completeLesson", express.json(), async (req, res) => {
 
         if ((await database.ai.getUserNumChunks(token.userID)) > req.lessonChunk) {
 
-            res.status(406).json({ msg: "Lesson is incomplete, please send request to /completeLessonChunk." });
+            new utils.ErrorHandler("0x000017").throwError();
 
             return;
 

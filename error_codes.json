@@ -2,86 +2,331 @@
     "0x000000": {
         "msg": "",
         "http_error_code": 500,
-        "severity": "ERROR"
+        "severity": "DEFAULT"
     },
-    "0x000001": {
-        "msg": "Multiple documents exist with matching fields that where expected to be unqiue.",
+    "0x000001" : {
+        "msg": "User not signed in when being signed in is required.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000002" : {
+        "msg": "User signed in when not being signed in is required.",
         "http_error_code": 409,
-        "severity": "ERROR"
+        "severity": "WARNING"
     },
-    "0x000002": {
-        "msg": "Client parameter error.",
+    "0x000003" : {
+        "msg": "User not completed MFA when having MFA completed is required.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000004" : {
+        "msg": "User completed MFA when having MFA not completed is required.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000005" : {
+        "msg": "Request body is missing when it is required.",
         "http_error_code": 400,
-        "severity": "ERROR"
+        "severity": "ALERT"
     },
-    "0x000003": {
-        "msg": "Function parameter error.",
-        "http_error_code": 500,
-        "severity": "ERROR"
+    "0x000006" : {
+        "msg": "Request body parameter is missing.",
+        "http_error_code": 400,
+        "severity": "ALERT"
     },
-    "0x000004": {
-        "msg": "Client provided invalid information.",
-        "http_error_code": 422,
-        "severity": "ERROR"
+    "0x000007" : {
+        "msg": "Request body parameter is of invalid type.",
+        "http_error_code": 400,
+        "severity": "ALERT"
     },
-    "0x000005": {
-        "msg": "Documents with those properties already exist, and those properties are expected to be unique.",
-        "http_error_code": 409,
-        "severity": "INFO"
+    "0x000008" : {
+        "msg": "Request body parameter is of invalid format.",
+        "http_error_code": 400,
+        "severity": "ALERT"
     },
-    "0x000006": {
-        "msg": "User entered invalid information.",
-        "http_error_code": 422,
-        "severity": "INFO"
+    "0x000009" : {
+        "msg": "Request body parameter's value is out of bounds.",
+        "http_error_code": 400,
+        "severity": "ALERT"
     },
-    "0x000007": {
-        "msg": "Database document property does not exist.",
-        "http_error_code": 500,
-        "severity": "ERROR"
+    "0x00000A" : {
+        "msg": "Request body parameter's value is not an option for the parameter.",
+        "http_error_code": 400,
+        "severity": "ALERT"
     },
-    "0x000008": {
-        "msg": "Hardcoded configuration was invalid or missing.",
-        "http_error_code": 500,
-        "severity": "ERROR"
+    "0x00000B" : {
+        "msg": "Request query is missing when it is required.",
+        "http_error_code": 400,
+        "severity": "ALERT"
     },
-    "0x000009": {
-        "msg": "Cross-check of client provided information failed.",
-        "http_error_code": 409,
+    "0x00000C" : {
+        "msg": "Request query parameter is missing.",
+        "http_error_code": 400,
+        "severity": "ALERT"
+    },
+    "0x00000D" : {
+        "msg": "Request query parameter is of invalid type.",
+        "http_error_code": 400,
+        "severity": "ALERT"
+    },
+    "0x00000E" : {
+        "msg": "Request query parameter is of invalid format.",
+        "http_error_code": 400,
+        "severity": "ALERT"
+    },
+    "0x00000F" : {
+        "msg": "Request query parameter's value is out of bounds.",
+        "http_error_code": 400,
+        "severity": "ALERT"
+    },
+    "0x000010" : {
+        "msg": "Request query parameter's value is not an option for the parameter.",
+        "http_error_code": 400,
+        "severity": "ALERT"
+    },
+    "0x000011" : {
+        "msg": "Cannot verify payment webhook.",
+        "http_error_code": 401,
+        "severity": "ALERT"
+    },
+    "0x000012" : {
+        "msg": "User provided incorrect username or password.",
+        "http_error_code": 401,
         "severity": "WARNING"
     },
-    "0x00000A": {
-        "msg": "Could not find document based on client data.",
+    "0x000013" : {
+        "msg": "User provided incorrect MFA code.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000014" : {
+        "msg": "Course does not exist.",
         "http_error_code": 404,
+        "severity": "ALERT"
+    },
+    "0x000015" : {
+        "msg": "Payment has already been completed.",
+        "http_error_code": 409,
+        "severity": "ALERT"
+    },
+    "0x000016" : {
+        "msg": "Lesson has been completed, so requests for the next parts of the lesson cannot be made.",
+        "http_error_code": 409,
+        "severity": "ALERT"
+    },
+    "0x000017" : {
+        "msg": "Lesson has not been completed, so requests for the next lesson cannot be made.",
+        "http_error_code": 409,
+        "severity": "ALERT"
+    },
+    "0x000018" : {
+        "msg": "Cannot get config data from database.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000019" : {
+        "msg": "Multiple documents of config data exist with the same name.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00001A" : {
+        "msg": "Cannot create user because username is already in use.",
+        "http_error_code": 409,
         "severity": "WARNING"
     },
-    "0x00000B": {
-        "msg": "Could not find document based on user data.",
-        "http_error_code": 404,
-        "severity": "INFO"
-    },
-    "0x00000C": {
-        "msg": "Search was attempted by field that returned multiple results when function requires a single document.",
-        "http_error_code": 500,
-        "severity": "ERROR"
-    },
-    "0x00000D": {
-        "msg": "Could not find document based on API data.",
-        "http_error_code": 500,
+    "0x00001B" : {
+        "msg": "Cannot create user because email is already in use.",
+        "http_error_code": 409,
         "severity": "WARNING"
     },
-    "0x00000E": {
-        "msg": "API request faliure.",
-        "http_error_code": 500,
-        "severity": "CRITICAL"
-    },
-    "0x00000F": {
-        "msg": "Could not verify webhook signature.",
+    "0x00001C" : {
+        "msg": "Cannot create user because password is insecure.",
         "http_error_code": 400,
         "severity": "WARNING"
     },
-    "0x000010": {
-        "msg": "Email faliure.",
-        "http_error_code": 500,
+    "0x00001D" : {
+        "msg": "Cannot create user because email is invalid.",
+        "http_error_code": 400,
         "severity": "WARNING"
+    },
+    "0x00001E" : {
+        "msg": "Stripe create customer API call faliure.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00001F" : {
+        "msg": "Contradiction between expected and created user and payment document properties.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000020" : {
+        "msg": "Encoding missing for database property.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000021" : {
+        "msg": "Property is not a property included in the users index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000022" : {
+        "msg": "Property is not a property included in the payments index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000023" : {
+        "msg": "Property is not a property included in the authentication index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000024" : {
+        "msg": "Property is not a property included in the jwts index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000025" : {
+        "msg": "Property is not a property included in the checkoutSessions index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000026" : {
+        "msg": "Property is not a property included in the courses index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000027" : {
+        "msg": "Property is not a property included in the ai index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000028" : {
+        "msg": "Property is not a property included in the config index.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000029" : {
+        "msg": "Property is not a property included in the users data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00002A" : {
+        "msg": "Property is not a property included in the payments data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00002B" : {
+        "msg": "Property is not a property included in the authentication data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00002C" : {
+        "msg": "Property is not a property included in the jwts data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00002D" : {
+        "msg": "Property is not a property included in the checkoutSessions data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00002E" : {
+        "msg": "Property is not a property included in the courses data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00002F" : {
+        "msg": "Property is not a property included in the ai data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000030" : {
+        "msg": "Property is not a property included in the config data.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000031" : {
+        "msg": "Cannot find document when it should exist.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000032" : {
+        "msg": "Documents with properties of equal values exist when those values where expected to be unique.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000033" : {
+        "msg": "Cannot update user data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000034" : {
+        "msg": "Cannot update payments data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000035" : {
+        "msg": "Cannot update authentication data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000036" : {
+        "msg": "Cannot update jwts data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000037" : {
+        "msg": "Cannot update checkoutSessions data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000038" : {
+        "msg": "Cannot update courses data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000039" : {
+        "msg": "Cannot update ai data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x00003A" : {
+        "msg": "Cannot update config data because the value of a property who's values are expected to be unique is already in use.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x00003B" : {
+        "msg": "Cannot update database because password is insecure.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x00003C" : {
+        "msg": "Parameter passed to database function is invalid.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00003D" : {
+        "msg": "Parameter passed to server function is invalid.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00003E" : {
+        "msg": "Parameter passed to utils function is invalid.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x00003F" : {
+        "msg": "Parameter passed to ai function is invalid.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000040" : {
+        "msg": "HIBP API call faliure.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000041" : {
+        "msg": "Send email faliure.",
+        "http_error_code": 500,
+        "severity": "ALERT"
     }
 }
