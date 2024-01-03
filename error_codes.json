@@ -328,5 +328,10 @@
         "msg": "Send email faliure.",
         "http_error_code": 500,
         "severity": "ALERT"
+    },
+    "0x000042" : {
+        "msg": "Action returned from AI is invalid.",
+        "http_error_code": 500,
+        "severity": "ALERT"
     }
 }

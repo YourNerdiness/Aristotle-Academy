@@ -18,7 +18,7 @@ const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`)
 const subIds = await database.config.getConfigData("sub_ids");
 const courseData = await database.config.getConfigData("course_data");
 const courseIDs = Object.keys(courseData);
-const requestParameters = fs.readFileSync("request_parameters.json")
+const requestParameters = JSON.parse(fs.readFileSync("request_parameters.json"))
 
 const handleRequestError = (error, res) => {
 
@@ -279,7 +279,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
     if (requestParameters[req.url]) {
 
-        const token = req.headres.auth;
+        const token = req.headers.auth;
 
         if (requestParameters[req.url].mustBeSignedIn && !token) {
 
@@ -1092,7 +1092,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
     try {
 
-        const data = req.headers;
+        const data = req.query;
 
         const token = req.headers.auth;
 

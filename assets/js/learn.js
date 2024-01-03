@@ -199,7 +199,7 @@ const getCourseData = async () => {
 
     }
 
-    const res = await fetch("/getCourseData", req);
+    const res = await fetch(`/getCourseData?filter${document.getElementById("paidOnly").checked.toString()}`, req);
 
     if (!res.ok) {
 

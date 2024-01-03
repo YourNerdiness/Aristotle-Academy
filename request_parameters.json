@@ -162,7 +162,7 @@
         "mustBeSignedIn" : false,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
-        "bodyParameters" : {
+        "queryParameters" : {
 
             "filter" : {
 
