@@ -2,13 +2,28 @@
 
     <p id="error" class="center"></p>
 
+    <dialog id="reenterPasswordDialog">
+
+        <p id="reenterPasswordError"></p>
+
+        <form>
+
+            <label for="reenterPasswordField">Please re-enter your password:</label>
+            <input type="password" id="reenterPasswordField" name="reenterPasswordField">
+
+        </form>
+
+        <button id="checkout-btn">Submit</button>
+  
+      </dialog>
+
     <div class="justify">
 
         <section class="display-container">
 
             <h4>Course</h4>
 
-            <button id="course-btn" class="checkout-btn"><%= coursePrice %> for the <%= courseName %> course</button>
+            <button onclick="item=new URLSearchParams(window.location.search).get('courseID');document.getElementById('reenterPasswordDialog').showModal()"><%= coursePrice %> for the <%= courseName %> course</button>
 
         </section>
 
@@ -16,7 +31,7 @@
 
             <h4>Monthly</h4>
 
-            <button id="monthly-btn" class="checkout-btn"><%= monthlyPrice %> every month for all courses</button>
+            <button onclick="item='monthly-sub';document.getElementById('reenterPasswordDialog').showModal()"><%= monthlyPrice %> every month for all courses</button>
             
         </section>
 
@@ -24,7 +39,7 @@
 
             <h4>Yearly</h4>
 
-            <button id="yearly-btn" class="checkout-btn"><%= yearlyPrice %> every year for all courses</button>
+            <button onclick="item='yearly-sub';document.getElementById('reenterPasswordDialog').showModal()"><%= yearlyPrice %> every year for all courses</button>
 
         </section>
 

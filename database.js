@@ -385,7 +385,7 @@ const users = {
 
                 if ((await (collections.users.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
 
-                    new utils.ErrorHandler("0x000033 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
+                    new utils.ErrorHandler("0x000033", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
 
                 }
 

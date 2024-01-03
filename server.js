@@ -332,7 +332,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
             for (let i = 0; i < expectedRequestBodyParameters.length; i++) {
 
-                if (!data[expectedRequestBodyParameters[i]]) {
+                if (data[expectedRequestBodyParameters[i]] === undefined) {
 
                     new utils.ErrorHandler("0x000006", `Body parameter ${expectedRequestBodyParameters[i]} is missing.`).throwErrorToClient(res);
 
@@ -428,7 +428,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                     if (data[expectedRequestBodyParameters[i]] < expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
 
-                        new utils.ErrorHandler("0x000009");
+                        new utils.ErrorHandler("0x000009").throwErrorToClient(res);
 
                     }
 
@@ -438,7 +438,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
                     if (data[expectedRequestBodyParameters[i]] > expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
 
-                        new utils.ErrorHandler("0x000009");
+                        new utils.ErrorHandler("0x000009").throwErrorToClient(res);
 
                     }
 
@@ -462,7 +462,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
         if (expectedRequestQueryParameters.length > 0) {
 
-            const data = req.query;
+            const data = JSON.parse(req.query);
 
             if (!data) {
 
@@ -474,7 +474,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
 
             for (let i = 0; i < expectedRequestQueryParameters.length; i++) {
 
-                if (!data[expectedRequestQueryParameters[i]]) {
+                if (data[expectedRequestQueryParameters[i]] === undefined) {
 
                     new utils.ErrorHandler("0x00000C", `Query parameter ${expectedRequestQueryParameters[i]} is missing.`).throwErrorToClient(res);
 
@@ -763,6 +763,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
 });
 
+app.use(express.json())
 app.use(morgan(":date - :client-ip - :user-agent - :method :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
@@ -775,7 +776,7 @@ app.set("view engine", "ejs");
 
 app.use(express.static("assets"));
 
-app.post("/signup", express.json(), async (req, res) => {
+app.post("/signup", async (req, res) => {
 
     try {
 
@@ -801,7 +802,7 @@ app.post("/signup", express.json(), async (req, res) => {
 
 });
 
-app.post("/signin", express.json(), async (req, res) => {
+app.post("/signin", async (req, res) => {
 
     try {
 
@@ -838,7 +839,7 @@ app.post("/signin", express.json(), async (req, res) => {
 
 });
 
-app.post("/completeMFA", express.json(), async (req, res) => {
+app.post("/completeMFA", async (req, res) => {
 
     try {
 
@@ -876,7 +877,7 @@ app.post("/completeMFA", express.json(), async (req, res) => {
 
 app.use(tokenMFARequiredFilterMiddleware);
 
-app.post("/deleteAccount", express.json(), async (req, res) => {
+app.post("/deleteAccount", async (req, res) => {
 
     try {
 
@@ -908,14 +909,16 @@ app.post("/deleteAccount", express.json(), async (req, res) => {
 
 });
 
-app.post("/changeUserDetails", express.json(), async (req, res) => {
+app.post("/changeUserDetails", async (req, res) => {
 
     try {
 
         const token = req.headers.auth;
 
+        const data = req.body;
+
         const username = token.username;
-        const password = req.body.password;
+        const password = data.password;
 
         if (!(await database.authentication.verifyPassword(username, password))) {
 
@@ -941,6 +944,8 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
 
     catch (error) {
 
+        console.log(error)
+
         handleRequestError(error, res);
 
     }
@@ -948,7 +953,7 @@ app.post("/changeUserDetails", express.json(), async (req, res) => {
 });
 
 
-app.post("/learnRedirect", express.json(), async (req, res) => {
+app.post("/learnRedirect", async (req, res) => {
 
     try {
 
@@ -987,7 +992,7 @@ app.post("/learnRedirect", express.json(), async (req, res) => {
 
 });
 
-app.post("/buyRedirect", express.json(), async (req, res) => {
+app.post("/buyRedirect", async (req, res) => {
 
     try {
 
@@ -1088,7 +1093,7 @@ app.post("/buyRedirect", express.json(), async (req, res) => {
 
 });
 
-app.get("/getCourseData", express.json(), async (req, res) => {
+app.get("/getCourseData", async (req, res) => {
 
     try {
 
@@ -1140,7 +1145,7 @@ app.get("/getCourseData", express.json(), async (req, res) => {
 
 });
 
-app.post("/verifyHMACSignature", express.json(), (req, res) => {
+app.post("/verifyHMACSignature", (req, res) => {
 
     try {
 
@@ -1156,7 +1161,7 @@ app.post("/verifyHMACSignature", express.json(), (req, res) => {
 
 });
 
-app.post("/completeLessonChunk", express.json(), async (req, res) => {
+app.post("/completeLessonChunk", async (req, res) => {
 
     try {
 
@@ -1183,7 +1188,7 @@ app.post("/completeLessonChunk", express.json(), async (req, res) => {
 
 });
 
-app.post("/completeLesson", express.json(), async (req, res) => {
+app.post("/completeLesson", async (req, res) => {
 
     try {
 
@@ -1218,7 +1223,7 @@ app.post("/completeLesson", express.json(), async (req, res) => {
 
 });
 
-app.post("/logSessionTime", express.json(), async (req, res) => {
+app.post("/logSessionTime", async (req, res) => {
 
     try {
 

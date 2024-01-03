@@ -2,6 +2,42 @@
 
     <p id="error"></p>
 
+    <dialog id="changeUsernameDialog">
+
+        <p id="changeUsernameError"></p>
+
+        <form>
+
+            <label for="usernamePasswordField">Please re-enter your password:</label>
+            <input type="password" id="usernamePasswordField" name="usernamePasswordField">
+
+            <label for="newUsernameField">Please enter your new username:</label>
+            <input type="text" id="newUsernameField" name="newUsernameField">
+
+        </form>
+
+        <button id="changeUsername">Submit</button>
+  
+      </dialog>
+
+      <dialog id="changeEmailDialog">
+
+        <p id="changeEmailError"></p>
+
+        <form>
+
+            <label for="emailPasswordField">Please re-enter your password:</label>
+            <input type="password" id="emailPasswordField" name="emailPasswordField">
+
+            <label for="newEmailField">Please enter your new email:</label>
+            <input type="email" id="newEmailField" name="newEmailField">
+
+        </form>
+
+        <button id="changeEmail">Submit</button>
+  
+      </dialog>
+
     <table>
 
         <div>
@@ -12,7 +48,7 @@
 
                 <td>Username:</td>
                 <td><%= username %></td>
-                <td><button id="changeUsername">Change Username</button></td>
+                <td><button onclick="document.getElementById('changeUsernameDialog').showModal()">Change Username</button></td>
 
             </tr>
 
@@ -20,7 +56,7 @@
 
                 <td>Email:</td>
                 <td><%= email %></td>
-                <td><button id="changeEmail">Change Email</button></td>
+                <td><button onclick="document.getElementById('changeEmailDialog').showModal()">Change Email</button></td>
 
             </tr>
 

@@ -44,7 +44,9 @@ $(document).ready(() => {
 
         $("#error").text("");
 
-        const data = { password : prompt("Please re-enter your password: "), toChangeValue : prompt("Please enter your new username: "), toChangePropertyName : "username" };
+        const data = { password : $("#usernamePasswordField").val(), toChangeValue : $("#newUsernameField").val(), toChangePropertyName : "username" };
+
+        console.log(data)
 
         const req = {
 
@@ -64,7 +66,7 @@ $(document).ready(() => {
 
             if (res.ok) {
 
-                window.location.href = "/account";
+                window.location.reload();
 
             }
 
@@ -72,7 +74,7 @@ $(document).ready(() => {
 
                 const error = await res.json();
 
-                $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+                $("#changeUsernameError").text(error.userMsg || error.msg || "An error has occurred.");
 
             }
         
@@ -84,7 +86,7 @@ $(document).ready(() => {
 
         $("#error").text("");
 
-        const data = { password : prompt("Please re-enter your password: "), toChangeValue : prompt("Please enter your new email: "), toChangePropertyName : "email" };
+        const data = { password : $("#emailPasswordField").val(), toChangeValue : $("#newEmailField").val(), toChangePropertyName : "email" };
 
         const req = {
 
@@ -102,11 +104,17 @@ $(document).ready(() => {
 
         fetch("/changeUserDetails", req).then(async res => {
 
-            if (!res.ok) {
+            if (res.ok) {
+
+                window.location.reload();
+
+            }
+
+            else {
 
                 const error = await res.json();
 
-                $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+                $("#changeEmailError").text(error.userMsg || error.msg || "An error has occurred.");
 
             }
         

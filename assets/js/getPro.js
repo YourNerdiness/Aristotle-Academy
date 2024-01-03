@@ -1,38 +1,12 @@
+let item = "yearly-sub";
+
 $(document).ready(function () {
 
-    const courseID = new URLSearchParams(window.location.search).get("courseID");
+    $("#checkout-btn").click((event) => {
 
-    $(".checkout-btn").click((event) => {
+        const data = { item, password : $("#reenterPasswordField").val() };
 
-        let item;
-
-        switch ($(event.target).attr("id")) {
-
-            case "course-btn":
-                
-                item = courseID;
-
-                break;
-        
-            case "monthly-btn":
-
-                item = "monthly-sub";
-
-                break;
-
-            case "yearly-btn":
-
-                item = "yearly-sub";
-
-                break;
-
-            default:
-
-                break;
-
-        }
-
-        const data = { item, password : prompt("Please re-enter your password: ") };
+        console.log(data)
 
         const req = {
 
