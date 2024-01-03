@@ -2,6 +2,8 @@
 
     "/signup" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : false,
         "mustBeSignedOut" : true,
         "mfaMustBeRequired" : false,
@@ -31,6 +33,8 @@
 
     "/signin" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : false,
         "mustBeSignedOut" : true,
         "mfaMustBeRequired" : false,
@@ -54,6 +58,8 @@
 
     "/completeMFA" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : true,
@@ -72,6 +78,8 @@
 
     "/deleteAccount" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -89,6 +97,8 @@
 
     "/changeUserDetails" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -119,6 +129,8 @@
 
     "/learnRedirect" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -136,6 +148,8 @@
 
     "/buyRedirect" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -159,6 +173,8 @@
 
     "/getCourseData" : {
 
+        "methodToMatch" : "GET",
+        
         "mustBeSignedIn" : false,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -177,6 +193,8 @@
 
     "/verifyHMACSignature" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -201,6 +219,8 @@
 
     "/completeLessonChunk" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -235,6 +255,8 @@
 
     "/completeLesson" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -278,6 +300,8 @@
 
     "/logSessionTime" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -304,6 +328,8 @@
 
     "/getPro" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
@@ -322,6 +348,8 @@
 
     "/course" : {
 
+        "methodToMatch" : "POST",
+        
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,

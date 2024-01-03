@@ -277,7 +277,7 @@ const getTokenMiddleware = async (req, res, next) => {
 
 const requestVerifcationMiddleware = (req, res, next) => {
 
-    if (requestParameters[req.url]) {
+    if (requestParameters[req.url] && requestParameters[req.url].methodToMatch == req.method) {
 
         const token = req.headers.auth;
 
