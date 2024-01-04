@@ -262,34 +262,40 @@ const users = {
 
         };
 
-        await collections.users.insertOne(userDocument);
-        await collections.payments.insertOne(paymentDocument);
-
         const userIDHash = utils.hash(userID, "base64");
-
-        await collections.courses.insertOne({
-
-            userIDHash,
-            courseData : defaultCourseData,
-            completedTopics : []
-
-        });
-
-        await collections.ai.insertOne({ userIDHash, numChunks : 16 });
 
         const emailVerifcationCode = crypto.randomBytes(6).toString("hex");
 
-        await collections.authentication.insertOne({
-            
-            userIDHash,
-            code : utils.encrypt(emailVerifcationCode, "hex"),
-            timestamp : Date.now()
-
-        });
-
         const welcomeEmailContent = `Welcome to Aristotle Academy, we hope you'll benefit from our service. Here is your code to verify your email: <br> <h5>${emailVerifcationCode}</h5>`;
 
-        await utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
+        utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
+
+        const session = client.startSession();
+
+        await session.withTransaction(async () => {
+
+            await collections.users.insertOne(userDocument);
+            await collections.payments.insertOne(paymentDocument);
+
+            await collections.courses.insertOne({
+
+                userIDHash,
+                courseData: defaultCourseData,
+                completedTopics: []
+
+            });
+
+            await collections.ai.insertOne({ userIDHash, numChunks: 16 });
+
+            await collections.authentication.insertOne({
+
+                userIDHash,
+                code: utils.encrypt(emailVerifcationCode, "hex"),
+                timestamp: Date.now()
+
+            });
+
+        });
 
         return userID;
 
@@ -406,31 +412,37 @@ const users = {
 
             }
 
-            if (userIndexProperties.includes(toChangePropertyName)) {
+            const session = client.startSession();
 
-                if ((await (collections.users.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
+            await session.withTransaction(async () => {
 
-                    new utils.ErrorHandler("0x000033", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
+                if (userIndexProperties.includes(toChangePropertyName)) {
 
-                }
+                    if ((await (collections.users.find({ [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
 
-                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
+                        new utils.ErrorHandler("0x000033", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
 
-            }
+                    }
 
-            if (paymentIndexProperties.includes(toChangePropertyName)) {
-
-                if ((await (collections.payments.find({ [`index.${toChangePropertyName}`] : utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
-
-                    new utils.ErrorHandler("0x000033 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
+                    await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
 
                 }
 
-                await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
+                if (paymentIndexProperties.includes(toChangePropertyName)) {
 
-            }
+                    if ((await (collections.payments.find({ [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) })).toArray()).length > 0) {
 
-            await collections.users.updateOne({ "index.userID" : userIDHash }, { $set: { [`data.${toChangePropertyName}`]: utils.encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) } });
+                        new utils.ErrorHandler("0x000033 ", `The same ${toChangePropertyName} already has an account associated with it.`).throwError();
+
+                    }
+
+                    await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
+
+                }
+
+                await collections.users.updateOne({ "index.userID": userIDHash }, { $set: { [`data.${toChangePropertyName}`]: utils.encrypt(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) } });
+
+            });
 
         }
 
@@ -443,9 +455,19 @@ const users = {
 
         await stripeAPI.customers.del(stripeCustomerID);
 
-        await collections.users.deleteOne({ "index.userID" : userIDHash });
-        await collections.payments.deleteOne({ "index.userID" : userIDHash });
-        await collections.jwts.deleteMany({ userIDHash });
+        const session = client.startSession();
+
+        await session.withTransaction(async () => {
+
+            await collections.users.deleteOne({ "index.userID" : userIDHash });
+            await collections.payments.deleteOne({ "index.userID" : userIDHash });
+            await collections.jwts.deleteMany({ userIDHash });
+            await collections.ai.deleteOne({ userIDHash });
+            await collections.courses.deleteOne({ userIDHash});
+            await collections.checkoutSessions.deleteOne({ userIDHash });
+            await collections.authentication.deleteOne({ userIDHash });
+
+        });
 
     }
 
@@ -635,7 +657,7 @@ const payments = {
 
         else {
 
-            collections.checkoutSessions.insertOne({ sessionIDHash: utils.hash(sessionID, "base64"), userID: utils.encrypt(userID, "base64"), item: utils.encrypt(item, "utf-8") });
+            collections.checkoutSessions.insertOne({ sessionIDHash: utils.hash(sessionID, "base64"), userIDHash : utils.hash(userID, "base64"), userID: utils.encrypt(userID, "base64"), item: utils.encrypt(item, "utf-8") });
 
         }
 
