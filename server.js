@@ -804,11 +804,19 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 }
 
-                const sessionID = event.data.object.metadata.sessionID;
-
                 res.status(200).json({ msg: "OK." });
 
+                const sessionID = event.data.object.metadata.sessionID;
+
                 const sessionData = await database.payments.getCheckoutSession(sessionID);
+
+                if (!sessionData) {
+
+                    // refund
+
+                    return;
+
+                }
 
                 await database.payments.addCoursePayment(sessionData.userID, sessionData.item)
 

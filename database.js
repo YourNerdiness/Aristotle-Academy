@@ -572,7 +572,7 @@ const authorization = {
             const userIDHash = utils.hash(userID, "base64");
             const jwtIDHash = utils.hash(jwtID, "base64");
 
-            await collections.jwts.insertOne({ userIDHash, jwtIDHash });
+            await collections.jwts.insertOne({ userIDHash, jwtIDHash, createdAt : new Date() });
 
         }
 
@@ -598,6 +598,12 @@ const authorization = {
         }
 
         else {
+
+            if (Date.now() - result[0].createdAt > process.env.JWT_EXPIRES_MS) {
+
+                return false;
+
+            }
 
             return true;
 
@@ -657,7 +663,7 @@ const payments = {
 
         else {
 
-            collections.checkoutSessions.insertOne({ sessionIDHash: utils.hash(sessionID, "base64"), userIDHash : utils.hash(userID, "base64"), userID: utils.encrypt(userID, "base64"), item: utils.encrypt(item, "utf-8") });
+            collections.checkoutSessions.insertOne({ sessionIDHash: utils.hash(sessionID, "base64"), userIDHash : utils.hash(userID, "base64"), userID: utils.encrypt(userID, "base64"), item: utils.encrypt(item, "utf-8"), createdAt : new Date() });
 
         }
 
@@ -669,7 +675,7 @@ const payments = {
 
         if (result.length == 0) {
 
-            new utils.ErrorHandler("0x000031").throwError();
+            return null;
 
         }
 
@@ -680,6 +686,12 @@ const payments = {
         }
 
         else {
+
+            if (Date.now() - result[0].createdAt > process.env.CHECKOUT_SESSION_TIMEOUT_MS) {
+
+                return null;
+
+            }
 
             const userID = utils.decrypt(result[0].userID, "base64");
             const item = utils.decrypt(result[0].item, "utf-8");
