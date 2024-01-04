@@ -839,6 +839,12 @@ app.post("/signin", async (req, res) => {
 
 });
 
+app.post("/signout", async (req, res) => {
+
+    res.status(200).clearCookie("jwt").json({ msg: "OK." });
+
+});
+
 app.post("/completeMFA", async (req, res) => {
 
     try {

@@ -160,6 +160,36 @@ $(document).ready(() => {
         
         });
 
+    });
+
+    $("#signout").click(() => {
+
+        $("#error").text("");
+
+        const req = {
+
+            method : "POST",
+
+        };
+
+        fetch("/signout", req).then(async res => {
+
+            if (res.ok) {
+
+                window.location.reload();
+
+            }
+
+            else {
+
+                const error = await res.json();
+
+                $("#changePasswordError").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+        
+        });
+
     })
 
 });
