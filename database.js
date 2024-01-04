@@ -371,15 +371,40 @@ const users = {
 
         else {
 
+            const userData = results[0];
+
+            const userIDHash = utils.hash(userData.userID, propertyEncodings["userID"]);
+
+            if (toChangePropertyName == "password") {
+
+                const passwordStatus = await utils.checkNewPassword(toChangeValue);
+
+                if (passwordStatus != 0) {
+
+                    new utils.ErrorHandler("0x00003B", passwordCheckStatuses[passwordStatus] || "Password is invalid.").throwError();
+
+                }
+
+                const passwordSalt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
+
+                const passwordDigest = utils.passwordHash(toChangeValue + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64");
+
+                await collections.users.updateOne({ "index.userID" : userIDHash }, { $set: { 
+
+                    "data.passwordDigest" : utils.encrypt(passwordDigest, propertyEncodings["passwordDigest"]), 
+                    "data.passwordSalt" : utils.encrypt(passwordSalt, propertyEncodings["passwordSalt"])
+
+                }});
+                
+                return;
+
+            }
+
             if (!userDataProperties.includes(toChangePropertyName) || toChangePropertyName == "userID") {
 
                 new utils.ErrorHandler("0x000029", "Property either does not exist or is not allowed to be changed.").throwError();
 
             }
-
-            const userData = results[0];
-
-            const userIDHash = utils.hash(userData.userID, propertyEncodings["userID"]);
 
             if (userIndexProperties.includes(toChangePropertyName)) {
 
@@ -402,31 +427,6 @@ const users = {
                 }
 
                 await collections.users.updateOne({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName] || new utils.ErrorHandler("0x000020", `Encoding information missing for ${toChangePropertyName}`).throwError()) }, { $set: { [`index.${toChangePropertyName}`]: utils.hash(toChangeValue, propertyEncodings[toChangePropertyName] || new utils.ErrorHandler("0x000008", `Encoding information missing for ${toChangePropertyName}`).throwError()) } })
-
-            }
-
-            if (toChangePropertyName == "password") {
-
-                const passwordStatus = await utils.checkNewPassword(password);
-
-                if (passwordStatus != 0) {
-
-                    new utils.ErrorHandler("0x00003B", passwordCheckStatuses[passwordStatus] || "Password is invalid.").throwError();
-
-                }
-
-                const passwordSalt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
-
-                const passwordDigest = utils.passwordHash(toChangeValue + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64");
-
-                await collections.users.updateOne({ "index.userID" : userIDHash }, { $set: { 
-
-                    "data.passwordDigest" : utils.encrypt(passwordDigest, propertyEncodings["passwordDigest"]), 
-                    "data.passwordSalt" : utils.encrypt(passwordSalt, propertyEncodings["passwordSalt"])
-
-                }});
-                
-                return;
 
             }
 

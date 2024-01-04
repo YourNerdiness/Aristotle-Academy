@@ -38,6 +38,24 @@
   
       </dialog>
 
+      <dialog id="changePasswordDialog">
+
+        <p id="changePasswordError"></p>
+
+        <form>
+
+            <label for="passwordPasswordField">Please enter your old password:</label>
+            <input type="password" id="passwordPasswordField" name="passwordPasswordField">
+
+            <label for="newPasswordField">Please enter your new password:</label>
+            <input type="password" id="newPasswordField" name="newPasswordField">
+
+        </form>
+
+        <button id="changePassword">Submit</button>
+  
+      </dialog>
+
     <table>
 
         <div>
@@ -65,6 +83,13 @@
         <div>
 
             <tr><td><h5>Security</h5></td></tr>
+
+            <tr>
+
+                <td>Password:</td>
+                <td><button onclick="document.getElementById('changePasswordDialog').showModal()">Change Password</button></td>
+
+            </tr>
 
         </div>
 

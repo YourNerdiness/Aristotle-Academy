@@ -120,6 +120,46 @@ $(document).ready(() => {
         
         });
 
+    });
+
+    $("#changePassword").click(() => {
+
+        $("#error").text("");
+
+        const data = { password : $("#passwordPasswordField").val(), toChangeValue : $("#newPasswordField").val(), toChangePropertyName : "password" };
+
+        const req = {
+
+            method : "POST",
+
+            headers : {
+
+                "Content-Type" : "application/json"
+
+            },
+
+            body : JSON.stringify(data)
+
+        };
+
+        fetch("/changeUserDetails", req).then(async res => {
+
+            if (res.ok) {
+
+                window.location.reload();
+
+            }
+
+            else {
+
+                const error = await res.json();
+
+                $("#changePasswordError").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+        
+        });
+
     })
 
 });
