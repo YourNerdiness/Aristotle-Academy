@@ -190,6 +190,44 @@ $(document).ready(() => {
         
         });
 
-    })
+    });
+
+    $("#updateSub-btn").click((event) => {
+
+        const data = { item : $('#newSubTypeField :selected').text().toLowerCase() + "-sub", password : $("#reenterPasswordField").val() };
+
+        const req = {
+
+            method : "POST",
+
+            headers : {
+
+                "Content-Type" : "application/json"
+
+            },
+
+            body : JSON.stringify(data)
+
+        };
+
+        fetch("/buyRedirect", req).then(async res => {
+
+            if (res.ok) {
+
+                window.location.href = (await res.json()).url;
+
+            }
+
+            else {
+
+                const error = await res.json();
+
+                $("#createSubError").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+
+        });
+
+    });
 
 });

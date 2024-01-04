@@ -199,7 +199,7 @@ const users = {
             email,
             passwordDigest: utils.passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
             passwordSalt,
-            subID: undefined,
+            subID: "",
             courses : defaultCoursePaymentData
 
         };
@@ -721,6 +721,30 @@ const payments = {
                 new utils.ErrorHandler("0x000000", "Course does not exist").throwError();
 
             }
+
+        }
+
+    },
+
+    getSubID : async (userID) => {
+
+        const results = await collections.payments.find({ "index.userID" : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return utils.decrypt(results[0].data.subID, "utf-8");
 
         }
 

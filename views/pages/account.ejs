@@ -2,6 +2,30 @@
 
     <p id="error"></p>
 
+    <dialog id="subDialog">
+        
+        <p id="createSubError"></p>
+        
+        <form>
+        
+            <label for="reenterPasswordField">Please re-enter your password:</label>
+            <input type="password" id="reenterPasswordField" name="reenterPasswordField">
+        
+            <label for="newSubTypeField">Please select your subscription type:</label>
+            <select id="newSubTypeField">
+        
+                <option>None</option>
+                <option>Monthly</option>
+                <option>Yearly</option>
+        
+             </select>
+        
+        </form>
+        
+        <button id="updateSub-btn">Submit</button>
+        
+    </dialog>
+
     <dialog id="changeUsernameDialog">
 
         <p id="changeUsernameError"></p>
@@ -95,29 +119,20 @@
 
         <div>
 
-            <tr><td><h5>Subscription</h5></td></tr>
+            <tr><td><h5>Payments</h5></td></tr>
 
             <tr>
 
                 <td>Subscription:</td>
-                <td>
-
-                    <select>
-
-                        <option>None</option>
-                        <option>Monthly</option>
-                        <option>Yearly</option>
-
-                    </select>
-
-                </td>
+                <td><%= subStatus %></td>
+                <td><button onclick="document.getElementById('subDialog').showModal()">Update Subscription</button></td>
 
             </tr>
 
             <tr>
 
                 <td>Payment method:</td>
-                <td>Card ending in 1234</td>
+                <td><%= paymentMethod %></td>
                 <td><button>Update payment method</button></td>
 
             </tr>

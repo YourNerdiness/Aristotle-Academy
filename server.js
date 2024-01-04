@@ -15,7 +15,7 @@ import ai from "./ai.js"
 dotenv.config();
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
-const subIds = await database.config.getConfigData("sub_ids");
+const subIDs = await database.config.getConfigData("sub_ids");
 const courseData = await database.config.getConfigData("course_data");
 const courseIDs = Object.keys(courseData);
 const requestParameters = JSON.parse(fs.readFileSync("request_parameters.json"))
@@ -126,7 +126,7 @@ const pageRedirectCallbacks = {
 
         }
 
-        if (!req.query.courseID) {
+        if (!req.query.courseID || !courseIDs.includes(req.query.courseID)) {
 
             res.status(400).redirect("/learn");
 
@@ -195,26 +195,89 @@ const ejsVars = {
 
         let username;
         let email;
+        let paymentMethod;
+        let subStatus;
 
         const token = req.headers.auth;
 
         if (!token) {
 
-            username = email = "Please sign in to view you account info.";
+            subStatus = paymentMethod = username = email = "Please sign in to view your account info.";
 
         }
 
         else {
 
             username = token.username;
-            email = (await database.users.getUserInfo(token.userID, "userID", ["email"]))[0].email;
+
+            const userData = (await database.users.getUserInfo(token.userID, "userID", ["email", "stripeCustomerID"]))[0]
+
+            email = userData.email;
+
+            const stripeCustomerID = userData.stripeCustomerID;
+            
+            const paymentMethods = await stripeAPI.customers.listPaymentMethods(stripeCustomerID, { limit: 1 });
+
+            if (paymentMethods.data.length == 0) {
+
+                paymentMethod = "No payment method set."
+
+            }
+
+            else {
+
+                const last4CardDigits = paymentMethods.data[0].card?.last4;
+
+                paymentMethod = `Card ending in ${last4CardDigits}.`
+
+
+            }
+
+            const subID = await database.payments.getSubID(token.userID);
+
+            if (!subID) {
+
+                subStatus = "None"
+
+            }
+
+            else {
+
+                const subscription = await stripeAPI.subscriptions.retrieve(subID);
+
+                switch (subscription.items.data[0].price.id) {
+
+                    case subIDs.monthly:
+
+                        subStatus = "Monthly";
+
+                        break;
+
+                    case subIDs.yearly:
+
+                        subStatus = "Yearly";
+
+                        break;
+
+                    default:
+
+                        subStatus = "None";
+
+                        break;
+
+                }
+
+            }
+
 
         }
 
         return {
 
             username,
-            email
+            email,
+            paymentMethod,
+            subStatus
 
         }
 
@@ -222,6 +285,7 @@ const ejsVars = {
 
 };
 
+const ejsAdditionalHTML = {};
 
 const generateToken = async (username, userID, mfaRequired) => {
 
@@ -665,6 +729,16 @@ const ejsRenderMiddleware = async (req, res, next) => {
 
         }
 
+        let additionalHTML = {};
+
+        const additionalHTMLFunc = ejsAdditionalHTML[pageName];
+
+        if (additionalHTMLFunc) {
+
+            additionalHTML = await additionalHTMLFunc(req, res);
+
+        }
+
         let accountVars = {
 
             accountRoute: req.headers.auth ? "/account" : "/signup",
@@ -672,7 +746,7 @@ const ejsRenderMiddleware = async (req, res, next) => {
 
         };
 
-        res.status(200).render("main", Object.assign({ pageName, bodyPath }, accountVars, pageVars));
+        res.status(200).render("main", Object.assign({ pageName, bodyPath }, accountVars, pageVars, additionalHTML));
 
     }
 
@@ -747,7 +821,30 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 res.status(200).json({ msg: "OK." });
 
-                await database.payments.updateSubID(customerID, subID)
+                const userID = (await database.users.getUserInfo(customerID, "stripeCustomerID", ["userID"]))[0].userID;
+
+                const currentSubID = await database.payments.getSubID(userID);
+
+                if (currentSubID) {
+
+                    const subscription = await stripe.subscriptions.retrieve(currentSubID);
+
+                    if (subscription.items.data[0].price.id == event.data.object.items.data[0].price.id) {
+
+                        new utils.ErrorHandler("0x000015").throwError();
+
+
+                    }
+
+                    else {
+
+                        await stripeAPI.subscriptions.cancel(subID);
+
+                    }
+                    
+                }
+
+                await database.payments.updateSubID(customerID, subID);
 
                 break;
 
@@ -1015,35 +1112,78 @@ app.post("/buyRedirect", async (req, res) => {
 
         }
 
-        const paidFor = await database.payments.checkIfPaidFor(token.userID, item);
-
-        if (paidFor) {
-
-            new utils.ErrorHandler("0x000015").throwError();
-
-        }
-
         const customerID = (await database.users.getUserInfo(token.userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
 
         let line_items;
 
+        const subID = await database.payments.getSubID(token.userID);
+
         switch (item) {
+
+            case "none-sub":
+
+                if (subID) {
+
+                    await stripeAPI.subscriptions.cancel(subID);
+
+                    await database.payments.updateSubID(customerID, "");
+
+                }
+
+                res.status(200).json({ msg : "OK.", url : process.env.DOMAIN_NAME + "/learn" })
+
+                return;
 
             case "monthly-sub":
 
-                line_items = [{ price: subIds.monthly, quantity: 1 }];
+                if (subID) {
+
+                    const subscription = await stripeAPI.subscriptions.retrieve(subID)
+
+                    if (subscription.items.data[0].price.id == subIDs.monthly) {
+
+                        new utils.ErrorHandler("0x000015").throwError();
+
+
+                    }
+
+                }
+
+
+                line_items = [{ price: subIDs.monthly, quantity: 1 }];
 
                 break;
 
             case "yearly-sub":
 
-                line_items = [{ price: subIds.yearly, quantity: 1 }]
+                if (subID) {
+
+                    const subscription = await stripeAPI.subscriptions.retrieve(subID)
+
+                    if (subscription.items.data[0].price.id == subIDs.yearly) {
+
+                        new utils.ErrorHandler("0x000015").throwError();
+
+
+                    }
+                    
+                }
+
+                line_items = [{ price: subIDs.yearly, quantity: 1 }]
 
                 break;
 
             default:
 
                 if (courseIDs.includes(item)) {
+
+                    const paidFor = await database.payments.checkIfPaidFor(token.userID, item);
+
+                    if (paidFor) {
+
+                        new utils.ErrorHandler("0x000015").throwError();
+
+                    }
 
                     line_items = [{ price: courseData[item].stripe_price_id, quantity: 1 }]
 
@@ -1075,7 +1215,7 @@ app.post("/buyRedirect", async (req, res) => {
 
             customer: customerID,
 
-            success_url: process.env.DOMAIN_NAME + `/course?courseID=${req.query.courseID}`,
+            success_url: process.env.DOMAIN_NAME + "/learn",
             cancel_url: process.env.DOMAIN_NAME + "/learn",
 
             currency: "aud",

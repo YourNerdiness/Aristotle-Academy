@@ -102,12 +102,12 @@
     "0x000014" : {
         "msg": "Course does not exist.",
         "http_error_code": 404,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000015" : {
         "msg": "Payment has already been completed.",
         "http_error_code": 409,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000016" : {
         "msg": "Lesson has been completed, so requests for the next parts of the lesson cannot be made.",
