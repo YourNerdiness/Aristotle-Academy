@@ -765,7 +765,7 @@ const payments = {
 
         if (result.length == 0) {
 
-            // TODO : refund payment if userID is not found in payments database
+            new utils.ErrorHandler("0x000031").throwError();
 
         }
 
@@ -785,7 +785,7 @@ const payments = {
 
             else {
                 
-                new utils.ErrorHandler("0x000000", "Course does not exist").throwError();
+                new utils.ErrorHandler("0x000014").throwError();
 
             }
 
@@ -824,8 +824,6 @@ const payments = {
         if (result.length == 0) {
 
             new utils.ErrorHandler("0x000031").throwError();
-
-            // TODO : refund payment if userID is not found in payments database
 
         }
 
