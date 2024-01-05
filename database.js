@@ -1187,6 +1187,64 @@ const ai = {
 
 };
 
+const config = {
+
+    getConfigData : async (name) => {
+
+        const results = await collections.config.find({ name }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return results[0].data;
+
+        }
+
+    },
+
+    setConfigData : async (name, newData) => {
+
+        await collections.config.updateOne({ name }, { data : newData }, { upsert : true });
+
+    },
+
+    updateConfigData : async (name, property, value) => {
+
+        const results = await collections.config.find({ name }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            await collections.config.updateOne({ name }, { [`data.${property}`] : value });
+
+        }
+
+    }
+
+};
+
 export default {
     
     users,
