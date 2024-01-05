@@ -333,5 +333,10 @@
         "msg": "Action returned from AI is invalid.",
         "http_error_code": 500,
         "severity": "ALERT"
+    },
+    "0x000043" : {
+        "msg": "Checkout session either does not exist or has timed out.",
+        "http_error_code": 500,
+        "severity": "WARNING"
     }
 }

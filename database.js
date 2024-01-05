@@ -270,7 +270,7 @@ const users = {
 
         utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
 
-        const session = client.startSession();
+        const session = mongoClient.startSession();
 
         await session.withTransaction(async () => {
 
@@ -412,7 +412,7 @@ const users = {
 
             }
 
-            const session = client.startSession();
+            const session = mongoClient.startSession();
 
             await session.withTransaction(async () => {
 
@@ -455,7 +455,7 @@ const users = {
 
         await stripeAPI.customers.del(stripeCustomerID);
 
-        const session = client.startSession();
+        const session = mongoClient.startSession();
 
         await session.withTransaction(async () => {
 
@@ -521,6 +521,8 @@ const authentication = {
 
         if (results.length == 0) {
 
+            console.log(1)
+
             return false;
 
         }
@@ -535,11 +537,15 @@ const authentication = {
 
             const authenticationData = results[0];
 
-            if (Date.now() > authentication.timestamp + 1000*60*30) {
+            if (Date.now() > authenticationData.timestamp + 1000*60*30) {
+
+                console.log(2)
 
                 return false;
 
             }
+
+            console.log(code, utils.decrypt(authenticationData.code, "hex"))
 
             return crypto.timingSafeEqual(Buffer.from(code, "hex"), Buffer.from(utils.decrypt(authenticationData.code, "hex"), "hex"));
 

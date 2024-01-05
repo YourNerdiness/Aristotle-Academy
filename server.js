@@ -8,6 +8,7 @@ import express from "express";
 import fs from "fs"
 import jwt from "jsonwebtoken"
 import morgan from "morgan"
+import nodemailer from "nodemailer"
 import stripe from "stripe"
 import utils from "./utils.js"
 import ai from "./ai.js"
@@ -18,7 +19,18 @@ const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`)
 const subIDs = await database.config.getConfigData("sub_ids");
 const courseData = await database.config.getConfigData("course_data");
 const courseIDs = Object.keys(courseData);
-const requestParameters = JSON.parse(fs.readFileSync("request_parameters.json"))
+const requestParameters = JSON.parse(fs.readFileSync("request_parameters.json"));
+
+const notificationEmailTransport = nodemailer.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.NOTIFICATION_EMAIL_ADDRESS,
+        pass: process.env.NOTIFICATION_EMAIL_APP_PASSWORD
+    },
+});
 
 const handleRequestError = (error, res) => {
 
@@ -774,33 +786,44 @@ const app = express();
 
 app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
 
+    let event = req.body;
+
+    const sig = req.headers["stripe-signature"];
+
     try {
 
-        let event = req.body;
+        event = stripeAPI.webhooks.constructEvent(event, sig, process.env.STRIPE_WEBHOOK_SIGNING);
 
-        const sig = req.headers["stripe-signature"];
+    }
 
-        try {
+    catch (error) {
 
-            event = stripeAPI.webhooks.constructEvent(event, sig, process.env.STRIPE_WEBHOOK_SIGNING);
+        new utils.ErrorHandler("0x00000F").throwErrorToClient(res);
 
-        }
+    }
 
-        catch (error) {
+    const customerID = event.data.object.customer;
 
-            new utils.ErrorHandler("0x00000F").throwError();
+    const { email, username } = (await database.users.getUserInfo(customerID, "stripeCustomerID", ["email", "username"]))[0];
 
-        }
+    let charge;
+    let invoice;
+
+    try {
 
         switch (event.type) {
 
             case "checkout.session.completed":
 
+                invoice = await stripeAPI.invoices.retrieve(event.data.object.invoice)
+
+                charge = invoice.charge;
+
                 if (event.data.object.mode == "subscription") {
 
                     res.status(204).json({ msg: "OK." });
 
-                    return;
+                    break;
 
                 }
 
@@ -812,9 +835,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 if (!sessionData) {
 
-                    // refund
-
-                    return;
+                    new utils.ErrorHandler("0x000043").throwError();
 
                 }
 
@@ -823,6 +844,10 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
                 break;
 
             case "customer.subscription.created":
+
+                invoice = await stripeAPI.invoices.retrieve(event.data.object.latest_invoice)
+
+                charge = invoice.charge;
 
                 const customerID = event.data.object.customer;
                 const subID = event.data.object.id;
@@ -856,13 +881,37 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 break;
 
+
+            case "invoice.created":
+
+                invoice = event.data.object
+                const invoicePDFURL = invoice.invoice_pdf;
+
+                res.status(200).json({ msg: "OK." });
+
+                await utils.sendEmail(notificationEmailTransport, "Aristotle Academy Payment Invoice", `Your invoice for your recent Aristotle Academy purchase is now available for download here: ${invoicePDFURL}`, email, true, username);
+
+                break;
+            
         }
 
     }
 
     catch (error) {
 
-        handleRequestError(error, res);
+        if (charge) {
+
+            await stripeAPI.refunds.create({ charge });
+
+            await utils.sendEmail(notificationEmailTransport, "Aristotle Academy Payment Faliure", "Unfourtunately, your recent Aristotle Academy payment has failed, so the payment has been refunded.", email, true, username);
+
+        }
+
+        if (!res.headersSent) {
+
+            handleRequestError(error, res);
+
+        }
 
     }
 
