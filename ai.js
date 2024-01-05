@@ -1,7 +1,6 @@
 import crypto from "crypto"
 import utils from "./utils.js"
 import database from "./database.js";
-import { availableParallelism } from "os";
 
 const courseData = await database.config.getConfigData("course_data");
 const topicData = await database.config.getConfigData("topic_data");
