@@ -56,6 +56,16 @@
 
     },
 
+    "/signout" : {
+
+        "methodToMatch" : "GET",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false
+
+    },
+
     "/completeMFA" : {
 
         "methodToMatch" : "POST",

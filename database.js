@@ -615,6 +615,33 @@ const authorization = {
 
         }
 
+    },
+
+    deleteJWT : async (userID, jwtID) => {
+
+        const userIDHash = utils.hash(userID, "base64");
+        const jwtIDHash = utils.hash(jwtID, "base64");
+
+        const result = await collections.jwts.find({ userIDHash, jwtIDHash }).toArray();
+
+        if (result.length == 0) {
+
+            return;
+
+        }
+
+        else if (result.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            await collections.jwts.deleteOne({ userIDHash, jwtIDHash });
+
+        }
+
     }
 
 };

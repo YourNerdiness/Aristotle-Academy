@@ -315,7 +315,7 @@ const getToken = async (token) => {
 
         const encryptedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-        const decryptedToken = { username: utils.decrypt(encryptedToken.username, "utf-8"), userID: utils.decrypt(encryptedToken.userID, "base64"), mfaRequired: encryptedToken.mfaRequired }
+        const decryptedToken = { username: utils.decrypt(encryptedToken.username, "utf-8"), userID: utils.decrypt(encryptedToken.userID, "base64"), jwtID : utils.decrypt(encryptedToken.jwtID, "base64"), mfaRequired: encryptedToken.mfaRequired }
 
         if (!(await database.verification.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
 
@@ -323,7 +323,7 @@ const getToken = async (token) => {
 
         }
 
-        if (!(await database.authorization.verifyJWTId(decryptedToken.userID, utils.decrypt(encryptedToken.jwtID, "base64")))) {
+        if (!(await database.authorization.verifyJWTId(decryptedToken.userID, decryptedToken.jwtID))) {
 
             return null;
 
@@ -815,13 +815,13 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
             case "checkout.session.completed":
 
-                invoice = await stripeAPI.invoices.retrieve(event.data.object.invoice)
-
-                charge = invoice.charge;
+                const sessionID = event.data.object.metadata.sessionID;
 
                 if (event.data.object.mode == "subscription") {
 
                     res.status(204).json({ msg: "OK." });
+
+                    await database.payments.deleteCheckoutSession(sessionID);
 
                     break;
 
@@ -829,7 +829,9 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 res.status(200).json({ msg: "OK." });
 
-                const sessionID = event.data.object.metadata.sessionID;
+                invoice = await stripeAPI.invoices.retrieve(event.data.object.invoice)
+
+                charge = invoice.charge;
 
                 const sessionData = await database.payments.getCheckoutSession(sessionID);
 
@@ -839,20 +841,22 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                 }
 
-                await database.payments.addCoursePayment(sessionData.userID, sessionData.item)
+                await database.payments.addCoursePayment(sessionData.userID, sessionData.item);
+
+                await database.payments.deleteCheckoutSession(sessionID);
 
                 break;
 
             case "customer.subscription.created":
 
-                invoice = await stripeAPI.invoices.retrieve(event.data.object.latest_invoice)
-
-                charge = invoice.charge;
-
                 const customerID = event.data.object.customer;
                 const subID = event.data.object.id;
 
                 res.status(200).json({ msg: "OK." });
+
+                invoice = await stripeAPI.invoices.retrieve(event.data.object.latest_invoice)
+
+                charge = invoice.charge;
 
                 const userID = (await database.users.getUserInfo(customerID, "stripeCustomerID", ["userID"]))[0].userID;
 
@@ -993,7 +997,11 @@ app.post("/signin", async (req, res) => {
 
 });
 
-app.post("/signout", async (req, res) => {
+app.get("/signout", async (req, res) => {
+
+    const token = req.headers.auth;
+
+    await database.authorization.deleteJWT(token.userID, token.jwtID);
 
     res.status(200).clearCookie("jwt").json({ msg: "OK." });
 

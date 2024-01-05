@@ -166,21 +166,9 @@ $(document).ready(() => {
 
         $("#error").text("");
 
-        const req = {
+        fetch("/signout").then(async res => {
 
-            method : "POST",
-
-        };
-
-        fetch("/signout", req).then(async res => {
-
-            if (res.ok) {
-
-                window.location.reload();
-
-            }
-
-            else {
+            if (!res.ok) {
 
                 const error = await res.json();
 
