@@ -8,8 +8,6 @@ import stripe from "stripe"
 import utils from "./utils.js"
 import redis from "redis"
 
-dotenv.config();
-
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
 const mongodbURI = `mongodb+srv://${encodeURIComponent(process.env.MONGODB_USERNAME)}:${encodeURIComponent(process.env.MONGODB_PASSWORD)}@${encodeURIComponent(process.env.MONGODB_HOSTNAME)}/?retryWrites=true&w=majority`;
@@ -42,7 +40,7 @@ const redisClient = redis.createClient({
     socket: {
 
         host: process.env.REDIS_HOSTNAME,
-        port: 11951
+        port: 12978
 
     }
 
@@ -521,8 +519,6 @@ const authentication = {
 
         if (results.length == 0) {
 
-            console.log(1)
-
             return false;
 
         }
@@ -539,13 +535,9 @@ const authentication = {
 
             if (Date.now() > authenticationData.timestamp + 1000*60*30) {
 
-                console.log(2)
-
                 return false;
 
             }
-
-            console.log(code, utils.decrypt(authenticationData.code, "hex"))
 
             return crypto.timingSafeEqual(Buffer.from(code, "hex"), Buffer.from(utils.decrypt(authenticationData.code, "hex"), "hex"));
 
@@ -1188,64 +1180,6 @@ const ai = {
         else {
 
             return results[0].numChunks;
-
-        }
-
-    }
-
-};
-
-const config = {
-
-    getConfigData : async (name) => {
-
-        const results = await collections.config.find({ name }).toArray();
-
-        if (results.length == 0) {
-
-            new utils.ErrorHandler("0x000031").throwError();
-
-        }
-
-        else if (results.length > 1) {
-
-            new utils.ErrorHandler("0x000032").throwError();
-
-        }
-
-        else {
-
-            return results[0].data;
-
-        }
-
-    },
-
-    setConfigData : async (name, newData) => {
-
-        await collections.config.updateOne({ name }, { data : newData }, { upsert : true });
-
-    },
-
-    updateConfigData : async (name, property, value) => {
-
-        const results = await collections.config.find({ name }).toArray();
-
-        if (results.length == 0) {
-
-            new utils.ErrorHandler("0x000031").throwError();
-
-        }
-
-        else if (results.length > 1) {
-
-            new utils.ErrorHandler("0x000032").throwError();
-
-        }
-
-        else {
-
-            await collections.config.updateOne({ name }, { [`data.${property}`] : value });
 
         }
 
