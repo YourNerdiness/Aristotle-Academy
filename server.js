@@ -2,7 +2,6 @@ import cookieParser from "cookie-parser";
 import cors from "cors"
 import crypto from "crypto"
 import database from "./database.js"
-import dotenv from "dotenv"
 import ejs from "ejs"
 import express from "express";
 import fs from "fs"
@@ -12,8 +11,6 @@ import nodemailer from "nodemailer"
 import stripe from "stripe"
 import utils from "./utils.js"
 import ai from "./ai.js"
-
-dotenv.config();
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
 const subIDs = await database.config.getConfigData("sub_ids");
@@ -1111,8 +1108,6 @@ app.post("/changeUserDetails", async (req, res) => {
     }
 
     catch (error) {
-
-        console.log(error)
 
         handleRequestError(error, res);
 
