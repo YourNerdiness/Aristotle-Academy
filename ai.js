@@ -3,7 +3,6 @@ import utils from "./utils.js"
 import database from "./database.js";
 
 const courseData = await database.config.getConfigData("course_data");
-const topicData = await database.config.getConfigData("topic_data");
 
 class QLearning {
 

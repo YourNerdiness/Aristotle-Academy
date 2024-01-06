@@ -8,9 +8,13 @@ import stripe from "stripe"
 import utils from "./utils.js"
 import redis from "redis"
 
+dotenv.config()
+
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
 const mongodbURI = `mongodb+srv://${encodeURIComponent(process.env.MONGODB_USERNAME)}:${encodeURIComponent(process.env.MONGODB_PASSWORD)}@${encodeURIComponent(process.env.MONGODB_HOSTNAME)}/?retryWrites=true&w=majority`;
+
+console.log(mongodbURI)
 
 const mongoClient = new MongoClient(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
