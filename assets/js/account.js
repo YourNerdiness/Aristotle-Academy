@@ -46,8 +46,6 @@ $(document).ready(() => {
 
         const data = { password : $("#usernamePasswordField").val(), toChangeValue : $("#newUsernameField").val(), toChangePropertyName : "username" };
 
-        console.log(data)
-
         const req = {
 
             method : "POST",

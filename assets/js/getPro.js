@@ -6,8 +6,6 @@ $(document).ready(function () {
 
         const data = { item, password : $("#reenterPasswordField").val() };
 
-        console.log(data)
-
         const req = {
 
             method : "POST",
