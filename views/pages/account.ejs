@@ -80,6 +80,22 @@
   
       </dialog>
 
+      <dialog id="deleteAccountDialog">
+
+        <p id="deleteAccountDialog"></p>
+
+        <form>
+
+            <label for="deletePasswordField">Please re-enter your password:</label>
+            <input type="password" id="deletePasswordField" name="deletePasswordField">
+
+
+        </form>
+
+        <button id="deleteAccount">Submit</button>
+  
+      </dialog>
+
     <table>
 
         <div>
@@ -144,7 +160,7 @@
             <tr><td><h5>Account</h5></td></tr>
 
             <tr><td><button id="signout">Signout</button></td></tr>
-            <tr><td><button id="deleteAccount">Delete Account</button></td></tr>
+            <tr><td><button onclick="document.getElementById('deleteAccountDialog').showModal()">Delete Account</button></td></tr>
     
         </div>
 

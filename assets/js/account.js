@@ -4,7 +4,7 @@ $(document).ready(() => {
 
         $("#error").text("");
 
-        const data = { password : prompt("Please re-enter your password: ") };
+        const data = { password : $("#deletePasswordField").val() };
 
         const req = {
 
