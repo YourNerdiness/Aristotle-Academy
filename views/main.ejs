@@ -19,6 +19,14 @@
 
     <body>
 
+        <dialog id="consentDialog">
+        
+            <p>Hi there! By continuing to use this website you consent to the use of cookies and other similar technologies. Additionally, by using this site, you also agree the the <a href="./tc" style="color: blue; text-decoration: underline;">terms and conditions</a> and <a href="./privacy" style="color: blue; text-decoration: underline;">privacy policy</a>.</p>
+            
+            <button onclick="document.getElementById('consentDialog').close(); localStorage.setItem('consented', 'true');">Ok, I accept the use of cookies, and the terms and conditions and privacy policy.</button>
+            
+        </dialog>
+
         <nav class="justify">
 
             <h1 id="title"><a href="./">Aristotle<img src="favicon.png" width="64px" height=64px"><br>Academy</a></h1>
@@ -28,27 +36,27 @@
         </nav>
 
         <%- include(bodyPath) %>
+
+        <footer class="center">
+
+            <table>
+    
+                <tr>
+                    
+                    <td><a href="./tc">Terms and Conidtions</a></td>
+                    <td><a href="./privacy">Privacy Policy</a></td>
+                    <td><a href="./contact">Contact</a></td>
+            
+                </tr>
+    
+            </table>
+    
+        </footer>
     
     </body>
 
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
     <script src="./js/general.js"></script>
     <script src="./js/<%= pageName %>.js"></script>
-
-    <footer class="center">
-
-        <table>
-
-            <tr>
-                
-                <td><a href="./tc">Terms and Conidtions</a></td>
-                <td><a href="./privacy">Privacy Policy</a></td>
-                <td><a href="./contact">Contact</a></td>
-        
-            </tr>
-
-        </table>
-
-    </footer>
 
 </html>

@@ -1,11 +1,9 @@
 const cookieConsent = () => {
     
-    if (!localStorage.getItem("cookiesAllowed")) {
+    if ((localStorage.getItem("consented") != "true") && window.location.pathname != "/tc" && window.location.pathname != "/privacy") {
     
-        alert("Hi there! By continue to use this website you consent to the use of cookies or similar technologies. Press ok to consent to this and continue.");
-    
-        localStorage.setItem("cookiesAllowed", "allowed");
-    
+        document.getElementById('consentDialog').showModal()
+        
     }
     
 }
