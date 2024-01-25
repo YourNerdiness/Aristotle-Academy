@@ -137,6 +137,58 @@
 
     },
 
+    "/sendPasswordResetEmail" : {
+
+        "methodToMatch" : "POST",
+        
+        "mustBeSignedIn" : false,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "val" : {
+
+                "type" : "string"
+
+            },
+
+            "recoveryMethod" : {
+
+                "type" : "string",
+                "possibleValues" : ["username", "email"]
+
+            }
+
+        }
+
+    },
+
+    "/resetPassword" : {
+
+        "methodToMatch" : "POST",
+        
+        "mustBeSignedIn" : false,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "newPassword" : {
+
+                "type" : "string"
+
+            },
+
+            "code" : {
+
+                "type" : "string",
+                "format" : "hex"
+
+            }
+
+        }
+
+    },
+
     "/learnRedirect" : {
 
         "methodToMatch" : "POST",

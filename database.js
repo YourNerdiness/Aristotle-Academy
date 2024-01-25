@@ -14,8 +14,6 @@ const stripeAPI = stripe(process.env.STRIPE_SK);
 
 const mongodbURI = `mongodb+srv://${encodeURIComponent(process.env.MONGODB_USERNAME)}:${encodeURIComponent(process.env.MONGODB_PASSWORD)}@${encodeURIComponent(process.env.MONGODB_HOSTNAME)}/?retryWrites=true&w=majority`;
 
-console.log(mongodbURI)
-
 const mongoClient = new MongoClient(mongodbURI, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 await mongoClient.connect();
@@ -511,7 +509,7 @@ const authentication = {
 
         await collections.authentication.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { code : utils.encrypt(emailVerifcationCode, "hex"), timestamp : Date.now() } });
 
-        const emailContent = `Here is your code to verify your email: <br> <h5>${emailVerifcationCode}</h5>`;
+        const emailContent = `Here is your code to verify your account: <br> <h5>${emailVerifcationCode}</h5>`;
 
         await utils.sendEmail(authEmailTransport, "Aristotle Acaedemy MFA Code", emailContent, userData.email, true, userData.username);
 

@@ -983,7 +983,7 @@ app.post("/signin", async (req, res) => {
 
         const jwtToken = await generateToken(username, userID, true);
 
-        res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: 1000 * 60 * 30, }).json({ msg: "OK." });
+        res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: 1000 * 60 * 30, overwrite: true }).json({ msg: "OK." });
 
     }
 
@@ -1003,7 +1003,7 @@ app.get("/signout", async (req, res) => {
 
     await database.authorization.deleteJWT(token.userID, token.jwtID);
 
-    res.status(200).clearCookie("jwt").json({ msg: "OK." });
+    res.status(200).clearCookie("jwt").clearCookie("passwordReset").json({ msg: "OK." });
 
 });
 
@@ -1021,7 +1021,7 @@ app.post("/completeMFA", async (req, res) => {
 
             const jwtToken = await generateToken(token.username, token.userID, false);
 
-            res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS }).json({ msg: "OK." });
+            res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite: true }).json({ msg: "OK." });
 
         }
 
@@ -1118,6 +1118,93 @@ app.post("/changeUserDetails", async (req, res) => {
 
 });
 
+app.post("/sendPasswordResetEmail", async (req, res) => {
+
+    try {
+
+        const data = req.body;
+
+        const userID = (await database.users.getUserInfo(data.val, data.recoveryMethod, ["userID"]))[0]?.userID;
+
+        if (!userID) {
+
+            new utils.ErrorHandler(data.recoveryMethod == "email" ? "0x000047" : "0x000048").throwErrorToClient(res);
+            
+            return;
+
+        }
+
+        await database.authentication.sendMFAEmail(userID);
+
+        const time = Date.now();
+
+        const salt = crypto.randomBytes(+process.env.SALT_SIZE).toString("base64");
+
+        res.status(200).cookie("passwordReset", { userID: utils.encrypt(userID, "base64"), time, salt, signature: utils.hashHMAC(userID + time.toString() + salt, "base64") }, { httpOnly: true, maxAge: 1000 * 60 * 15, overwrite: true }).json({ msg: "OK." });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+app.post("/resetPassword", async (req, res) => {
+
+    try {
+
+        const data = req.body;
+
+        const passwordResetCookie = req.cookies.passwordReset;
+
+        if (!passwordResetCookie) {
+
+            new utils.ErrorHandler("0x000044").throwErrorToClient(res);
+
+            return;
+
+        }
+
+        if (!utils.verifyHMAC(utils.decrypt(passwordResetCookie.userID, "base64") + passwordResetCookie.time.toString() + passwordResetCookie.salt, passwordResetCookie.signature, "base64")) {
+
+            new utils.ErrorHandler("0x000044").throwErrorToClient(res);
+
+            return;
+
+        }
+
+        if (passwordResetCookie.time + 1000 * 60 * 15 < Date.now()) {
+
+            new utils.ErrorHandler("0x000045").throwErrorToClient(res);
+
+            return;
+
+        }
+
+        if (!database.authentication.verifyMFACode(utils.decrypt(passwordResetCookie.userID, "base64"), data.code)) {
+
+            new utils.ErrorHandler("0x000046").throwErrorToClient(res);
+
+            return;
+
+        }
+
+        await database.users.changeUserInfo(utils.decrypt(passwordResetCookie.userID, "base64"), "userID", data.newPassword, "password");
+
+        res.status(200).clearCookie("passwordReset").json({ msg: "OK." });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
 
 app.post("/learnRedirect", async (req, res) => {
 
@@ -1358,9 +1445,7 @@ app.post("/verifyHMACSignature", (req, res) => {
 
     try {
 
-        const signature = crypto.createHmac(process.env.HASHING_ALGORITHM, process.env.HMAC_SECRET).update(req.body.data).digest()
-
-        res.status(200).json({ msg: "OK.", verified: crypto.timingSafeEqual(Buffer.from(req.body.signature, "base64url"), signature) })
+        res.status(200).json({ msg: "OK.", verified: utils.verifyHMAC(req.body.data, req.body.signature, "base64url") })
 
     } catch (error) {
 

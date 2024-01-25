@@ -134,7 +134,7 @@ const getContentID = async (userID, courseID) => {
 
     const contentRoute = `/${topicID}/${lessonIndexes[1].toString()}/${filename}`
 
-    const signature = crypto.createHmac(process.env.HASHING_ALGORITHM, process.env.HMAC_SECRET).update(contentRoute).digest("base64url")
+    const signature = utils.hashHMAC(contentRoute, "base64url")
 
     await database.courses.setChunkContentFormat(userID, courseID, lessonIndexes[0], lessonIndexes[1], contentFormat)
 

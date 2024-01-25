@@ -66,6 +66,20 @@ const passwordHash = (password, salt, size) => {
 
 };
 
+const hashHMAC = (content="", outputEncoding) => {
+
+    return crypto.createHmac(process.env.HASHING_ALGORITHM, process.env.HMAC_SECRET).update(content).digest(outputEncoding)
+
+};
+
+const verifyHMAC = (content="", testSignature, outputEncoding) => {
+
+    const signature = crypto.createHmac(process.env.HASHING_ALGORITHM, process.env.HMAC_SECRET).update(content).digest()
+
+    return crypto.timingSafeEqual(Buffer.from(testSignature, outputEncoding), signature);
+
+};
+
 const encrypt = (content="", encoding) => {
 
     if (encoding === "object") {
@@ -222,6 +236,8 @@ export default {
 
     hash,
     passwordHash,
+    hashHMAC,
+    verifyHMAC,
     encrypt,
     decrypt,
     createLog,

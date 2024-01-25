@@ -338,5 +338,30 @@
         "msg": "Checkout session either does not exist or has timed out.",
         "http_error_code": 500,
         "severity": "WARNING"
+    },
+    "0x000044" : {
+        "msg": "Cannot reset password, cookie signature invalid.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000045" : {
+        "msg": "Cannot reset password, session timed out.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000046" : {
+        "msg": "Cannot reset password, code is invalid.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000047" : {
+        "msg": "Cannot send password reset email, email is invalid.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000048" : {
+        "msg": "Cannot send password reset email, username is invalid.",
+        "http_error_code": 401,
+        "severity": "WARNING"
     }
 }
