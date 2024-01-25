@@ -1,4 +1,5 @@
 let time;
+let quizQuestionData;
 
 const utils = {
 
@@ -20,6 +21,78 @@ const utils = {
     }
 
 }
+
+const submitExercise = () => {};
+const submitQuiz = async () => {
+
+    const questions = quizQuestionData?.questions;
+
+    let points = 0;
+
+    for (let i = 0; i < questions.length; i++) {
+
+        const question = questions[i];
+
+        switch (question.type) {
+
+            case "multiple-choice":
+
+                const mcFieldset = document.getElementById(`mcFieldset${i}`);
+
+                if (!mcFieldset) {
+
+                    $("#error").text(`Cannot find question ${i}.`);
+
+                }
+
+                const givenAnswer = document.querySelector(`#mcFieldset${i} input[type="radio"]:checked`);
+
+                if (givenAnswer.value == question.answer) {
+
+                    points++;
+
+                }
+
+                break;
+
+        }
+
+    }
+
+    const quizScore = points / questions.length;
+
+    const lessonNumber = new URLSearchParams(window.location.search).get("lessonNumber");
+    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChnk");
+    const courseID = new URLSearchParams(window.location.search).get("courseID");
+
+    const data = { quizScore, lessonNumber, lessonChunk, courseID };
+
+    const req = {
+
+        method: "POST",
+
+        headers: {
+
+            "Content-Type": "application/json"
+
+        },
+
+        body: JSON.stringify(data)
+
+    };
+
+    const res = await fetch("/completeLesson", req);
+
+    if (!res.ok) {
+
+        const error = await res.json();
+        
+        $("#error").text(error.userMsg || error.msg || "An error has occured.");
+
+    }
+
+
+};
 
 const sendSessionTimetoServer = (sessionTime=(Date.now()-Number(localStorage.getItem("sessionStartTime")))) => {
 
@@ -91,7 +164,9 @@ window.onload = async () => {
 
     if (!res.ok) {
 
-        $("#error").text(res.userMsg || res.msg || "An error has occured.");
+        const error = await res.json();
+
+        $("#error").text(error.userMsg || error.msg || "An error has occured.");
 
     }
 
@@ -306,10 +381,78 @@ window.onload = async () => {
 
             const quizData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
 
+            quizQuestionData = quizData;
+
+            const questions = quizData.questions;
+
+            const div = document.getElementById("quiz");
+
+            const questionTable = document.createElement("table")
+
+            questionTable.id = "questionTable"
+
+            div.appendChild(questionTable);
+
+            for (let i = 0; i < questions.length; i++) {
+
+                const question = questions[i];
+
+                const tr = document.createElement("tr");
+
+                tr.id = `questionRow${i}`;
+
+                switch (question.type) {
+
+                    case "multiple-choice":
+
+                        const mcFieldset = document.createElement("fieldset");
+
+                        mcFieldset.id = `mcFieldset${i}`
+
+                        const mcLegend = document.createElement("legend");
+
+                        mcFieldset.appendChild(mcLegend);
+
+                        const possibleAnswers = question.possibleAnswers;
+
+                        for (let j = 0; j < possibleAnswers.length; j++) {
+
+                            const answerInputElem = document.createElement("input");
+                            const answerLabelElem = document.createElement("label");
+
+                            answerInputElem.type = "radio";
+                            answerInputElem.id = `mcAnswer${i}-${j}`;
+                            answerInputElem.name = `mcAnswer${i}`;
+                            answerInputElem.value = possibleAnswers[i];
+
+                            if (j == 0) {
+
+                                answerInputElem.checked = true;
+
+                            }
+
+                            answerLabelElem.for = `mcAnswer${i}`;
+                            answerLabelElem.textContent = possibleAnswers[i];
+
+                            mcFieldset.appendChild(answerInputElem);
+                            mcFieldset.appendChild(answerLabelElem);
+
+                        }
+
+                        tr.appendChild(mcFieldset);
+
+                        break;
+
+                }
+
+                questionTable.appendChild(tr);
+
+            }
+
             $("#video").hide()
             $("#paragraph").hide()
-            $("#exercise").show()
-            $("#quiz").hide()
+            $("#exercise").hide()
+            $("#quiz").show()
 
             break;
 
