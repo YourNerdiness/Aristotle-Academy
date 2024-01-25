@@ -97,38 +97,50 @@ const getContentID = async (userID, courseID) => {
         i++;
 
     } while(completedTopics.includes(topicID));
-    
-    const state = userIDHash + lessonIndexes[1].toString();
-
-    const contentFormat = await qLearning.selectAction(state);
 
     let filename;
 
-    switch (contentFormat) {
+    const chunksPerLesson = await database.ai.getUserNumChunks(userID);
 
-        case "v":
+    if (lessonIndexes[1] > chunksPerLesson) {
 
-            filename = "video.mp4"
+        filename == "quiz.json";
 
-            break;
+    }
 
-        case "p":
+    else {
 
-            filename = "text.md"
+        const state = userIDHash + lessonIndexes[1].toString();
 
-            break;
+        const contentFormat = await qLearning.selectAction(state);
 
-        case "e":
+        switch (contentFormat) {
 
-            filename = "exercise.html"
+            case "v":
 
-            break;
-     
-        default:
+                filename = "video.mp4"
 
-            new utils.ErrorHandler("0x000042", "Invalid action returned from q-learning").throwError();
+                break;
 
-            break;
+            case "p":
+
+                filename = "text.md"
+
+                break;
+
+            case "e":
+
+                filename = "exercise.json"
+
+                break;
+
+            default:
+
+                new utils.ErrorHandler("0x000042", "Invalid action returned from q-learning").throwError();
+
+                break;
+
+        }
 
     }
 

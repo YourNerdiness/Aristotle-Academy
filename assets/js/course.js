@@ -91,6 +91,7 @@ window.onload = async () => {
             $("#video").show()
             $("#paragraph").hide()
             $("#exercise").hide()
+            $("#quiz").hide()
 
             break;
 
@@ -101,16 +102,29 @@ window.onload = async () => {
             $("#video").hide()
             $("#paragraph").show()
             $("#exercise").hide()
+            $("#quiz").hide()
 
             break;
 
         case "e":
 
-            $("#exercise").html(await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).text());
+            const exerciseData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
 
             $("#video").hide()
             $("#paragraph").hide()
             $("#exercise").show()
+            $("#quiz").hide()
+
+            break;
+
+        case "q":
+
+            const quizData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
+
+            $("#video").hide()
+            $("#paragraph").hide()
+            $("#exercise").show()
+            $("#quiz").hide()
 
             break;
 
