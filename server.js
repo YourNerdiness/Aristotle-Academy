@@ -293,6 +293,16 @@ const ejsVars = {
 
         }
 
+    },
+
+    courseCompleted: async (req, res) => {
+
+        return {
+
+            courseName: courseData[req.query.courseID].title
+
+        }
+
     }
 
 };
@@ -1462,17 +1472,11 @@ app.post("/completeLessonChunk", async (req, res) => {
         const token = req.headers.auth;
         const data = req.body;
 
-        if ((await database.ai.getUserNumChunks(token.userID)) <= req.lessonChunk) {
-
-            new utils.ErrorHandler("0x000016").throwError();
-
-        }
-
-        await database.courses.incrementLessonIndexes(data.courseID, 1);
+        await database.courses.updateLessonIndexes(token.userID, data.courseID, data.lessonNumber, data.lessonChunk + 1);
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
-        res.status(200).redirect(`/course?lessonNumber=${data.lessonNumber}&lessonChunk=${data.lessonChunnk + 1}&courseID=${data.courseID}&contentID=${contentID}`);
+        res.status(200).json({ msg : "OK.", newURL : `/course?lessonNumber=${data.lessonNumber}&lessonChunk=${data.lessonChunk + 1}&courseID=${data.courseID}&contentID=${contentID}` });
 
     } catch (error) {
 
@@ -1489,15 +1493,15 @@ app.post("/completeLesson", async (req, res) => {
         const token = req.headers.auth;
         const data = req.body;
 
-        if ((await database.ai.getUserNumChunks(token.userID)) > req.lessonChunk) {
+        await database.courses.updateLessonIndexes(token.userID, data.courseID, data.lessonNumber + 1, 0);
 
-            new utils.ErrorHandler("0x000017").throwError();
+        if (data.lessonNumber + 1 >= courseData[data.courseID].topics.length) {
+
+            res.status(200).json({ msg : "OK.", newURL : `/courseCompleted?courseID=${data.courseID}`});
 
             return;
 
         }
-
-        await database.courses.incrementLessonIndexes(data.courseID, 0);
 
         const sessionTimes = await database.courses.getSessionTimes(token.userID, data.courseID)
 
@@ -1507,7 +1511,7 @@ app.post("/completeLesson", async (req, res) => {
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
-        res.status(200).redirect(`/course?lessonNumber=${data.lessonNumber + 1}&lessonChunk=${1}&courseID=${data.courseID}contentID=${contentID}`);
+        res.status(200).json({ msg : "OK.", newURL : `/course?lessonNumber=${data.lessonNumber + 1}&lessonChunk=${0}&courseID=${data.courseID}contentID=${contentID}`});
 
     } catch (error) {
 

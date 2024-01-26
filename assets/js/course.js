@@ -22,10 +22,56 @@ const utils = {
 
 }
 
-const submitExercise = () => {};
+const submitExercise = async () => {
+
+    const lessonNumber = new URLSearchParams(window.location.search).get("lessonNumber");
+    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChnk");
+    const courseID = new URLSearchParams(window.location.search).get("courseID");
+
+    const data = { quizScore, lessonNumber, lessonChunk, courseID };
+
+    const req = {
+
+        method: "POST",
+
+        headers: {
+
+            "Content-Type": "application/json"
+
+        },
+
+        body: JSON.stringify(data)
+
+    };
+
+    const res = await fetch("/completeLesson", req);
+
+    if (res.ok) {
+
+        const { newURL } = await res.json();
+
+        window.location.href = newURL;
+
+    }
+
+    else {
+
+        const error = await res.json();
+        
+        $("#error").text(error.userMsg || error.msg || "An error has occured.");
+
+    }
+
+};
 const submitQuiz = async () => {
 
     const questions = quizQuestionData?.questions;
+
+    if (!questions) {
+
+        $("#error").text("Cannot find question data.");
+
+    }
 
     let points = 0;
 
@@ -83,7 +129,15 @@ const submitQuiz = async () => {
 
     const res = await fetch("/completeLesson", req);
 
-    if (!res.ok) {
+    if (res.ok) {
+
+        const { newURL } = await res.json();
+
+        window.location.href = newURL;
+
+    }
+
+    else {
 
         const error = await res.json();
         
@@ -184,29 +238,39 @@ window.onload = async () => {
 
             $("#video > source").first().attr("src", "https://coursecontent.aristotle.academy" + contentIDParts[0]);
 
-            $("#video").show()
-            $("#paragraph").hide()
-            $("#exercise").hide()
-            $("#quiz").hide()
+            $("#video").on("ended", () => {
+
+                $("#continue").prop("disabled", false);
+
+            });
+
+            $("#video").show();
+            $("#paragraph").hide();
+            $("#exercise").hide();
+            $("#quiz").hide();
+
+            $("#continue").on("click", submitExercise);
 
             break;
 
         case "p":
 
+            $("#continue").prop("disabled", false);
+
             $("#paragraph").html(await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).text());
 
-            $("#video").hide()
-            $("#paragraph").show()
-            $("#exercise").hide()
-            $("#quiz").hide()
+            $("#video").hide();
+            $("#paragraph").show();
+            $("#exercise").hide();
+            $("#quiz").hide();
+
+            $("#continue").on("click", submitExercise);
 
             break;
 
         case "e":
 
             const exerciseData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
-
-            $("#continue").prop("disabled", true);
 
             switch (exerciseData.type) {
 
@@ -370,16 +434,20 @@ window.onload = async () => {
 
             }
 
-            $("#video").hide()
-            $("#paragraph").hide()
-            $("#exercise").show()
-            $("#quiz").hide()
+            $("#video").hide();
+            $("#paragraph").hide();
+            $("#exercise").show();
+            $("#quiz").hide();
+
+            $("#continue").on("click", submitExercise);
 
             break;
 
         case "q":
 
             const quizData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
+
+            $("#continue").prop("disabled", false);
 
             quizQuestionData = quizData;
 
@@ -449,10 +517,12 @@ window.onload = async () => {
 
             }
 
-            $("#video").hide()
-            $("#paragraph").hide()
-            $("#exercise").hide()
-            $("#quiz").show()
+            $("#video").hide();
+            $("#paragraph").hide();
+            $("#exercise").hide();
+            $("#quiz").show();
+
+            $("#continue").on("click", submitQuiz);
 
             break;
 
@@ -468,7 +538,7 @@ window.onload = async () => {
 
         if ((Number(localStorage.getItem("sessionStartTime")) || Number.POSITIVE_INFINITY) + 300000 <= Date.now()) {
 
-            sendSessionTimetoServer(Number(localStorage.getItem("lastSessionEndTime")) - Number(localStorage.getItem("lastSessionStartTime")));
+            sendSessionTimetoServer(Number(localStorage.getItem("lastSessionEndTime")) - Number(localStorage.getItem("sessionStartTime")));
             
         }
 

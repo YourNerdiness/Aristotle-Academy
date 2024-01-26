@@ -110,12 +110,12 @@
         "severity": "WARNING"
     },
     "0x000016" : {
-        "msg": "Lesson has been completed, so requests for the next parts of the lesson cannot be made.",
+        "msg": "DEPRECATED: Lesson has been completed, so requests for the next parts of the lesson cannot be made.",
         "http_error_code": 409,
         "severity": "ALERT"
     },
     "0x000017" : {
-        "msg": "Lesson has not been completed, so requests for the next lesson cannot be made.",
+        "msg": "DEPRECATED: Lesson has not been completed, so requests for the next lesson cannot be made.",
         "http_error_code": 409,
         "severity": "ALERT"
     },

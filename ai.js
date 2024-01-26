@@ -98,13 +98,13 @@ const getContentID = async (userID, courseID) => {
 
     } while(completedTopics.includes(topicID));
 
-    let filename;
-
     const chunksPerLesson = await database.ai.getUserNumChunks(userID);
+
+    let contentRoute;
 
     if (lessonIndexes[1] > chunksPerLesson) {
 
-        filename == "quiz.json";
+        contentRoute = `/${topicID}/quiz.json`;
 
     }
 
@@ -113,6 +113,8 @@ const getContentID = async (userID, courseID) => {
         const state = userIDHash + lessonIndexes[1].toString();
 
         const contentFormat = await qLearning.selectAction(state);
+
+        let filename;
 
         switch (contentFormat) {
 
@@ -142,9 +144,9 @@ const getContentID = async (userID, courseID) => {
 
         }
 
-    }
+        contentRoute = `/${topicID}/${lessonIndexes[1].toString()}/${filename}`
 
-    const contentRoute = `/${topicID}/${lessonIndexes[1].toString()}/${filename}`
+    }
 
     const signature = utils.hashHMAC(contentRoute, "base64url")
 
@@ -170,7 +172,7 @@ const updateAI = async (userID, courseID, lessonNumber, quizScore, averageSessio
 
     await qLearning.updateQValues(stateActionPairs, quizScore);
 
-    if (averageSessionTime < 600000) {
+    if (averageSessionTime > 600000) {
 
         if (quizScore > 0.85) {
 

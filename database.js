@@ -912,9 +912,7 @@ const courses = {
 
     },
 
-    // if indexNum is 0, then currentLessonNumber is increamented, if it is 1, then currentLessonChunk
-
-    incrementLessonIndexes : async (courseID, indexNum) => {
+    updateLessonIndexes : async (userID, courseID, newLessonNumber, newLessonChunk) => {
 
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
@@ -934,29 +932,17 @@ const courses = {
 
             const userCourseData = results[0].courseData;
 
-            if (!courseData[courseID]) {
+            if (!userCourseData[courseID]) {
 
                 new utils.ErrorHandler("0x00003C", "Course does not exist").throwError();
 
             }
 
-            if (indexNum == 0) {
+            const oldLessonNumber = userCourseData[courseID].currentLessonNumber;
+            const oldLessonChunk = userCourseData[courseID].currentLessonChunk;
             
-                await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonNumber`] : userCourseData[courseID].currentLessonNumber + 1, [`courseData.${courseID}.currentLessonChunk`] : 1 } });
+            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonNumber`] : Math.max(newLessonNumber, oldLessonNumber), [`courseData.${courseID}.currentLessonChunk`] : Math.max(newLessonChunk, oldLessonChunk) } });
 
-            }
-
-            else if (indexNum == 1) {
-
-                await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonChunk`] : userCourseData[courseID].currentLessonChunk + 1 } });
-
-            }
-
-            else {
-
-                new utils.ErrorHandler("0x00003C").throwError();
-    
-            }
 
         }
 
