@@ -253,7 +253,7 @@ window.onload = async () => {
 
             break;
 
-        case "p":
+        case "t":
 
             $("#continue").prop("disabled", false);
 

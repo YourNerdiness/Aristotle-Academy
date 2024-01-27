@@ -146,11 +146,11 @@ const getContentID = async (userID, courseID) => {
 
         contentRoute = `/${topicID}/${lessonIndexes[1].toString()}/${filename}`
 
+        await database.courses.setChunkContentFormat(userID, courseID, lessonIndexes[0], lessonIndexes[1], contentFormat)
+
     }
 
     const signature = utils.hashHMAC(contentRoute, "base64url")
-
-    await database.courses.setChunkContentFormat(userID, courseID, lessonIndexes[0], lessonIndexes[1], contentFormat)
 
     return contentRoute + "|" + signature;
 
