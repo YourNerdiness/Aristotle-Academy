@@ -3,6 +3,7 @@ import utils from "./utils.js"
 import database from "./database.js";
 
 const courseData = await database.config.getConfigData("course_data");
+const topicData = await database.config.getConfigData("topic_data");
 
 class QLearning {
 
@@ -102,7 +103,7 @@ const getContentID = async (userID, courseID) => {
 
     let contentRoute;
 
-    if (lessonIndexes[1] > chunksPerLesson) {
+    if (lessonIndexes[1] >= Math.max(topicData[topicID].minChunks, Math.min(chunksPerLesson, topicData[topicID].maxChunks))) {
 
         contentRoute = `/${topicID}/quiz.json`;
 
