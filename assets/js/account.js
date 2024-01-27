@@ -180,7 +180,7 @@ $(document).ready(() => {
 
     $("#updateSub-btn").click((event) => {
 
-        const data = { item : $('#newSubTypeField :selected').text().toLowerCase() + "-sub", password : $("#reenterPasswordField").val() };
+        const data = { item : $('#newSubTypeField :selected').text().toLowerCase() + "-sub", password : $("#subPasswordField").val() };
 
         const req = {
 
@@ -197,6 +197,44 @@ $(document).ready(() => {
         };
 
         fetch("/buyRedirect", req).then(async res => {
+
+            if (res.ok) {
+
+                window.location.href = (await res.json()).url;
+
+            }
+
+            else {
+
+                const error = await res.json();
+
+                $("#createSubError").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+
+        });
+
+    });
+
+    $("#updatePayment-btn").click((event) => {
+
+        const data = { password : $("#updatePaymentPasswordField").val() };
+
+        const req = {
+
+            method : "POST",
+
+            headers : {
+
+                "Content-Type" : "application/json"
+
+            },
+
+            body : JSON.stringify(data)
+
+        };
+
+        fetch("/updatePaymentDetails", req).then(async res => {
 
             if (res.ok) {
 

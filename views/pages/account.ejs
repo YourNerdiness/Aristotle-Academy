@@ -2,30 +2,6 @@
 
     <p id="error"></p>
 
-    <dialog id="subDialog">
-        
-        <p id="createSubError"></p>
-        
-        <form>
-        
-            <label for="reenterPasswordField">Please re-enter your password:</label>
-            <input type="password" id="reenterPasswordField" name="reenterPasswordField">
-        
-            <label for="newSubTypeField">Please select your subscription type:</label>
-            <select id="newSubTypeField">
-        
-                <option>None</option>
-                <option>Monthly</option>
-                <option>Yearly</option>
-        
-             </select>
-        
-        </form>
-        
-        <button id="updateSub-btn">Submit</button>
-        
-    </dialog>
-
     <dialog id="changeUsernameDialog">
 
         <p id="changeUsernameError"></p>
@@ -79,6 +55,45 @@
         <button id="changePassword">Submit</button>
   
       </dialog>
+
+      <dialog id="subDialog">
+        
+        <p id="createSubError"></p>
+        
+        <form>
+        
+            <label for="subPasswordField">Please re-enter your password:</label>
+            <input type="password" id="subPasswordField" name="subPasswordField">
+        
+            <label for="newSubTypeField">Please select your subscription type:</label>
+            <select id="newSubTypeField">
+        
+                <option>None</option>
+                <option>Monthly</option>
+                <option>Yearly</option>
+        
+             </select>
+        
+        </form>
+        
+        <button id="updateSub-btn">Submit</button>
+        
+    </dialog>
+
+    <dialog id="updatePaymentDialog">
+        
+        <p id="updatePaymentError"></p>
+        
+        <form>
+        
+            <label for="updatePaymentPasswordField">Please re-enter your password:</label>
+            <input type="password" id="updatePaymentPasswordField" name="updatePaymentPasswordField">
+        
+        </form>
+        
+        <button id="updatePayment-btn">Submit</button>
+        
+    </dialog>
 
       <dialog id="deleteAccountDialog">
 
@@ -149,7 +164,7 @@
 
                 <td>Payment method:</td>
                 <td><%= paymentMethod %></td>
-                <td><button>Update payment method</button></td>
+                <td><button onclick="document.getElementById('updatePaymentDialog').showModal()">Update payment method</button></td>
 
             </tr>
 

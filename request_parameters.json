@@ -233,6 +233,25 @@
 
     },
 
+    "/updatePaymentDetails" : {
+
+        "methodToMatch" : "POST",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "bodyParameters" : {
+
+            "password" : {
+
+                "type" : "string"
+
+            }
+
+        }
+
+    },
+
     "/getCourseData" : {
 
         "methodToMatch" : "GET",

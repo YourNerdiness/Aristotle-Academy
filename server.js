@@ -1399,6 +1399,38 @@ app.post("/buyRedirect", async (req, res) => {
 
 });
 
+app.post("/updatePaymentDetails", async (req, res) => {
+
+    const password = req.body.password;
+
+    const token = req.headers.auth;
+
+    if (!(await database.authentication.verifyPassword(token.username, password))) {
+
+        new utils.ErrorHandler("0x000012").throwError();
+
+        return;
+
+    }
+
+    const customerID = (await database.users.getUserInfo(token.userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
+
+    const session = await stripeAPI.checkout.sessions.create({
+
+        customer: customerID,
+
+        success_url: process.env.DOMAIN_NAME + "/account",
+        cancel_url: process.env.DOMAIN_NAME + "/account",
+
+        mode: "setup",
+        payment_method_types: ["card"],
+
+    });
+
+    res.status(200).json({ msg: "OK.", url: session.url });
+
+});
+
 app.get("/getCourseData", async (req, res) => {
 
     try {
