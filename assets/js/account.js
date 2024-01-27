@@ -20,7 +20,11 @@ $(document).ready(() => {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/deleteAccount", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 
@@ -60,7 +64,11 @@ $(document).ready(() => {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/changeUserDetails", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 
@@ -100,7 +108,11 @@ $(document).ready(() => {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/changeUserDetails", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 
@@ -140,7 +152,11 @@ $(document).ready(() => {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/changeUserDetails", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 
@@ -164,13 +180,23 @@ $(document).ready(() => {
 
         $("#error").text("");
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/signout").then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (!res.ok) {
 
                 const error = await res.json();
 
                 $("#changePasswordError").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+
+            else {
+
+                window.location.href = "/";
 
             }
         
@@ -196,7 +222,11 @@ $(document).ready(() => {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/buyRedirect", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 
@@ -234,7 +264,11 @@ $(document).ready(() => {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/updatePaymentDetails", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 

@@ -36,7 +36,11 @@ const redirectCallback = async (courseID) => {
 
     };
 
+    document.getElementById("loadingDialog").showModal();
+
     const res = await fetch("/learnRedirect", req);
+
+    document.getElementById("loadingDialog").close();
 
     if (res.ok) {
 
@@ -199,7 +203,11 @@ const getCourseData = async () => {
 
     }
 
+    document.getElementById("loadingDialog").showModal();
+
     const res = await fetch(`/getCourseData?filter${document.getElementById("paidOnly").checked.toString()}`, req);
+
+    document.getElementById("loadingDialog").close();
 
     if (!res.ok) {
 

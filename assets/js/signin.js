@@ -27,7 +27,11 @@ const signin = async () => {
 
     }
 
+    document.getElementById("loadingDialog").showModal();
+
     let res = await fetch("./signin", req);
+
+    document.getElementById("loadingDialog").close();
 
     if (res.ok) {
 
@@ -65,7 +69,11 @@ const completeMFA = async () => {
 
     }
 
+    document.getElementById("loadingDialog").showModal();
+
     const res = await fetch("./completeMFA", req);
+
+    document.getElementById("loadingDialog").close();
 
     if (res.ok) {
 

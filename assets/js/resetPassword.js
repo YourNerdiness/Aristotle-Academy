@@ -55,7 +55,11 @@ $(document).ready(function () {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/sendPasswordResetEmail", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 
@@ -99,7 +103,11 @@ $(document).ready(function () {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/resetPassword", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 

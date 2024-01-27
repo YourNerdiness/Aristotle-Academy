@@ -44,7 +44,11 @@ const submitExercise = async () => {
 
     };
 
+    document.getElementById("loadingDialog").showModal();
+
     const res = await fetch("/completeLesson", req);
+
+    document.getElementById("loadingDialog").close();
 
     if (res.ok) {
 
@@ -127,7 +131,11 @@ const submitQuiz = async () => {
 
     };
 
+    document.getElementById("loadingDialog").showModal();
+
     const res = await fetch("/completeLesson", req);
+
+    document.getElementById("loadingDialog").close();
 
     if (res.ok) {
 
@@ -185,6 +193,8 @@ document.onkeydown = resetTimer;
 window.onbeforeunload = () => localStorage.setItem("lastSessionEndTime", Date.now());
 
 window.onload = async () => {
+
+    document.getElementById("loadingDialog").showModal();
 
     const contentID = new URLSearchParams(window.location.search).get("contentID");
 
@@ -533,6 +543,8 @@ window.onload = async () => {
             break;
 
     }
+
+    document.getElementById("loadingDialog").close();
 
     if (localStorage.getItem("lastSessionEndTime")) {
 

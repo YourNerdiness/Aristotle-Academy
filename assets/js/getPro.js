@@ -20,7 +20,11 @@ $(document).ready(function () {
 
         };
 
+        document.getElementById("loadingDialog").showModal();
+
         fetch("/buyRedirect", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
 
             if (res.ok) {
 

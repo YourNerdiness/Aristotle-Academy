@@ -28,7 +28,11 @@ const signup = async () => {
 
     }
 
+    document.getElementById("loadingDialog").showModal();
+
     const res = await fetch("./signup", req);
+
+    document.getElementById("loadingDialog").close();
 
     if (res.ok) {
 
@@ -66,7 +70,11 @@ const completeMFA = async () => {
 
     }
 
+    document.getElementById("loadingDialog").showModal();
+
     const res = await fetch("./completeMFA", req);
+
+    document.getElementById("loadingDialog").close();
 
     if (res.ok) {
 
