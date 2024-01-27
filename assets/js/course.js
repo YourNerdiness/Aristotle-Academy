@@ -257,7 +257,7 @@ window.onload = async () => {
 
             $("#continue").prop("disabled", false);
 
-            $("#paragraph").html(await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).text());
+            $("#paragraph").html(marked.parse(await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).text()));
 
             $("#video").hide();
             $("#paragraph").show();
