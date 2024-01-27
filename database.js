@@ -285,7 +285,7 @@ const users = {
 
             });
 
-            await collections.ai.insertOne({ userIDHash, numChunks: 16 });
+            await collections.ai.insertOne({ userIDHash, numChunks: 6 });
 
             await collections.authentication.insertOne({
 
