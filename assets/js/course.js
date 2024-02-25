@@ -282,6 +282,8 @@ window.onload = async () => {
 
             const exerciseData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
 
+            const exerciseDiv = document.getElementById("exercise");
+
             switch (exerciseData.type) {
 
                 case "match-tight":
@@ -289,8 +291,6 @@ window.onload = async () => {
                     localStorage.removeItem("match_tight_last_column_one_clicked");
                     localStorage.removeItem("match_tight_last_column_two_clicked");
                     localStorage.removeItem("match_tight_num_matched");
-
-                    const div = document.getElementById("exercise");
 
                     const pairs = exerciseData.data.pairs;
                     const description = exerciseData.data.description;
@@ -300,7 +300,7 @@ window.onload = async () => {
                     p.textContent = description;
                     p.classList = "center"
 
-                    div.appendChild(p);
+                    exerciseDiv.appendChild(p);
 
                     const columnOne = pairs.map(x => x[0]);
                     const columnTwo = pairs.map(x => x[1]);
@@ -310,7 +310,7 @@ window.onload = async () => {
 
                     const table = document.createElement("table");
 
-                    div.appendChild(table);
+                    exerciseDiv.appendChild(table);
 
                     for (let i = 0; pairs.length; i++) {
 
@@ -391,7 +391,7 @@ window.onload = async () => {
 
                                 localStorage.setItem("match_tight_num_matched", (localStorage.getItem("match_tight_num_matched") || 0) + 1);
 
-                                if (localStorage.getItem("match_tight_num_matched") >= pairs.length) {
+                                if (Number(localStorage.getItem("match_tight_num_matched")) >= pairs.length) {
 
                                     $("#continue").prop("disabled", false);
 
@@ -434,7 +434,43 @@ window.onload = async () => {
 
                     }
 
-                    break
+                    break;
+
+                case "multiple-choice":
+
+                    localStorage.removeItem("multiple_choice_correct_answer_index");
+
+                    const select = document.createElement("select");
+
+                    exerciseDiv.appendChild(select);
+
+                    const possibleAnswers = exerciseData.data.possibleAnswers;
+                    const correctAnswerIndex = exerciseData.data.possibleAnswers.toString();
+
+                    localStorage.setItem("multiple_choice_correct_answer_index", correctAnswerIndex);
+
+                    for (let i = 0; i < possibleAnswers.length; i++) {
+
+                        const option = document.createElement("option");
+
+                        select.appendChild(option);
+
+                        option.value = i.toString();
+                        option.textContent = possibleAnswers[i];
+
+                    }
+
+                    select.addEventListener("change", () => {
+
+                        if (this.value == localStorage.getItem("multiple_choice_correct_answer_index")) {
+                            
+                            $("#continue").prop("disabled", false);
+
+                        }
+
+                    });
+
+                    break;
                     
                 default:
 
