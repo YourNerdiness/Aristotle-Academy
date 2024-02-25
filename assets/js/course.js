@@ -25,7 +25,7 @@ const utils = {
 const submitExercise = async () => {
 
     const lessonNumber = new URLSearchParams(window.location.search).get("lessonNumber");
-    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChnk");
+    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChunk");
     const courseID = new URLSearchParams(window.location.search).get("courseID");
 
     const data = { quizScore, lessonNumber, lessonChunk, courseID };
@@ -62,7 +62,7 @@ const submitExercise = async () => {
 
         const error = await res.json();
         
-        $("#error").text(error.userMsg || error.msg || "An error has occured.");
+        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
     }
 
@@ -112,7 +112,7 @@ const submitQuiz = async () => {
     const quizScore = points / questions.length;
 
     const lessonNumber = new URLSearchParams(window.location.search).get("lessonNumber");
-    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChnk");
+    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChunk");
     const courseID = new URLSearchParams(window.location.search).get("courseID");
 
     const data = { quizScore, lessonNumber, lessonChunk, courseID };
@@ -149,14 +149,14 @@ const submitQuiz = async () => {
 
         const error = await res.json();
         
-        $("#error").text(error.userMsg || error.msg || "An error has occured.");
+        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
     }
 
 
 };
 
-const sendSessionTimetoServer = (sessionTime=(Date.now()-Number(localStorage.getItem("sessionStartTime")))) => {
+const sendSessionTimeToServer = (sessionTime=(Date.now()-Number(localStorage.getItem("sessionStartTime")))) => {
 
     fetch('/logSessionTime', {
 
@@ -183,7 +183,7 @@ const resetTimer = () => {
     }
 
     clearTimeout(time);
-    time = setTimeout(sendSessionTimetoServer, 300000);
+    time = setTimeout(sendSessionTimeToServer, 300000);
 
 }
 
@@ -230,7 +230,7 @@ window.onload = async () => {
 
         const error = await res.json();
 
-        $("#error").text(error.userMsg || error.msg || "An error has occured.");
+        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
 
     }
 
@@ -550,7 +550,7 @@ window.onload = async () => {
 
         if ((Number(localStorage.getItem("sessionStartTime")) || Number.POSITIVE_INFINITY) + 300000 <= Date.now()) {
 
-            sendSessionTimetoServer(Number(localStorage.getItem("lastSessionEndTime")) - Number(localStorage.getItem("sessionStartTime")));
+            sendSessionTimeToServer(Number(localStorage.getItem("lastSessionEndTime")) - Number(localStorage.getItem("sessionStartTime")));
             
         }
 

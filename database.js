@@ -277,9 +277,9 @@ const users = {
 
         const userIDHash = utils.hash(userID, "base64");
 
-        const emailVerifcationCode = crypto.randomBytes(6).toString("hex");
+        const emailVerificationCode = crypto.randomBytes(6).toString("hex");
 
-        const welcomeEmailContent = `Welcome to Aristotle Academy, we hope you'll benefit from our service. Here is your code to verify your email: <br> <h5>${emailVerifcationCode}</h5>`;
+        const welcomeEmailContent = `Welcome to Aristotle Academy, we hope you'll benefit from our service. Here is your code to verify your email: <br> <h5>${emailVerificationCode}</h5>`;
 
         utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
 
@@ -303,7 +303,7 @@ const users = {
             await collections.authentication.insertOne({
 
                 userIDHash,
-                code: utils.encrypt(emailVerifcationCode, "hex"),
+                code: utils.encrypt(emailVerificationCode, "hex"),
                 timestamp: Date.now()
 
             });
@@ -537,11 +537,11 @@ const authentication = {
 
         const userData = (await users.getUserInfo(userID, "userID", ["username", "email"]))[0];
 
-        const emailVerifcationCode = crypto.randomBytes(6).toString("hex");
+        const emailVerificationCode = crypto.randomBytes(6).toString("hex");
 
-        await collections.authentication.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { code : utils.encrypt(emailVerifcationCode, "hex"), timestamp : Date.now() } });
+        await collections.authentication.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { code : utils.encrypt(emailVerificationCode, "hex"), timestamp : Date.now() } });
 
-        const emailContent = `Here is your code to verify your account: <br> <h5>${emailVerifcationCode}</h5>`;
+        const emailContent = `Here is your code to verify your account: <br> <h5>${emailVerificationCode}</h5>`;
 
         await utils.sendEmail(authEmailTransport, "Aristotle Academy MFA Code", emailContent, userData.email, true, userData.username);
 

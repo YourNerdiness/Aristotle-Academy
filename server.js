@@ -696,7 +696,7 @@ const getTokenMiddleware = async (req, res, next) => {
 
 };
 
-const requestVerifcationMiddleware = async (req, res, next) => {
+const requestVerificationMiddleware = async (req, res, next) => {
 
     if (requestParameters[req.url] && requestParameters[req.url].methodToMatch == req.method) {
 
@@ -1371,7 +1371,7 @@ app.use(express.json())
 app.use(morgan(":date - :client-ip - :user-agent - :method :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
-app.use(requestVerifcationMiddleware)
+app.use(requestVerificationMiddleware)
 app.use(indexRouteMiddle);
 app.use(ejsRenderMiddleware);
 
