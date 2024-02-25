@@ -103,6 +103,12 @@ const encrypt = (content="", encoding) => {
 
 const decrypt = (encryptionData, encoding) => {
 
+    if (!encryptionData) {
+
+        return undefined
+
+    }
+
     const key = passwordHash(process.env.AES_KEY, encryptionData.encryptionSalt, 32);
 
     const decipher = crypto.createDecipheriv(process.env.ENCRYPTION_ALGORITHM, Buffer.from(key, "base64"), Buffer.from(encryptionData.iv, "base64"));

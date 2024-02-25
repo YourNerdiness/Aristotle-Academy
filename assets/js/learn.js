@@ -205,7 +205,7 @@ const getCourseData = async () => {
 
     document.getElementById("loadingDialog").showModal();
 
-    const res = await fetch(`/getCourseData?filter${document.getElementById("paidOnly").checked.toString()}`, req);
+    const res = await fetch(`/getCourseData?filter=${document.getElementById("paidOnly").checked.toString()}`, req);
 
     document.getElementById("loadingDialog").close();
 

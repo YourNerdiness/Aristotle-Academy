@@ -1,0 +1,71 @@
+<dialog id="subDialog">
+
+    <button onclick="document.getElementById('subDialog').close()">Close</button>
+
+    <p id="createSubError"></p>
+
+    <form>
+
+        <label for="subPasswordField">Please re-enter your password:</label>
+        <input type="password" id="subPasswordField" name="subPasswordField">
+
+        <label for="numStudents">Number of students</label>
+        <select id="numStudents" name="numStudents">
+
+            <option value="none-sub">None</option>
+            <option value="school100">100 students</option>
+            <option value="school200">200 students</option>
+            <option value="school300">300 students</option>
+            <option value="school400">400 students</option>
+            <option value="school500">500 students</option>
+            <option value="school600">600 students</option>
+            <option value="school700">700 students</option>
+            <option value="school800">800 students</option>
+            <option value="school900">900 students</option>
+            <option value="school1000">1000 students</option>
+
+        </select>
+
+    </form>
+
+    <button id="updateSub-btn">Submit</button>
+
+</dialog>
+
+<main>
+
+    <p id="error"></p>
+
+    <table id="schoolTable">
+
+        <tr><td><h5>Details</h5></td></tr>
+
+        <tr>
+
+                <td>School name:</td>
+                <td><%= schoolName %></td>
+
+        </tr>
+
+        <tr>
+
+            <td>Access code:</td>
+            <td><%= accessCode %></td>
+
+        </tr>
+
+        <tr><td><h5>Subscription</h5></td></tr>
+
+        <tr>
+
+            <td>Subscription type:</td>
+            <td><%= subType %></td>
+            <td><button onclick="document.getElementById('subDialog').showModal()">Update Subscription</button></td>
+
+        </tr>
+
+        <tr><td><h5>Student List:</h5></td></tr>
+
+    </table>
+
+</main>

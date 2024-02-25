@@ -2,3 +2,6 @@ node_modules
 .env
 package-lock.json
 vm-start.sh
+.env.prod
+.env.development
+.vscode

@@ -87,6 +87,18 @@ const getContentID = async (userID, courseID) => {
 
     const completedTopics = await database.courses.getCompletedTopics(userID);
 
+    if (courseData[courseID].topics.length == 0) {
+
+        new utils.ErrorHandler("0x000058").throwError();
+
+    }
+
+    if (courseData[courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
+
+        new utils.ErrorHandler("0x000059").throwError();
+
+    }
+
     let topicID;
 
     let i = 0;

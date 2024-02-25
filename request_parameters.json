@@ -25,6 +25,13 @@
 
                 "type" : "string"
 
+            },
+
+            "accountType" : {
+
+                "type" : "string",
+                "possibleValues" : ["individual", "admin"]
+
             }
 
         }
@@ -196,6 +203,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters" : {
 
             "courseID" : {
@@ -215,6 +223,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "admin"],
         "bodyParameters" : {
 
             "item" : {
@@ -240,6 +249,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "admin"],
         "bodyParameters" : {
 
             "password" : {
@@ -265,6 +275,69 @@
 
                 "type" : "string",
                 "possibleValues" : ["true", "false"]
+
+            }
+
+        }
+
+    },
+
+    "/joinSchool" : {
+
+        "methodToMatch" : "POST",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["student", "individual"],
+        "bodyParameters" : {
+
+            "accessCode" : {
+
+                "type" : "string",
+                "format" : "hex"
+
+            }
+
+        }
+
+    },
+
+    "/leaveSchool" : {
+
+        "methodToMatch" : "POST",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["student"]
+
+    },
+
+    "/getSchoolStudentList" : {
+
+        "methodToMatch" : "GET",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["admin"]
+
+    },
+
+    "/adminDeleteSchoolStudent" : {
+
+        "methodToMatch" : "POST",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["admin"],
+        "bodyParameters" : {
+
+            "studentUsername" : {
+
+                "type" : "string"
 
             }
 
@@ -305,6 +378,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
             "lessonNumber": {
@@ -341,6 +415,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
             "lessonNumber" : {
@@ -386,6 +461,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
             "sessionTime" : {
@@ -414,6 +490,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "student"],
         "queryParameters": {
 
             "courseID" : {
@@ -434,6 +511,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "allowedAccountTypes" : ["individual", "student"],
         "queryParameters": {
 
             "courseID" : {

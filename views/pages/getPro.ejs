@@ -1,4 +1,4 @@
-<main>
+<main style="display: block;">
 
     <p id="error" class="center"></p>
 
@@ -44,6 +44,16 @@
             <button onclick="item='yearly-sub';document.getElementById('reenterPasswordDialog').showModal()"><%= yearlyPrice %> every year for all courses</button>
 
         </section>
+
+    </div>
+
+    <div class="center" style="display: block;">
+
+        <h4>OR</h4>
+
+        <label for="schoolAccessCode">Enter school access code</label>
+        <input type="text" id="schoolAccessCode" name="schoolAccessCode">
+        <button id="submitSchoolAccessCode">Submit</button>
 
     </div>
 

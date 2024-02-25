@@ -162,7 +162,7 @@ const sendSessionTimetoServer = (sessionTime=(Date.now()-Number(localStorage.get
 
         method: 'POST',
 
-        body: JSON.stringify({ sessionTime }),
+        body: JSON.stringify({ sessionTime, courseID : new URLSearchParams(window.location.search).get("courseID") }),
 
         headers: {
 

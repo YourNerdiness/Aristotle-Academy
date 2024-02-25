@@ -288,4 +288,66 @@ $(document).ready(() => {
 
     });
 
+    $("#submitSchoolAccessCode").click((event) => {
+
+        const data = { accessCode : $("#schoolAccessCode").val() };
+
+        const req = {
+
+            method : "POST",
+
+            headers : {
+
+                "Content-Type" : "application/json"
+
+            },
+
+            body : JSON.stringify(data)
+
+        };
+
+        document.getElementById("loadingDialog").showModal();
+
+        fetch("/joinSchool", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
+
+            if (!res.ok) {
+
+                const error = await res.json();
+
+                $("#updateSchoolError").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+
+        });
+
+    });
+
+    $("#leaveSchool-btn").click((event) => {
+
+        document.getElementById("loadingDialog").showModal();
+
+        fetch("/leaveSchool", req).then(async res => {
+
+            document.getElementById("loadingDialog").close();
+
+            if (res.ok) {
+
+                window.location.reload();
+
+            }
+
+            else {
+
+                const error = await res.json();
+
+                $("#updateSchoolError").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+
+        });
+
+    });
+
 });

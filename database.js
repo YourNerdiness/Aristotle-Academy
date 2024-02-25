@@ -1,14 +1,16 @@
 import crypto from "crypto"
 import dotenv from "dotenv"
-import fs from "fs"
-import { MongoClient, ServerApiVersion } from "mongodb"
+import fs, { access } from "fs"
+import { ListCollectionsCursor, MongoClient, ServerApiVersion } from "mongodb"
 import nodemailer from "nodemailer"
 import process from "process"
 import stripe from "stripe"
 import utils from "./utils.js"
 import redis from "redis"
 
-dotenv.config()
+const developmentMode = process.argv.includes('-d');
+
+dotenv.config({ path: developmentMode ? "./.env.development" : "./.env.prod" });
 
 const stripeAPI = stripe(process.env.STRIPE_SK);
 
@@ -26,15 +28,14 @@ const collections = {
     payments : db.collection("payments"),
     authentication : db.collection("authentication"),
     jwts : db.collection("jwts"), 
-    checkoutSessions : db.collection("checkout-sessions"),
     courses : db.collection("courses"),
     ai : db.collection("ai"),
+    schools : db.collection("schools"),
     config : db.collection("config")
     
 };
 
 await collections.jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.JWT_EXPIRES_MS)/1000 });
-await collections.checkoutSessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.CHECKOUT_SESSION_TIMEOUT_MS)/1000 });
 
 const redisClient = redis.createClient({
 
@@ -74,7 +75,7 @@ const courseData = await (async (name) => {
 
     }
 
-})("course_data");
+})(`${developmentMode ? "dev_" : ""}course_data`);
 
 const courseIDs = Object.keys(courseData);
 const defaultCourseData = courseIDs.reduce((obj, key) => {
@@ -112,12 +113,14 @@ const propertyEncodings = {
     passwordDigest : "base64",
     passwordSalt : "base64",
     subID : "utf-8",
+    accountType : "utf-8",
+    schoolID : "base64",
     courses : "object"
 }
 
-const userDataProperties = ["userID", "stripeCustomerID", "username", "email", "passwordDigest", "passwordSalt"]
+const userDataProperties = ["userID", "stripeCustomerID", "username", "email", "passwordDigest", "passwordSalt", "accountType", "schoolID"]
 const userIndexProperties = ["username", "email", "userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
-const paymentDataProperties = ["subID", "courses"]
+const paymentDataProperties = ["subID", "courses", "schoolID"]
 const paymentIndexProperties = ["userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
 
 const allProperties = Array.from(new Set([...userDataProperties, ...userIndexProperties, ...paymentDataProperties, ...paymentIndexProperties]));
@@ -126,7 +129,15 @@ const passwordCheckStatuses = JSON.parse(fs.readFileSync("password_check_statuse
 
 const users = {
 
-    addNewUser: async (username, email, password) => {
+    addNewUser: async (username, email, password, accountType="individual") => {
+
+        if (!["individual", "student", "admin"].includes(accountType)) {
+
+            new utils.ErrorHandler("0x00003C").throwError();
+
+            return;
+
+        }
 
         let userID = crypto.randomBytes(256).toString("base64");
 
@@ -194,12 +205,14 @@ const users = {
         const allData = {
 
             userID,
+            accountType,
             stripeCustomerID: customer.id,
             username,
             email,
-            passwordDigest: utils.passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
+            passwordDigest : utils.passwordHash(password + process.env.PASSWORD_PEPPER, passwordSalt, 64).toString("base64"),
             passwordSalt,
-            subID: "",
+            subID : "",
+            schoolID : "",
             courses : defaultCoursePaymentData
 
         };
@@ -301,7 +314,7 @@ const users = {
 
     },
 
-    getUserInfo: async (query, queryPropertyName, resultPropertyNames) => {
+    getUserInfo: async (query, queryPropertyName, resultPropertyNames, queryIsAlreadyHashed=false) => {
 
         if (!userIndexProperties.includes(queryPropertyName)) {
 
@@ -339,7 +352,7 @@ const users = {
 
         }, {}); 
 
-        const results = await collections.users.find({ [`index.${queryPropertyName}`]: utils.hash(query, propertyEncodings[queryPropertyName]) }, { projection } ).toArray();
+        const results = await collections.users.find({ [`index.${queryPropertyName}`]: queryIsAlreadyHashed ? query : utils.hash(query, propertyEncodings[queryPropertyName]) }, { projection } ).toArray();
 
         const usersData = results.map((userData) => {
 
@@ -451,9 +464,7 @@ const users = {
     deleteUser : async (userID) => {
 
         const userIDHash = utils.hash(userID, "base64");
-        const stripeCustomerID = (await users.getUserInfo(userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
-
-        await stripeAPI.customers.del(stripeCustomerID);
+        const { stripeCustomerID, accountType, schoolID } = (await users.getUserInfo(userID, "userID", ["stripeCustomerID", "accountType", "schoolID"]))[0];
 
         const session = mongoClient.startSession();
 
@@ -464,10 +475,31 @@ const users = {
             await collections.jwts.deleteMany({ userIDHash });
             await collections.ai.deleteOne({ userIDHash });
             await collections.courses.deleteOne({ userIDHash});
-            await collections.checkoutSessions.deleteOne({ userIDHash });
             await collections.authentication.deleteOne({ userIDHash });
 
-        });
+            if (accountType == "student") {
+
+                const schoolData = await schools.getSchoolDataBySchoolID(schoolID);
+    
+                await schools.removeStudent(utils.decrypt(schoolData.adminUserID, "base64"), userID);
+    
+            }
+
+            if (accountType == "admin") {
+    
+                await schools.deleteSchool(userID);
+    
+            }
+
+            (await stripeAPI.subscriptions.list({ customer : stripeCustomerID })).data.forEach(async (sub) => {
+                
+                await stripeAPI.subscriptions.cancel(sub.id);
+
+            });
+
+            await stripeAPI.customers.del(stripeCustomerID);
+
+        })
 
     }
 
@@ -511,7 +543,7 @@ const authentication = {
 
         const emailContent = `Here is your code to verify your account: <br> <h5>${emailVerifcationCode}</h5>`;
 
-        await utils.sendEmail(authEmailTransport, "Aristotle Acaedemy MFA Code", emailContent, userData.email, true, userData.username);
+        await utils.sendEmail(authEmailTransport, "Aristotle Academy MFA Code", emailContent, userData.email, true, userData.username);
 
     },
 
@@ -672,87 +704,6 @@ const verification = {
 
 const payments = {
 
-    createCheckoutSession: async (sessionID, userID, item) => {
-
-        const result = await users.getUserInfo(userID, "userID", ["userID"]);
-
-        if (result.length == 0) {
-
-            new utils.ErrorHandler("0x000031").throwError();
-
-        }
-
-        else if (result.length > 1) {
-
-            new utils.ErrorHandler("0x000032").throwError();
-
-        }
-
-        else {
-
-            collections.checkoutSessions.insertOne({ sessionIDHash: utils.hash(sessionID, "base64"), userIDHash : utils.hash(userID, "base64"), userID: utils.encrypt(userID, "base64"), item: utils.encrypt(item, "utf-8"), createdAt : new Date() });
-
-        }
-
-    },
-
-    getCheckoutSession: async (sessionID) => {
-
-        const result = await collections.checkoutSessions.find({ sessionIDHash: utils.hash(sessionID, "base64") }).toArray()
-
-        if (result.length == 0) {
-
-            return null;
-
-        }
-
-        else if (result.length > 1) {
-
-            new utils.ErrorHandler("0x000032").throwError();
-
-        }
-
-        else {
-
-            if (Date.now() - result[0].createdAt > process.env.CHECKOUT_SESSION_TIMEOUT_MS) {
-
-                return null;
-
-            }
-
-            const userID = utils.decrypt(result[0].userID, "base64");
-            const item = utils.decrypt(result[0].item, "utf-8");
-
-            return { userID, item };
-
-        }
-
-    },
-
-    deleteCheckoutSession: async (sessionID) => {
-
-        const result = await collections.checkoutSessions.find({ sessionIDHash: utils.hash(sessionID, "base64") }).toArray();
-
-        if (result.length == 0) {
-
-            new utils.ErrorHandler("0x000031").throwError();
-
-        }
-
-        else if (result.length > 1) {
-
-            new utils.ErrorHandler("0x000032").throwError();
-
-        }
-
-        else {
-
-            await collections.checkoutSessions.deleteOne(result[0])
-
-        }
-
-    },
-
     addCoursePayment: async (userID, courseID) => {
 
         const result = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
@@ -837,15 +788,15 @@ const payments = {
 
     checkIfPaidFor: async (userID, courseID) => {
 
-        const result = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
+        const paymentDataResults = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
 
-        if (result.length == 0) {
+        if (paymentDataResults.length == 0) {
 
             return false;
 
         }
 
-        else if (result.length > 1) {
+        else if (paymentDataResults.length > 1) {
 
             new utils.ErrorHandler("0x000032").throwError();
 
@@ -853,7 +804,7 @@ const payments = {
 
         else {
 
-            const paymentData = result[0].data;
+            const paymentData = paymentDataResults[0].data;
 
             if (paymentData.subID.content) {
 
@@ -862,6 +813,66 @@ const payments = {
                 if (subscription.status == "active") {
 
                     return true;
+
+                }
+
+            }
+
+            const userDataResults = await users.getUserInfo(userID, "userID", ["schoolID", "accountType"]);
+
+            if (userDataResults.length == 0) {
+
+                return false;
+    
+            }
+    
+            else if (userDataResults.length > 1) {
+    
+                new utils.ErrorHandler("0x000032").throwError();
+    
+            }
+
+            else {
+
+                if (userDataResults[0].accountType == "student") {
+
+                    const schoolID = userDataResults[0].schoolID;
+
+                    if (schoolID) {
+
+                        const schoolDataResults = await (collections.schools.find({ schoolIDHash: utils.hash(schoolID, "base64") })).toArray();
+
+                        if (schoolDataResults.length > 1) {
+
+                            new utils.ErrorHandler("0x000032").throwError();
+
+                        }
+
+                        else if (schoolDataResults.length == 1) {
+
+                            const schoolData = schoolDataResults[0];
+
+                            const userIDHash = utils.hash(userID, "base64")
+
+                            if (schoolData.studentUserIDs.reduce((acc, elem) => { return acc || userIDHash == elem, "base64" }, false)); {
+
+                                if (schoolData.schoolSubID.content) {
+
+                                    const subscription = await stripeAPI.subscriptions.retrieve(utils.decrypt(schoolData.schoolSubID, "utf-8"));
+
+                                    if (subscription.status == "active") {
+
+                                        return true;
+
+                                    }
+
+                                }
+
+                            }
+
+                        }
+
+                    }
 
                 }
 
@@ -879,7 +890,7 @@ const payments = {
 
 const courses = {
 
-    // retunrs list, first element is the lesson number, second element is the lesson chunk
+    // returns list, first element is the lesson number, second element is the lesson chunk
     getLessonIndexes : async (userID, courseID) => {
 
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
@@ -1175,11 +1186,356 @@ const ai = {
 
 };
 
+const schools = {
+
+    createSchool : async (adminUserID, schoolName, maxNumStudents, ipAddr) => {
+
+        const adminUserIDHash = utils.hash(adminUserID, "base64");
+        
+        const adminUserIDResults = await (collections.schools.find({ adminUserIDHash })).toArray();
+
+        if (adminUserIDResults.length == 1) {
+
+            new utils.ErrorHandler("0x00004E").throwError();
+
+        }
+
+        else if (adminUserIDResults.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        let schoolID;
+        let accessCode;
+
+        let schoolIDHash;
+        let accessCodeHash;
+
+        let schoolIDExists;
+
+        do {
+
+            schoolID = crypto.randomBytes(256).toString("base64");
+
+            schoolIDHash = utils.hash(schoolID, "base64");
+
+            const schoolIDResults = await (collections.schools.find({ schoolIDHash })).toArray();
+
+            if (schoolIDResults.length > 1) {
+
+                new utils.ErrorHandler("0x000032").throwError();
+    
+            }
+
+            schoolIDExists = schoolIDResults.length == 1;
+
+        } while (schoolIDExists)
+
+        let accessCodeExists;
+
+        do {
+
+            accessCode = crypto.randomBytes(4).toString("hex")
+
+            accessCodeHash = utils.hash(accessCode, "hex");
+
+            const accessCodeResults = await (collections.schools.find({ accessCodeHash })).toArray();
+
+            if (accessCodeResults.length > 1) {
+
+                new utils.ErrorHandler("0x000032").throwError();
+    
+            }
+
+            accessCodeExists = accessCodeResults.length == 1;
+
+        } while (accessCodeExists)
+
+        const data = {
+
+            adminUserIDHash,
+            schoolIDHash,
+            accessCodeHash,
+            maxNumStudents : utils.encrypt(maxNumStudents.toString(), "utf-8"),
+            studentUserIDs : [],
+            schoolName : utils.encrypt(schoolName, "utf-8"),
+            ipAddr : utils.encrypt(ipAddr, "utf-8"),
+            schoolSubID : utils.encrypt("", "utf-8"),
+            adminUserID : utils.encrypt(adminUserID, "base64"),
+            schoolID : utils.encrypt(schoolID, "base64"),
+            accessCode : utils.encrypt(accessCode, "hex")
+
+        }
+
+        await collections.schools.insertOne(data)
+
+    },
+
+    getSchoolData : async (adminUserID) => {
+
+        const results = await (collections.schools.find({ adminUserIDHash : utils.hash(adminUserID, "base64") })).toArray();
+
+        if (results.length == 0) {
+
+            return null;
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return results[0];
+
+        }
+
+    },
+
+    getSchoolDataBySchoolID : async (schoolID) => {
+
+        const results = await (collections.schools.find({ schoolIDHash : utils.hash(schoolID, "base64") })).toArray();
+
+        if (results.length == 0) {
+
+            return null;
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return results[0];
+
+        }
+
+    },
+
+    getSchoolDataByAccessCode : async (accessCode) => {
+
+        const results = await (collections.schools.find({ accessCodeHash : utils.hash(accessCode, "hex") })).toArray();
+
+        if (results.length == 0) {
+
+            return null;
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return results[0];
+
+        }
+
+    },
+
+    updateSchoolSubID : async (adminUserID, newSubID, newMaxNumStudents) => {
+
+        const adminUserIDHash = utils.hash(adminUserID, "base64");
+
+        const results = await (collections.schools.find({ adminUserIDHash })).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            await collections.schools.updateOne({ adminUserIDHash }, { $set: { schoolSubID: utils.encrypt(newSubID, "utf-8"), maxNumStudents : utils.encrypt(newMaxNumStudents.toString(), "utf-8") } });
+
+        }
+
+    },
+
+    addStudent : async (adminUserID, studentUserID) => {
+
+        const adminUserIDHash = utils.hash(adminUserID, "base64");
+
+        const results = await (collections.schools.find({ adminUserIDHash })).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            const students = await users.getUserInfo(studentUserID, "userID", ["userID"]);
+
+            if (students.length == 0) {
+
+                new utils.ErrorHandler("0x000031").throwError();
+    
+            }
+    
+            else if (students.length > 1) {
+    
+                new utils.ErrorHandler("0x000032").throwError();
+    
+            }
+
+            else {
+
+                const school = results[0];
+
+                const studentUserIDHash = utils.hash(studentUserID, "base64");
+
+                school.studentUserIDs.push(studentUserIDHash);
+
+                const session = mongoClient.startSession();
+
+                await session.withTransaction(async () => {        
+
+                    await collections.schools.updateOne({ adminUserIDHash }, { $set : { studentUserIDs : school.studentUserIDs }});
+                    await collections.users.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.accountType" : utils.encrypt("student", "utf-8") }});
+                    await collections.users.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.schoolID" : utils.encrypt(utils.decrypt(school.schoolID, "base64"), "base64") }}); // encryption is rerun so as to prevent data repetition
+                    await collections.payments.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.schoolID" : utils.encrypt(utils.decrypt(school.schoolID, "base64"), "base64") }}); // encryption is rerun so as to prevent data repetition
+
+                });
+
+            }
+
+        }
+
+    },
+
+    removeStudent : async (adminUserID, studentUserID) => {
+
+        const adminUserIDHash = utils.hash(adminUserID, "base64");
+
+        const results = await (collections.schools.find({ adminUserIDHash })).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            const students = await users.getUserInfo(studentUserID, "userID", ["userID"]);
+
+            if (students.length == 0) {
+
+                new utils.ErrorHandler("0x000031").throwError();
+    
+            }
+    
+            else if (students.length > 1) {
+    
+                new utils.ErrorHandler("0x000032").throwError();
+    
+            }
+
+            else {
+
+                const school = results[0];
+
+                const studentUserIDHash = utils.hash(studentUserID, "base64")
+
+                if (school.studentUserIDs.indexOf(studentUserIDHash) != -1) {
+
+                    school.studentUserIDs.splice(school.studentUserIDs.indexOf(studentUserIDHash), 1);
+
+                }
+
+
+                const session = mongoClient.startSession();
+
+                await session.withTransaction(async () => {        
+
+                    await collections.schools.updateOne({ adminUserIDHash }, { $set : { studentUserIDs : school.studentUserIDs }});
+                    await collections.users.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.accountType" : utils.encrypt("individual", "utf-8") }});
+                    await collections.users.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.schoolID" : utils.encrypt("", "base64") }});
+                    await collections.payments.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.schoolID" : utils.encrypt("", "base64") }});
+
+                });
+
+            }
+
+        }
+
+    },
+
+    deleteSchool : async (adminUserID) => {
+
+        const adminUserIDHash = utils.hash(adminUserID, "base64");
+
+        const results = await (collections.schools.find({ adminUserIDHash })).toArray();
+        
+        if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else if (results.length == 1) {
+
+            const school = results[0];
+
+            const session = mongoClient.startSession();
+
+             await session.withTransaction(async () => {        
+
+                await collections.schools.deleteOne({ adminUserIDHash });
+                await collections.users.updateMany({ "index.userID" : { $in : school.studentUserIDs } }, { $set : { "data.accountType" : utils.encrypt("individual", "utf-8") }});
+                await collections.users.updateMany({ "index.userID" : { $in : school.studentUserIDs } }, { $set : { "data.schoolID" : utils.encrypt("", "base64") }});
+
+                if (school.schoolSubID.content) {
+
+                    await stripeAPI.subscriptions.cancel(utils.decrypt(school.schoolSubID.content, "utf-8"));
+
+                }
+
+            });
+
+        }
+
+    },
+
+};
+
 const config = {
 
     getConfigData : async (name) => {
 
-        const results = await collections.config.find({ name }).toArray();
+        const results = await collections.config.find({ name : (`${developmentMode ? "dev_" : ""}${name}`) }).toArray();
 
         if (results.length == 0) {
 
@@ -1242,6 +1598,7 @@ export default {
     payments,
     courses,
     ai,
+    schools,
     config
 
 };

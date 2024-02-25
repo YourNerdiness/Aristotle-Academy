@@ -19,10 +19,10 @@
         </form>
 
         <button id="changeUsername">Submit</button>
-  
-      </dialog>
 
-      <dialog id="changeEmailDialog">
+    </dialog>
+
+    <dialog id="changeEmailDialog">
 
         <button onclick="document.getElementById('changeEmailDialog').close()">Close</button>
 
@@ -39,10 +39,10 @@
         </form>
 
         <button id="changeEmail">Submit</button>
-  
-      </dialog>
 
-      <dialog id="changePasswordDialog">
+    </dialog>
+
+    <dialog id="changePasswordDialog">
 
         <button onclick="document.getElementById('changePasswordDialog').close()">Close</button>
 
@@ -59,33 +59,33 @@
         </form>
 
         <button id="changePassword">Submit</button>
-  
-      </dialog>
 
-      <dialog id="subDialog">
+    </dialog>
+
+    <dialog id="subDialog">
 
         <button onclick="document.getElementById('subDialog').close()">Close</button>
-        
+
         <p id="createSubError"></p>
-        
+
         <form>
-        
+
             <label for="subPasswordField">Please re-enter your password:</label>
             <input type="password" id="subPasswordField" name="subPasswordField">
-        
+
             <label for="newSubTypeField">Please select your subscription type:</label>
             <select id="newSubTypeField">
-        
+
                 <option>None</option>
                 <option>Monthly</option>
                 <option>Yearly</option>
-        
-             </select>
-        
+
+            </select>
+
         </form>
-        
+
         <button id="updateSub-btn">Submit</button>
-        
+
     </dialog>
 
     <dialog id="updatePaymentDialog">
@@ -105,7 +105,37 @@
         
     </dialog>
 
-      <dialog id="deleteAccountDialog">
+    <dialog id="updateSchoolDialog">
+
+        <button onclick="document.getElementById('updateSchoolDialog').close()">Close</button>
+
+        <p id="updateSchoolError"></p>
+
+        <form onsubmit="return false;">
+
+            <label for="updatePaymentPasswordField">Please re-enter your password:</label>
+            <input type="password" id="updatePaymentPasswordField" name="updatePaymentPasswordField">
+
+            <div id="manageSchoolButtonDiv">
+            
+                <button id="leaveSchool-btn" style="display: inherit;">Leave School</button>
+                <button onclick="$('#joinNewSchoolDiv').show(); $('#manageSchoolButtonDiv').hide()" style="display: inherit;">Join New School</button>
+            
+            </div>
+
+            <div id="joinNewSchoolDiv" style="display: none;">
+
+                <label for="schoolAccessCode" style="display: inherit;">Enter school access code:</label>
+                <input type="text" id="schoolAccessCode" name="schoolAccessCode" style="display: inherit;">
+                <button id="submitSchoolAccessCode" style="display: inherit;">Submit</button>
+
+            </div>
+
+        </form>
+
+    </dialog>
+
+    <dialog id="deleteAccountDialog">
 
         <button onclick="document.getElementById('deleteAccountDialog').close()">Close</button>
 
@@ -120,14 +150,21 @@
         </form>
 
         <button id="deleteAccount">Submit</button>
-  
-      </dialog>
+
+    </dialog>
 
     <table>
 
         <div>
         
             <tr><td><h5>Details</h5></td></tr>
+
+            <tr>
+
+                <td>Account type:</td>
+                <td><%= accountType %></td>
+
+            </tr>
             
             <tr>
 
@@ -177,6 +214,20 @@
                 <td>Payment method:</td>
                 <td><%= paymentMethod %></td>
                 <td><button onclick="document.getElementById('updatePaymentDialog').showModal()">Update payment method</button></td>
+
+            </tr>
+
+        </div>
+
+        <div>
+
+            <tr><td><h5>School</h5></td></tr>
+
+            <tr>
+
+                <td>School:</td>
+                <td><%= schoolName %></td>
+                <td><button onclick="document.getElementById('updateSchoolDialog').showModal()">Manage School</button></td>
 
             </tr>
 

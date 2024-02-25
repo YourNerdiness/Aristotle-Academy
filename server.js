@@ -1,5 +1,4 @@
 import cookieParser from "cookie-parser";
-import cors from "cors"
 import crypto from "crypto"
 import database from "./database.js"
 import dotenv from "dotenv"
@@ -12,8 +11,17 @@ import nodemailer from "nodemailer"
 import stripe from "stripe"
 import utils from "./utils.js"
 import ai from "./ai.js"
+import path from "path";
 
-dotenv.config();
+const developmentMode = process.argv.includes('-d');
+
+if (developmentMode) {
+
+    console.log("Running in development mode.")
+
+}
+
+dotenv.config({ path: developmentMode ? "./.env.development" : "./.env.prod" });
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
 const subIDs = await database.config.getConfigData("sub_ids");
@@ -44,7 +52,7 @@ const handleRequestError = (error, res) => {
 
         utils.createLog(error.toString(), "DEFAULT");
 
-        res.status(500).json({ msg : error.toString() });
+        res.status(500).json({ msg: error.toString() });
 
     }
 
@@ -110,6 +118,16 @@ const pageRedirectCallbacks = {
 
             }
 
+            const accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
+
+            if (accountType == "admin") {
+
+                res.redirect("/purchaseSchoolSub");
+
+                return true;
+
+            }
+
             if (await database.payments.checkIfPaidFor(token.userID, courseID)) {
 
                 res.redirect(`/course?courseID=${courseID}`)
@@ -119,6 +137,18 @@ const pageRedirectCallbacks = {
             }
 
             return false;
+
+        }
+
+        else {
+
+            if (!courseIDs.includes(courseID)) {
+
+                res.redirect("/signup");
+
+                return true;
+
+            }
 
         }
 
@@ -138,7 +168,27 @@ const pageRedirectCallbacks = {
 
         }
 
+        const accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
+
+        if (accountType == "admin") {
+
+            res.redirect("/schools");
+
+            return true;
+
+        }
+
         if (!req.query.courseID || !courseIDs.includes(req.query.courseID)) {
+
+            res.status(400).redirect("/learn");
+
+            return true;
+
+        }
+
+        const paidFor = await database.payments.checkIfPaidFor(token.userID, req.query.courseID);
+
+        if (!paidFor) {
 
             res.status(400).redirect("/learn");
 
@@ -163,13 +213,13 @@ const pageRedirectCallbacks = {
             if (!req.query.lessonNumber) {
 
                 additionalQueryParams += `&lessonNumber=${lessonIndexes[0]}`;
-                
+
             }
 
             if (!req.query.lessonChunk) {
 
                 additionalQueryParams += `&lessonChunk=${lessonIndexes[1]}`;
-                
+
             }
 
         }
@@ -179,6 +229,92 @@ const pageRedirectCallbacks = {
             res.status(200).redirect(req.originalUrl + additionalQueryParams);
 
             return true;
+
+        }
+
+        return false;
+
+    },
+
+    schools: async (req, res) => {
+
+        const token = req.headers.auth;
+
+        if (!token) {
+
+            return false;
+
+        }
+
+        const isAdmin = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType == "admin";
+
+        if (isAdmin) {
+
+            if (await database.schools.getSchoolData(token.userID)) {
+
+                res.redirect("/manageSchool");
+
+                return true;
+
+            }
+
+        }
+
+        return false;
+
+    },
+
+    manageSchool: async (req, res) => {
+
+        const token = req.headers.auth;
+
+        if (!token) {
+
+            res.redirect("/signup");
+
+            return true;
+
+        }
+
+        const isAdmin = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType == "admin";
+
+        if (!isAdmin || !await database.schools.getSchoolData(token.userID)) {
+
+            res.redirect("/schools");
+
+            return true;
+
+        }
+
+        return false;
+
+    },
+
+    purchaseSchoolSub: async (req, res) => {
+
+        const token = req.headers.auth;
+
+        if (!token) {
+
+            res.redirect("/signup");
+
+            return true;
+
+        }
+
+        const isAdmin = ((await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType) == "admin";
+
+        if (!isAdmin) {
+
+            res.redirect("/schools");
+
+            return true;
+
+        }
+
+        if (await database.schools.getSchoolData(token.userID)) {
+
+            res.redirect("/manageSchool");
 
         }
 
@@ -194,9 +330,9 @@ const ejsVars = {
 
         return {
 
-            coursePrice: "20",
-            monthlyPrice: "30",
-            yearlyPrice: "60",
+            coursePrice: "25 AUD",
+            monthlyPrice: "30 AUD",
+            yearlyPrice: "60 AUD",
             courseName: courseData[req.query.courseID].title
 
         }
@@ -205,16 +341,18 @@ const ejsVars = {
 
     account: async (req, res) => {
 
-        let username;
-        let email;
-        let paymentMethod;
-        let subStatus;
+        let username = "Error in finding username";
+        let email = "Error in finding email";
+        let accountType = "Error in finding account type";
+        let paymentMethod = "No payment method set";
+        let subStatus = "None";
+        let schoolName = "None";
 
         const token = req.headers.auth;
 
         if (!token) {
 
-            subStatus = paymentMethod = username = email = "Please sign in to view your account info.";
+            username = email = accountType = paymentMethod = subStatus = schoolName = "Please sign in to view your account info";
 
         }
 
@@ -222,65 +360,175 @@ const ejsVars = {
 
             username = token.username;
 
-            const userData = (await database.users.getUserInfo(token.userID, "userID", ["email", "stripeCustomerID"]))[0]
+            const userData = (await database.users.getUserInfo(token.userID, "userID", ["email", "stripeCustomerID", "schoolID"]))[0]
 
             email = userData.email;
 
             const stripeCustomerID = userData.stripeCustomerID;
-            
+
             const paymentMethods = await stripeAPI.customers.listPaymentMethods(stripeCustomerID, { limit: 1 });
 
-            if (paymentMethods.data.length == 0) {
-
-                paymentMethod = "No payment method set."
-
-            }
-
-            else {
+            if (paymentMethods.data.length > 0) {
 
                 const last4CardDigits = paymentMethods.data[0].card?.last4;
 
-                paymentMethod = `Card ending in ${last4CardDigits}.`
-
-
-            }
-
-            const subID = await database.payments.getSubID(token.userID);
-
-            if (!subID) {
-
-                subStatus = "None"
+                paymentMethod = `Card ending in ${last4CardDigits}`
 
             }
 
-            else {
+            accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
 
-                const subscription = await stripeAPI.subscriptions.retrieve(subID);
+            accountType = accountType.charAt(0).toUpperCase() + accountType.slice(1);
 
-                switch (subscription.items.data[0].price.id) {
+            let schoolID;
 
-                    case subIDs.monthly:
+            switch (accountType) {
 
-                        subStatus = "Monthly";
+                case "Individual":
 
-                        break;
+                    const subID = await database.payments.getSubID(token.userID);
 
-                    case subIDs.yearly:
+                    if (subID) {
 
-                        subStatus = "Yearly";
+                        const subscription = await stripeAPI.subscriptions.retrieve(subID);
 
-                        break;
+                        switch (subscription.items.data[0].price.id) {
 
-                    default:
+                            case subIDs.monthly:
 
-                        subStatus = "None";
+                                subStatus = "Monthly";
 
-                        break;
+                                break;
 
-                }
+                            case subIDs.yearly:
+
+                                subStatus = "Yearly";
+
+                                break;
+
+                        }
+
+                    }
+
+                    const stripeCustomerID = userData.stripeCustomerID;
+
+                    const paymentMethods = await stripeAPI.customers.listPaymentMethods(stripeCustomerID, { limit: 1 });
+
+                    if (paymentMethods.data.length > 0) {
+
+                        const last4CardDigits = paymentMethods.data[0].card?.last4;
+
+                        paymentMethod = `Card ending in ${last4CardDigits}.`
+
+
+                    }
+
+                    break;
+
+                case "Student":
+
+                    schoolID = userData.schoolID;
+
+                    if (schoolID) {
+
+                        const schoolData = await database.schools.getSchoolDataBySchoolID(schoolID);
+
+                        const userIDHash = utils.hash(token.userID, "base64")
+
+                        if (schoolData) {
+
+                            if (schoolData.studentUserIDs.reduce((acc, elem) => { return acc || (userIDHash == elem) }, false)) {
+
+                                schoolName = utils.decrypt(schoolData.schoolName, "utf-8");
+
+                                if (schoolData.schoolSubID.content) {
+
+                                    paymentMethod = utils.decrypt(schoolData.schoolName, "utf-8")
+
+                                    const subscription = await stripeAPI.subscriptions.retrieve(utils.decrypt(schoolData.schoolSubID, "utf-8"));
+
+                                    if (subscription.status == "active") {
+
+                                        subStatus = "School"
+
+                                    }
+
+                                    else {
+
+                                        subStatus = "School (subscription inactive, please contact your school's admin)"
+
+                                    }
+
+                                }
+
+                                else {
+
+                                    subStatus = "School (no subscription, please contact your school's admin)"
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                    break;
+
+                case "Admin":
+
+                    const adminUserID = token.userID;
+
+                    schoolID = utils.decrypt((await database.schools.getSchoolData(adminUserID))?.schoolID, "base64");
+
+                    if (schoolID) {
+
+                        const schoolDataResults = await database.schools.getSchoolData(adminUserID);
+
+                        if (schoolDataResults.length > 1) {
+
+                            new utils.ErrorHandler("0x000032").throwError();
+
+                        }
+
+                        else if (schoolDataResults.length == 1) {
+
+                            const schoolData = schoolDataResults[0];
+
+                            const subscription = await stripeAPI.subscriptions.retrieve(utils.decrypt(schoolData.schoolSubID, "utf-8"));
+
+                            if (subscription.status == "active") {
+
+                                subStatus = "To manage school subscription, please go the manage school page."
+
+                            }
+
+                            const stripeCustomerID = userData.stripeCustomerID;
+
+                            const paymentMethods = await stripeAPI.customers.listPaymentMethods(stripeCustomerID, { limit: 1 });
+
+                            if (paymentMethods.data.length == 0) {
+
+                                paymentMethod = "No payment method set"
+
+                            }
+
+                            else {
+
+                                const last4CardDigits = paymentMethods.data[0].card?.last4;
+
+                                paymentMethod = `Card ending in ${last4CardDigits}`
+
+
+                            }
+
+                            break;
+
+                        }
+
+                    }
 
             }
-
 
         }
 
@@ -289,7 +537,9 @@ const ejsVars = {
             username,
             email,
             paymentMethod,
-            subStatus
+            subStatus,
+            accountType,
+            schoolName
 
         }
 
@@ -300,6 +550,103 @@ const ejsVars = {
         return {
 
             courseName: courseData[req.query.courseID].title
+
+        }
+
+    },
+
+    purchaseSchoolSub: async (req, res) => {
+
+        return {
+
+            price100Students: "100 students - 5,700 AUD (5% off)",
+            price200Students: "200 students - 10,800 AUD (10% off)",
+            price300Students: "300 students - 15,300 AUD (15% off)",
+            price400Students: "400 students - 19,200 AUD (20% off)",
+            price500Students: "500 students - 22,500 AUD (25% off)",
+            price600Students: "600 students - 25,200 AUD (30% off)",
+            price700Students: "700 students - 27,300 AUD (35% off)",
+            price800Students: "800 students - 28,800 AUD (40% off)",
+            price900Students: "900 students - 29,700 AUD (45% off)",
+            price1000Students: "1000 students - 30,000 AUD (50% off)"
+
+        }
+
+    },
+
+    manageSchool: async (req, res) => {
+
+        let schoolName = "Error in finding school name";
+        let accessCode = "Error in finding access code";
+        let subType = "Error in finding access subscription type";
+
+        const token = req.headers.auth;
+
+        if (!token) {
+
+            schoolName = accessCode = subType = "Please sign in to view your school's info";
+
+        }
+
+        else {
+
+            const schoolData = await database.schools.getSchoolData(token.userID);
+
+            if (!schoolData) {
+
+                schoolName = accessCode = subType = "No school exists for this account";
+
+            }
+
+            else {
+
+                schoolName = utils.decrypt(schoolData.schoolName, "utf-8");
+                accessCode = utils.decrypt(schoolData.accessCode, "hex");
+
+                const subID = utils.decrypt(schoolData.schoolSubID, "utf-8");
+
+                if (!subID) {
+
+                    subType = "No school subscription"
+                }
+
+                else {
+
+                    const subscription = await stripeAPI.subscriptions.retrieve(subID);
+
+                    if (subscription?.status == "active") {
+
+                        for (let maxNumStudents = 100; maxNumStudents <= 1000; i += 100) {
+
+                            if (subIDs[`school${maxNumStudents}`] == subscription?.items?.data[0]?.plan?.id) {
+
+                                subType = `Subscription for ${maxNumStudents} students`
+
+                                break;
+
+                            }
+
+                        }
+
+                    }
+
+                    else {
+
+                        subType = "No school subscription"
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        return {
+
+            schoolName,
+            accessCode,
+            subType
 
         }
 
@@ -325,7 +672,7 @@ const getToken = async (token) => {
 
         const encryptedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-        const decryptedToken = { username: utils.decrypt(encryptedToken.username, "utf-8"), userID: utils.decrypt(encryptedToken.userID, "base64"), jwtID : utils.decrypt(encryptedToken.jwtID, "base64"), mfaRequired: encryptedToken.mfaRequired }
+        const decryptedToken = { username: utils.decrypt(encryptedToken.username, "utf-8"), userID: utils.decrypt(encryptedToken.userID, "base64"), jwtID: utils.decrypt(encryptedToken.jwtID, "base64"), mfaRequired: encryptedToken.mfaRequired }
 
         if (!(await database.verification.verifyUserID(decryptedToken.username, decryptedToken.userID))) {
 
@@ -361,7 +708,7 @@ const getTokenMiddleware = async (req, res, next) => {
 
 };
 
-const requestVerifcationMiddleware = (req, res, next) => {
+const requestVerifcationMiddleware = async (req, res, next) => {
 
     if (requestParameters[req.url] && requestParameters[req.url].methodToMatch == req.method) {
 
@@ -396,6 +743,20 @@ const requestVerifcationMiddleware = (req, res, next) => {
             new utils.ErrorHandler("0x000004", `MFA must not be completed to make a request to ${req.url}.`).throwErrorToClient(res);
 
             return;
+
+        }
+
+        if (requestParameters[req.url].allowedAccountTypes) {
+
+            const accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
+
+            if (!requestParameters[req.url].allowedAccountTypes.includes(accountType)) {
+
+                new utils.ErrorHandler("0x00005A", `Account type must be one of ${requestParameters[req.url].allowedAccountTypes.toString()}`).throwErrorToClient(res);
+
+                return;
+
+            }
 
         }
 
@@ -687,7 +1048,7 @@ const requestVerifcationMiddleware = (req, res, next) => {
             }
 
         }
-        
+
         next();
 
     }
@@ -722,59 +1083,87 @@ const indexRouteMiddle = (req, res, next) => {
 
 const ejsRenderMiddleware = async (req, res, next) => {
 
-    const route = req.url.split("?")[0];
+    try {
 
-    if (req.method == "GET" && pageRoutes.includes(route)) {
+        const route = req.url.split("?")[0];
 
-        const pageName = route.substring(1);
-        const bodyPath = `pages/${pageName}.ejs`
+        if (req.method == "GET" && pageRoutes.includes(route)) {
 
-        const redirect = pageRedirectCallbacks[pageName];
+            const pageName = route.substring(1);
+            const bodyPath = `pages/${pageName}.ejs`
 
-        if (redirect) {
+            const redirect = pageRedirectCallbacks[pageName];
 
-            if (await redirect(req, res)) {
+            if (redirect) {
 
-                return;
+                if (await redirect(req, res)) {
+
+                    return;
+
+                }
 
             }
 
+            let pageVars = {};
+
+            const pageVarFunc = ejsVars[pageName];
+
+            if (pageVarFunc) {
+
+                pageVars = await pageVarFunc(req, res);
+
+            }
+
+            let additionalHTML = {};
+
+            const additionalHTMLFunc = ejsAdditionalHTML[pageName];
+
+            if (additionalHTMLFunc) {
+
+                additionalHTML = await additionalHTMLFunc(req, res);
+
+            }
+
+            let navVars = {
+
+                accountRoute: req.headers.auth ? "/account" : "/signup",
+                accountText: req.headers.auth ? "Account" : "Signup"
+
+            };
+
+            if (req.headers.auth) {
+
+                const accountType = (await database.users.getUserInfo(req.headers.auth.userID, "userID", ["accountType"]))[0].accountType;
+
+                navVars.learnRoute = accountType == "admin" ? "/manageSchool" : "/learn"
+                navVars.learnText = accountType == "admin" ? "Manage" : "Learn"
+
+            }
+
+            else {
+
+                navVars.learnRoute = "/learn"
+                navVars.learnText = "Learn"
+
+            }
+
+            res.status(200).render("main", Object.assign({ pageName, bodyPath }, navVars, pageVars, additionalHTML));
+
         }
 
-        let pageVars = {};
+        else {
 
-        const pageVarFunc = ejsVars[pageName];
-
-        if (pageVarFunc) {
-
-            pageVars = await pageVarFunc(req, res);
+            next();
 
         }
-
-        let additionalHTML = {};
-
-        const additionalHTMLFunc = ejsAdditionalHTML[pageName];
-
-        if (additionalHTMLFunc) {
-
-            additionalHTML = await additionalHTMLFunc(req, res);
-
-        }
-
-        let accountVars = {
-
-            accountRoute: req.headers.auth ? "/account" : "/signup",
-            accountText: req.headers.auth ? "Account" : "Signup"
-
-        };
-
-        res.status(200).render("main", Object.assign({ pageName, bodyPath }, accountVars, pageVars, additionalHTML));
 
     }
 
-    else {
+    catch (error) {
 
-        next();
+        new utils.ErrorHandler("0x000056", error.userMsg || error.msg || error.toString())
+
+        res.redirect("/error.html")
 
     }
 
@@ -812,118 +1201,177 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
     }
 
+    res.status(200).json({ msg: "OK." });
+
     const customerID = event.data.object.customer;
 
-    const { email, username } = (await database.users.getUserInfo(customerID, "stripeCustomerID", ["email", "username"]))[0];
+    const metadata = event.data.object.metadata;
 
-    let charge;
-    let invoice;
+    let charge, newSubscription, email, username, userID, accountType;
 
     try {
+
+        ({ email, username, userID, accountType } = (await database.users.getUserInfo(customerID, "stripeCustomerID", ["email", "username", "userID", "accountType"]))[0]);
 
         switch (event.type) {
 
             case "checkout.session.completed":
 
-                const sessionID = event.data.object.metadata.sessionID;
-
                 if (event.data.object.mode == "subscription") {
 
-                    res.status(204).json({ msg: "OK." });
+                    const invoice = await stripeAPI.invoices.retrieve(event.data.object.invoice);
 
-                    await database.payments.deleteCheckoutSession(sessionID);
+                    charge = invoice.charge;
 
-                    break;
+                    const subID = event.data.object.subscription;
 
-                }
+                    newSubscription = await stripeAPI.subscriptions.retrieve(subID);
 
-                res.status(200).json({ msg: "OK." });
+                    if (accountType == "individual") {
 
-                invoice = await stripeAPI.invoices.retrieve(event.data.object.invoice)
+                        const currentSubID = await database.payments.getSubID(userID);
 
-                charge = invoice.charge;
+                        if (currentSubID) {
 
-                const sessionData = await database.payments.getCheckoutSession(sessionID);
+                            const subscription = await stripeAPI.subscriptions.retrieve(currentSubID);
 
-                if (!sessionData) {
+                            if (subscription.items.data[0].price.id == event.data.object.items.data[0].price.id) {
 
-                    new utils.ErrorHandler("0x000043").throwError();
+                                new utils.ErrorHandler("0x000015").throwError();
 
-                }
 
-                await database.payments.addCoursePayment(sessionData.userID, sessionData.item);
+                            }
 
-                await database.payments.deleteCheckoutSession(sessionID);
+                            else {
 
-                break;
+                                await stripeAPI.subscriptions.cancel(subID);
 
-            case "customer.subscription.created":
+                            }
 
-                const customerID = event.data.object.customer;
-                const subID = event.data.object.id;
+                        }
 
-                res.status(200).json({ msg: "OK." });
+                        await database.payments.updateSubID(customerID, subID);
 
-                invoice = await stripeAPI.invoices.retrieve(event.data.object.latest_invoice)
+                    }
 
-                charge = invoice.charge;
+                    else if (accountType == "admin") {
 
-                const userID = (await database.users.getUserInfo(customerID, "stripeCustomerID", ["userID"]))[0].userID;
+                        const currentSubID = utils.decrypt((await database.schools.getSchoolData(userID)).schoolSubID);
 
-                const currentSubID = await database.payments.getSubID(userID);
+                        if (currentSubID) {
 
-                if (currentSubID) {
+                            const subscription = await stripeAPI.subscriptions.retrieve(currentSubID);
 
-                    const subscription = await stripe.subscriptions.retrieve(currentSubID);
+                            if (subscription.status == "active" && subscription.items.data[0].price.id == event.data.object.items.data[0].price.id) {
 
-                    if (subscription.items.data[0].price.id == event.data.object.items.data[0].price.id) {
+                                new utils.ErrorHandler("0x000015").throwError();
 
-                        new utils.ErrorHandler("0x000015").throwError();
 
+                            }
+
+                            else {
+
+                                await database.schools.updateSchoolSubID(userID, subID, Number(metadata.maxNumStudents));
+
+                                await stripeAPI.subscriptions.cancel(currentSubID);
+
+                            }
+
+                        }
+
+                        else {
+
+                            await database.schools.updateSchoolSubID(userID, subID, Number(metadata.maxNumStudents));
+
+
+                        }
 
                     }
 
                     else {
 
-                        await stripeAPI.subscriptions.cancel(subID);
+                        new utils.ErrorHandler("0x00004A").throwError();
 
                     }
-                    
+
                 }
 
-                await database.payments.updateSubID(customerID, subID);
+                else if (event.data.object.mode == "payment") {
+
+                    const invoice = await stripeAPI.invoices.retrieve(event.data.object.invoice)
+
+                    charge = invoice.charge;
+
+                    await database.payments.addCoursePayment(userID, metadata.item, "utf-8");
+
+                }
+
+                else {
+
+                    new utils.ErrorHandler("0x00004D").throwError();
+
+                }
 
                 break;
 
-
             case "invoice.created":
 
-                invoice = event.data.object
+                const invoice = event.data.object
                 const invoicePDFURL = invoice.invoice_pdf;
-
-                res.status(200).json({ msg: "OK." });
 
                 await utils.sendEmail(notificationEmailTransport, "Aristotle Academy Payment Invoice", `Your invoice for your recent Aristotle Academy purchase is now available for download here: ${invoicePDFURL}`, email, true, username);
 
                 break;
-            
+
         }
 
     }
 
     catch (error) {
 
-        if (charge) {
+        try {
 
-            await stripeAPI.refunds.create({ charge });
+            if (!(error instanceof utils.ErrorHandler)) {
 
-            await utils.sendEmail(notificationEmailTransport, "Aristotle Academy Payment Faliure", "Unfourtunately, your recent Aristotle Academy payment has failed, so the payment has been refunded.", email, true, username);
+                new utils.ErrorHandler("0x000000", error);
+
+            }
+
+            if (event.type == "checkout.session.completed" && email) {
+
+                if (charge) {
+
+                    await stripeAPI.refunds.create({ charge });
+
+                    await utils.sendEmail(notificationEmailTransport, "Aristotle Academy Payment Failure", "Unfortunately, your recent Aristotle Academy payment has failed, so the payment has been refunded.", email, true, username);
+
+                }
+
+                else {
+
+                    await utils.sendEmail(notificationEmailTransport, "Aristotle Academy Payment Failure", "Unfortunately, your recent Aristotle Academy payment has failed. We tried to refund it, but there was an error in doing so. Please contact support at contact@aristotle.academy.", email, true, username);
+
+                }
+
+                if (newSubscription) {
+
+                    await stripeAPI.subscriptions.cancel(newSubscription.id);
+
+                }
+
+            }
+
+            if (!res.headersSent) {
+
+                handleRequestError(error, res);
+
+            }
 
         }
 
-        if (!res.headersSent) {
+        catch (error) {
 
-            handleRequestError(error, res);
+            new utils.ErrorHandler("0x000057", error)
 
         }
 
@@ -943,6 +1391,7 @@ app.set('views', './views');
 app.set("view engine", "ejs");
 
 app.use(express.static("assets"));
+app.use(express.static("static"));
 
 app.post("/signup", async (req, res) => {
 
@@ -953,8 +1402,9 @@ app.post("/signup", async (req, res) => {
         const username = data.username;
         const email = data.email;
         const password = data.password;
+        const accountType = data.accountType;
 
-        const userID = await database.users.addNewUser(username, email, password);
+        const userID = await database.users.addNewUser(username, email, password, accountType);
 
         const jwtToken = await generateToken(username, userID, true);
 
@@ -1008,7 +1458,6 @@ app.post("/signin", async (req, res) => {
 });
 
 app.get("/signout", async (req, res) => {
-
     const token = req.headers.auth;
 
     await database.authorization.deleteJWT(token.userID, token.jwtID);
@@ -1139,7 +1588,7 @@ app.post("/sendPasswordResetEmail", async (req, res) => {
         if (!userID) {
 
             new utils.ErrorHandler(data.recoveryMethod == "email" ? "0x000047" : "0x000048").throwErrorToClient(res);
-            
+
             return;
 
         }
@@ -1259,10 +1708,26 @@ app.post("/buyRedirect", async (req, res) => {
 
     try {
 
-        const item = req.body.item;
-        const password = req.body.password;
+        const data = req.body;
+
+        const item = data.item;
+        const password = data.password;
 
         const token = req.headers.auth;
+
+        const accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
+
+        if (accountType == "student") {
+
+            new utils.ErrorHandler("0x000049", "Student accounts cannot make purchases.").throwError();
+
+        }
+
+        if ((item.slice(0, 6) != "school" && item != "none") && accountType == "admin") {
+
+            new utils.ErrorHandler("0x000049", "Admin accounts cannot make non-school purchases.").throwError();
+
+        }
 
         if (!(await database.authentication.verifyPassword(token.username, password))) {
 
@@ -1274,6 +1739,8 @@ app.post("/buyRedirect", async (req, res) => {
 
         const customerID = (await database.users.getUserInfo(token.userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
 
+        const metadata = {};
+
         let line_items;
 
         const subID = await database.payments.getSubID(token.userID);
@@ -1282,15 +1749,41 @@ app.post("/buyRedirect", async (req, res) => {
 
             case "none-sub":
 
-                if (subID) {
+                if (accountType == "individual") {
 
-                    await stripeAPI.subscriptions.cancel(subID);
+                    if (subID) {
 
-                    await database.payments.updateSubID(customerID, "");
+                        await stripeAPI.subscriptions.cancel(subID);
+
+                        await database.payments.updateSubID(customerID, "");
+
+                    }
 
                 }
 
-                res.status(200).json({ msg : "OK.", url : process.env.DOMAIN_NAME + "/learn" })
+                // because student accounts are disallowed, this else statement will run only for admin accounts
+
+                else {
+
+                    const schoolData = await database.schools.getSchoolData(token.userID);
+
+                    const schoolSubId = utils.decrypt(schoolData.subID, "utf-8");
+
+                    if (schoolSubId) {
+
+                        await stripeAPI.subscriptions.cancel(schoolSubId);
+
+                        await database.schools.updateSchoolSubID(token.userID, "");
+
+                    }
+
+                    res.status(200).json({ msg: "OK." });
+
+                    return;
+
+                }
+
+                res.status(200).json({ msg: "OK.", url: process.env.DOMAIN_NAME + "/learn" })
 
                 return;
 
@@ -1300,7 +1793,7 @@ app.post("/buyRedirect", async (req, res) => {
 
                     const subscription = await stripeAPI.subscriptions.retrieve(subID)
 
-                    if (subscription.items.data[0].price.id == subIDs.monthly) {
+                    if (subscription.status == "active" && subscription.items.data[0].price.id == subIDs.monthly) {
 
                         new utils.ErrorHandler("0x000015").throwError();
 
@@ -1320,13 +1813,12 @@ app.post("/buyRedirect", async (req, res) => {
 
                     const subscription = await stripeAPI.subscriptions.retrieve(subID)
 
-                    if (subscription.items.data[0].price.id == subIDs.yearly) {
+                    if (subscription.status == "active" && subscription.items.data[0].price.id == subIDs.yearly) {
 
                         new utils.ErrorHandler("0x000015").throwError();
 
-
                     }
-                    
+
                 }
 
                 line_items = [{ price: subIDs.yearly, quantity: 1 }]
@@ -1345,7 +1837,56 @@ app.post("/buyRedirect", async (req, res) => {
 
                     }
 
+                    metadata.item = item
+
                     line_items = [{ price: courseData[item].stripe_price_id, quantity: 1 }]
+
+                }
+
+                else if (/^school(10|[1-9])00$/.test(item)) {
+
+                    if (accountType != "admin") {
+
+                        new utils.ErrorHandler("0x000049").throwError();
+
+                    }
+
+                    const schoolData = await database.schools.getSchoolData(token.userID);
+
+                    if (schoolData?.schoolSubID?.content) {
+
+                        const subscription = await stripeAPI.subscriptions.retrieve(utils.decrypt(schoolData.schoolSubID, "utf-8"));
+
+                        if (subscription.status == "active" && subscription.items.data[0].price.id == subIDs[item]) {
+
+                            new utils.ErrorHandler("0x000015").throwError();
+
+                        }
+
+
+                    }
+
+                    if (!schoolData) {
+
+                        if (!data.ipAddr) {
+
+                            new utils.ErrorHandler("0x000006").throwError();
+    
+                        }
+    
+                        if (!data.schoolName) {
+    
+                            new utils.ErrorHandler("0x000006").throwError();
+    
+                        }
+
+                        await database.schools.createSchool(token.userID, data.schoolName, Number(item.substring(6)), data.ipAddr);
+                        
+                    }
+
+                    metadata.maxNumStudents = item.substring(6);
+
+                    line_items = [{ price: subIDs[item], quantity: 1 }];
 
                 }
 
@@ -1361,25 +1902,17 @@ app.post("/buyRedirect", async (req, res) => {
 
         }
 
-        const sessionID = crypto.randomBytes(256).toString("base64")
-
-        await database.payments.createCheckoutSession(sessionID, token.userID, item)
-
         const session = await stripeAPI.checkout.sessions.create({
 
-            metadata: {
-
-                sessionID
-
-            },
+            metadata,
 
             customer: customerID,
 
-            success_url: process.env.DOMAIN_NAME + "/learn",
-            cancel_url: process.env.DOMAIN_NAME + "/learn",
+            success_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/manageSchool" : "/learn"),
+            cancel_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/purchaseSchoolSub" : "/getPro"),
 
             currency: "aud",
-            mode: item.slice(-3) == "sub" ? "subscription" : "payment",
+            mode: (item.slice(-3) == "sub" || item.slice(0, 6) == "school") ? "subscription" : "payment",
             payment_method_types: ["card"],
 
             line_items
@@ -1483,6 +2016,174 @@ app.get("/getCourseData", async (req, res) => {
 
 });
 
+app.post("/joinSchool", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+        const data = req.body;
+
+        const schoolData = await database.schools.getSchoolDataByAccessCode(data.accessCode);
+
+        if (!schoolData) {
+
+            new utils.ErrorHandler("0x00004F").throwError();
+
+        }
+
+        const schoolIpAddr = utils.decrypt(schoolData.ipAddr, "utf-8");
+
+        if (!developmentMode && req.ip != schoolIpAddr) {
+
+            new utils.ErrorHandler("0x000051").throwError();
+
+        }
+
+        const userID = token.userID;
+        const userIDHash = utils.hash(userID, "base64");
+
+        if (schoolData.studentUserIDs.includes(userIDHash)) {
+
+            new utils.ErrorHandler("0x000052").throwError();
+
+        }
+
+        if (schoolData.studentUserIDs.length > Number(utils.decrypt(schoolData.maxNumStudents, "utf-8"))) {
+
+            new utils.ErrorHandler("0x000050").throwError();
+
+        }
+
+        const schoolID = (await database.users.getUserInfo(userID, "userID", ["schoolID"]))[0].schoolID;
+
+        if (schoolID) {
+
+            const schoolData = await database.schools.getSchoolDataBySchoolID(schoolID);
+
+            if (schoolData) {
+
+                const adminUserID = utils.decrypt(schoolData.adminUserID, "base64");
+
+                await database.schools.removeStudent(adminUserID, userID);
+
+            }
+
+        }
+
+        await database.schools.addStudent(utils.decrypt(schoolData.adminUserID, "base64"), userID);
+
+        res.status(200).json({ msg: "OK." });
+
+    } catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+app.post("/leaveSchool", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+
+        const { schoolID } = (await database.users.getUserInfo(token.userID, "userID", ["accountType", "schoolID"]))[0];
+
+        const schoolData = await database.schools.getSchoolDataBySchoolID(schoolID);
+
+        if (!schoolData) {
+
+            new utils.ErrorHandler("0x000054").throwError();
+
+        }
+
+        const adminUserID = utils.decrypt(schoolData.adminUserID, "base64");
+
+        await database.schools.removeStudent(adminUserID, token.userID);
+
+        res.status(200).json({ msg: "OK." });
+
+    } catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+app.get("/getSchoolStudentList", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+
+        const schoolData = await database.schools.getSchoolData(token.userID);
+
+        if (!schoolData) {
+
+            new utils.ErrorHandler("0x00005B").throwError();
+
+        }
+
+        const studentUserDataPromiseArr = [];
+
+        for (let i = 0; i < schoolData.studentUserIDs.length; i++) {
+
+            studentUserDataPromiseArr.push(database.users.getUserInfo(schoolData.studentUserIDs[i], "userID", ["username"], true));
+
+        }
+
+        const resolvedStudentDataPromiseArr = await Promise.all(studentUserDataPromiseArr);
+
+        const studentUsernames = resolvedStudentDataPromiseArr.map((val) => { return val[0]?.username });
+
+        res.status(200).json({ msg: "OK.", studentUsernames });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res)
+
+    }
+
+});
+
+app.post("/adminDeleteSchoolStudent", async (req, res) => {
+
+    try {
+        
+        const token = req.headers.auth;
+
+        const data = req.body;
+
+        const studentUsername = data.studentUsername;
+
+        const studentUserDataResults = await database.users.getUserInfo(studentUsername, "username", ["userID"]);
+
+        if (studentUserDataResults.length == 0) {
+
+            new utils.ErrorHandler("0x00005C").throwError();
+
+            return;
+
+        }
+
+        await database.schools.removeStudent(token.userID, studentUserDataResults[0].userID);
+
+        res.status(200).json({ msg : "OK." });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res)
+
+    }
+
+});
+
 app.post("/verifyHMACSignature", (req, res) => {
 
     try {
@@ -1508,7 +2209,7 @@ app.post("/completeLessonChunk", async (req, res) => {
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
-        res.status(200).json({ msg : "OK.", newURL : `/course?lessonNumber=${data.lessonNumber}&lessonChunk=${data.lessonChunk + 1}&courseID=${data.courseID}&contentID=${contentID}` });
+        res.status(200).json({ msg: "OK.", newURL: `/course?lessonNumber=${data.lessonNumber}&lessonChunk=${data.lessonChunk + 1}&courseID=${data.courseID}&contentID=${contentID}` });
 
     } catch (error) {
 
@@ -1529,7 +2230,7 @@ app.post("/completeLesson", async (req, res) => {
 
         if (data.lessonNumber + 1 >= courseData[data.courseID].topics.length) {
 
-            res.status(200).json({ msg : "OK.", newURL : `/courseCompleted?courseID=${data.courseID}`});
+            res.status(200).json({ msg: "OK.", newURL: `/courseCompleted?courseID=${data.courseID}` });
 
             return;
 
@@ -1543,7 +2244,7 @@ app.post("/completeLesson", async (req, res) => {
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
-        res.status(200).json({ msg : "OK.", newURL : `/course?lessonNumber=${data.lessonNumber + 1}&lessonChunk=${0}&courseID=${data.courseID}contentID=${contentID}`});
+        res.status(200).json({ msg: "OK.", newURL: `/course?lessonNumber=${data.lessonNumber + 1}&lessonChunk=${0}&courseID=${data.courseID}contentID=${contentID}` });
 
     } catch (error) {
 

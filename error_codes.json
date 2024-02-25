@@ -27,67 +27,67 @@
     "0x000005" : {
         "msg": "Request body is missing when it is required.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000006" : {
         "msg": "Request body parameter is missing.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000007" : {
         "msg": "Request body parameter is of invalid type.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000008" : {
         "msg": "Request body parameter is of invalid format.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000009" : {
         "msg": "Request body parameter's value is out of bounds.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x00000A" : {
         "msg": "Request body parameter's value is not an option for the parameter.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x00000B" : {
         "msg": "Request query is missing when it is required.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x00000C" : {
         "msg": "Request query parameter is missing.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x00000D" : {
         "msg": "Request query parameter is of invalid type.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x00000E" : {
         "msg": "Request query parameter is of invalid format.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x00000F" : {
         "msg": "Request query parameter's value is out of bounds.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000010" : {
         "msg": "Request query parameter's value is not an option for the parameter.",
         "http_error_code": 400,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000011" : {
         "msg": "Cannot verify payment webhook.",
         "http_error_code": 401,
-        "severity": "ALERT"
+        "severity": "WARNING"
     },
     "0x000012" : {
         "msg": "User provided incorrect username or password.",
@@ -150,7 +150,7 @@
         "severity": "WARNING"
     },
     "0x00001E" : {
-        "msg": "Stripe create customer API call faliure.",
+        "msg": "Stripe API call failure.",
         "http_error_code": 500,
         "severity": "ALERT"
     },
@@ -225,7 +225,7 @@
         "severity": "ALERT"
     },
     "0x00002D" : {
-        "msg": "Property is not a property included in the checkoutSessions data.",
+        "msg": "DEPRECATED: Property is not a property included in the checkoutSessions data.",
         "http_error_code": 500,
         "severity": "ALERT"
     },
@@ -275,7 +275,7 @@
         "severity": "WARNING"
     },
     "0x000037" : {
-        "msg": "Cannot update checkoutSessions data because the value of a property who's values are expected to be unique is already in use.",
+        "msg": "DEPRECATED: Cannot update checkoutSessions data because the value of a property who's values are expected to be unique is already in use.",
         "http_error_code": 409,
         "severity": "WARNING"
     },
@@ -320,12 +320,12 @@
         "severity": "ALERT"
     },
     "0x000040" : {
-        "msg": "HIBP API call faliure.",
+        "msg": "HIBP API call failure.",
         "http_error_code": 500,
         "severity": "ALERT"
     },
     "0x000041" : {
-        "msg": "Send email faliure.",
+        "msg": "Send email failure.",
         "http_error_code": 500,
         "severity": "ALERT"
     },
@@ -335,7 +335,7 @@
         "severity": "ALERT"
     },
     "0x000043" : {
-        "msg": "Checkout session either does not exist or has timed out.",
+        "msg": "DEPRECATED: Checkout session either does not exist or has timed out.",
         "http_error_code": 500,
         "severity": "WARNING"
     },
@@ -362,6 +362,96 @@
     "0x000048" : {
         "msg": "Cannot send password reset email, username is invalid.",
         "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000049" : {
+        "msg": "Cannot create checkout session, account type invalid.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x00004A" : {
+        "msg": "Cannot complete payment, student accounts cannot make purchases.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x00004D" : {
+        "msg": "Cannot complete payment, invalid checkout session mode.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x00004E" : {
+        "msg": "Cannot create school, admin already has a school.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x00004F" : {
+        "msg": "Cannot join school, access code is invalid.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x000050" : {
+        "msg": "Cannot join school, maximum number of students for school subscription has been reached.",
+        "http_error_code": 403,
+        "severity": "WARNING"
+    },
+    "0x000051" : {
+        "msg": "Cannot join school, must join from school's IP address.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x000052" : {
+        "msg": "Cannot join school, already joined.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000053" : {
+        "msg": "Cannot leave school, account is not a student account.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000054" : {
+        "msg": "Cannot leave school, school does not exist.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x000055" : {
+        "msg": "Cannot create school, school name is not allowed.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x000056" : {
+        "msg": "Error in EJS rendering.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000057" : {
+        "msg": "Could not handle Stripe webhook error.",
+        "http_error_code": 500,
+        "severity": "ALERT"
+    },
+    "0x000058" : {
+        "msg": "Cannot get contentID, no topics exist.",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
+    "0x000059" : {
+        "msg": "Cannot get contentID, no valid topics exist.",
+        "http_error_code": 500,
+        "severity": "ERROR"
+    },
+    "0x00005A" : {
+        "msg": "User's account type is invalid.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x00005B" : {
+        "msg": "Cannot get school's student list, school does not exist.",
+        "http_error_code": 401,
+        "severity": "WARNING"
+    },
+    "0x00005C" : {
+        "msg": "Admin cannot remove student from school, student account does not exist.",
+        "http_error_code": 409,
         "severity": "WARNING"
     }
 }

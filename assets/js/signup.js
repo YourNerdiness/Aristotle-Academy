@@ -1,3 +1,25 @@
+let isAdminAccount = false;
+
+const setAccountType = (isAdmin) => {
+
+    isAdminAccount = isAdmin;
+
+    if (isAdmin) {
+
+        document.getElementById("accountTypeIndividual").style.borderColor = "#bbb";
+        document.getElementById("accountTypeAdmin").style.borderColor = "blue";
+
+    }
+
+    else {
+
+        document.getElementById("accountTypeIndividual").style.borderColor = "blue";
+        document.getElementById("accountTypeAdmin").style.borderColor = "#bbb";
+
+    }
+
+};
+
 const signup = async () => {
 
     const username = document.getElementById("username").value;
@@ -6,13 +28,13 @@ const signup = async () => {
 
     if (!username || !email || !password) {
 
-        document.getElementById("error").textContent = "Mising sign up data.";
+        document.getElementById("error").textContent = "Missing sign up data.";
 
         return;
 
     }
 
-    const data = { username, email, password };
+    const data = { username, email, password, accountType : isAdminAccount ? "admin" : "individual" };
 
     const req = {
 

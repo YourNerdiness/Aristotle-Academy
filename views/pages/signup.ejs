@@ -1,21 +1,28 @@
 <main>
 
+  <dialog id="mfaDialog">
+
+    <button onclick="document.getElementById('mfaDialog').close()">Close</button>
+
+    <h5>Please verify your email to complete sign up. We have sent a code to your email, please enter it here:</h5>
+    <p id="mfaError"></p>
+    <input type="text" id="code" name="code">
+    <button onclick="completeMFA()">Complete Sign In</button>
+
+  </dialog>
+
   <h1 class="center">Sign Up</h1>
 
   <p id="error" class="center"></p>
 
   <div class="center">
 
-    <dialog id="mfaDialog">
+    <button id="accountTypeIndividual" onclick="setAccountType(false)" style="border-color: blue;">I'm an individual or student</button>
+    <button id="accountTypeAdmin" onclick="setAccountType(true)">I'm a school admin</button>
 
-      <button onclick="document.getElementById('mfaDialog').close()">Close</button>
+  </div>
 
-      <h5>Please verify your email to complete sign up. We have sent a code to your email, please enter it here:</h5>
-      <p id="mfaError"></p>
-      <input type="text" id="code" name="code">
-      <button onclick="completeMFA()">Compelte Sign In</button>
-
-    </dialog>
+  <div class="center">
 
     <form onsubmit="return false;">
 

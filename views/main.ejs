@@ -27,10 +27,18 @@
             
         </dialog>
 
+        <dialog id="redirectErrorDialog">
+
+            <p id="redirectErrorText"></p>
+
+            <button class="justify" onclick="document.getElementById('redirectErrorDialog').close()"><img src="./images/close-button.png" height="32px" width="32px"></button>
+
+        </dialog>
+
         <nav class="justify">
 
             <h1 id="title"><a href="./">Aristotle<img src="favicon.png" width="64px" height=64px"><br>Academy</a></h1>
-            <h2><a href="./learn">Learning</a></h2>
+            <h2><a href="<%= learnRoute %>"><%= learnText %></a></h2>
             <h2><a href="<%= accountRoute %>"><%= accountText %></a></h2>
 
         </nav>
@@ -46,6 +54,7 @@
                     <td><a href="./tc">Terms and Conditions</a></td>
                     <td><a href="./privacy">Privacy Policy</a></td>
                     <td><a href="./contact">Contact</a></td>
+                    <td><a href="./schools">For Schools</a></td>
             
                 </tr>
     
