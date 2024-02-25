@@ -24,9 +24,6 @@ if (developmentMode) {
 dotenv.config({ path: developmentMode ? "./.env.development" : "./.env.prod" });
 
 const pageRoutes = fs.readdirSync("views/pages").map(x => `/${x.split(".")[0]}`);
-const subIDs = await database.config.getConfigData("sub_ids");
-const courseData = await database.config.getConfigData("course_data");
-const courseIDs = Object.keys(courseData);
 const requestParameters = JSON.parse(fs.readFileSync("request_parameters.json"));
 
 const notificationEmailTransport = nodemailer.createTransport({
@@ -39,6 +36,18 @@ const notificationEmailTransport = nodemailer.createTransport({
         pass: process.env.NOTIFICATION_EMAIL_APP_PASSWORD
     },
 });
+
+let subIDs, courseData, courseIDs;
+
+const updateConfig = async () => {
+
+    subIDs = await database.config.getConfigData("sub_ids");
+    courseData = await database.config.getConfigData("course_data");
+    courseIDs = Object.keys(courseData);
+
+};
+
+await updateConfig();
 
 const handleRequestError = (error, res) => {
 
@@ -1269,8 +1278,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
                         else {
 
-                            await database.schools.updateSchoolSubID(userID, subID, Number(metadata.maxNumStudents));
-
+                            await database.schools.updateSchoolSubID(userID, subID, Number(metadata.maxNumStudents))
 
                         }
 
@@ -1446,6 +1454,7 @@ app.post("/signin", async (req, res) => {
 });
 
 app.get("/signout", async (req, res) => {
+
     const token = req.headers.auth;
 
     await database.authorization.deleteJWT(token.userID, token.jwtID);
@@ -1655,6 +1664,8 @@ app.post("/resetPassword", async (req, res) => {
 
 app.post("/learnRedirect", async (req, res) => {
 
+    await updateConfig();
+
     try {
 
         const token = req.headers.auth;
@@ -1694,6 +1705,8 @@ app.post("/learnRedirect", async (req, res) => {
 
 app.post("/buyRedirect", async (req, res) => {
 
+    await updateConfig();
+    
     try {
 
         const data = req.body;
@@ -1954,6 +1967,8 @@ app.post("/updatePaymentDetails", async (req, res) => {
 
 app.get("/getCourseData", async (req, res) => {
 
+    await updateConfig();
+    
     try {
 
         const data = req.query;
@@ -2076,7 +2091,7 @@ app.post("/leaveSchool", async (req, res) => {
 
         const token = req.headers.auth;
 
-        const { schoolID } = (await database.users.getUserInfo(token.userID, "userID", ["accountType", "schoolID"]))[0];
+        const { schoolID } = (await database.users.getUserInfo(token.userID, "userID", ["schoolID"]))[0];
 
         const schoolData = await database.schools.getSchoolDataBySchoolID(schoolID);
 
@@ -2208,6 +2223,8 @@ app.post("/completeLessonChunk", async (req, res) => {
 });
 
 app.post("/completeLesson", async (req, res) => {
+
+    await updateConfig();
 
     try {
 

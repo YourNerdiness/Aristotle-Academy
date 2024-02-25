@@ -2,8 +2,16 @@ import crypto from "crypto"
 import utils from "./utils.js"
 import database from "./database.js";
 
-const courseData = await database.config.getConfigData("course_data");
-const topicData = await database.config.getConfigData("topic_data");
+let courseData, topicData;
+
+const updateConfig = async () => {
+
+    courseData = await database.config.getConfigData("course_data");
+    topicData = await database.config.getConfigData("topic_data");
+
+};
+
+await updateConfig();
 
 class QLearning {
 
@@ -81,6 +89,8 @@ class QLearning {
 const qLearning = new QLearning(["v", "p", "e"]) // video, paragraph, and exercise respectively
 
 const getContentID = async (userID, courseID) => {
+
+    await updateConfig();
 
     const userIDHash = utils.hash(userID, "base64");
     const lessonIndexes = await database.courses.getLessonIndexes(userID, courseID);

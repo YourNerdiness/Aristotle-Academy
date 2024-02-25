@@ -79,7 +79,7 @@ const getFilterTags = () => {
 
 }
 
-const generateFiltertags = () => {
+const generateFilterTags = () => {
 
     const navElem = document.querySelectorAll("main > nav")[1];
 
@@ -231,7 +231,7 @@ const getCourseData = async () => {
 
         courseData = data.courseData;
         courseIDs = data.courseIDs;
-        courseTags = Object.values(filterChildProperties(courseData, "tags")).flat().sort()
+        courseTags = Array.from(new Set(Object.values(filterChildProperties(courseData, "tags")).flat())).sort()
 
     }
 
@@ -248,7 +248,7 @@ const init = async () => {
 
     await getCourseData();
 
-    generateFiltertags();
+    generateFilterTags();
 
     generateCourseElems();
 

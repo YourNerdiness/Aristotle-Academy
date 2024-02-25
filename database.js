@@ -53,46 +53,6 @@ redisClient.on("error", err => new utils.ErrorHandler("0x000000", err).throwErro
 
 await redisClient.connect();
 
-const courseData = await (async (name) => {
-
-    const results = await collections.config.find({ name }).toArray();
-
-    if (results.length == 0) {
-
-        new utils.ErrorHandler("0x000018").throwError();
-
-    }
-
-    else if (results.length > 1) {
-
-        new utils.ErrorHandler("0x000019").throwError();
-
-    }
-
-    else {
-
-        return results[0].data;
-
-    }
-
-})(`${developmentMode ? "dev_" : ""}course_data`);
-
-const courseIDs = Object.keys(courseData);
-const defaultCourseData = courseIDs.reduce((obj, key) => {
-
-    obj[key] = { currentLessonNumber : 0, currentLessonChunk : 0, sessionTimes : [], chunkContentTypes : [] };
-
-    return obj;
-
-}, {});
-const defaultCoursePaymentData = courseIDs.reduce((obj, key) => {
-
-    obj[key] = false;
-
-    return obj;
-
-}, {});
-
 const authEmailTransport = nodemailer.createTransport({
     service: "gmail",
     host: "smtp.gmail.com",
@@ -104,32 +64,80 @@ const authEmailTransport = nodemailer.createTransport({
     },
 });
 
-const propertyEncodings = {
+let courseData, courseIDs, defaultCourseData, defaultCoursePaymentData, propertyEncodings, userDataProperties, userIndexProperties, paymentDataProperties, paymentIndexProperties, allProperties, passwordCheckStatuses;
 
-    userID : "base64",
-    stripeCustomerID : "utf-8",
-    username : "utf-8",
-    email : "utf-8",
-    passwordDigest : "base64",
-    passwordSalt : "base64",
-    subID : "utf-8",
-    accountType : "utf-8",
-    schoolID : "base64",
-    courses : "object"
-}
+const updateConfig = async () => {
 
-const userDataProperties = ["userID", "stripeCustomerID", "username", "email", "passwordDigest", "passwordSalt", "accountType", "schoolID"]
-const userIndexProperties = ["username", "email", "userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
-const paymentDataProperties = ["subID", "courses", "schoolID"]
-const paymentIndexProperties = ["userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
+    const courseDataResults = await collections.config.find({ name: `${developmentMode ? "dev_" : ""}course_data` }).toArray();
 
-const allProperties = Array.from(new Set([...userDataProperties, ...userIndexProperties, ...paymentDataProperties, ...paymentIndexProperties]));
+    if (courseDataResults.length == 0) {
 
-const passwordCheckStatuses = JSON.parse(fs.readFileSync("password_check_statuses.json"));
+        new utils.ErrorHandler("0x000018").throwError();
+
+    }
+
+    else if (courseDataResults.length > 1) {
+
+        new utils.ErrorHandler("0x000019").throwError();
+
+    }
+
+    else {
+
+        courseData = courseDataResults[0].data;
+
+    }
+
+    courseIDs = Object.keys(courseData);
+
+    defaultCourseData = courseIDs.reduce((obj, key) => {
+
+        obj[key] = { currentLessonNumber: 0, currentLessonChunk: 0, sessionTimes: [], chunkContentTypes: [] };
+
+        return obj;
+
+    }, {});
+
+    defaultCoursePaymentData = courseIDs.reduce((obj, key) => {
+
+        obj[key] = false;
+
+        return obj;
+
+    }, {});
+
+    propertyEncodings = {
+
+        userID: "base64",
+        stripeCustomerID: "utf-8",
+        username: "utf-8",
+        email: "utf-8",
+        passwordDigest: "base64",
+        passwordSalt: "base64",
+        subID: "utf-8",
+        accountType: "utf-8",
+        schoolID: "base64",
+        courses: "object"
+    }
+
+    userDataProperties = ["userID", "stripeCustomerID", "username", "email", "passwordDigest", "passwordSalt", "accountType", "schoolID"]
+    userIndexProperties = ["username", "email", "userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
+    paymentDataProperties = ["subID", "courses", "schoolID"]
+    paymentIndexProperties = ["userID", "stripeCustomerID"]; // placing a property here will mandate it's uniqueness amongst relevant documents
+
+    allProperties = Array.from(new Set([...userDataProperties, ...userIndexProperties, ...paymentDataProperties, ...paymentIndexProperties]));
+
+    passwordCheckStatuses = JSON.parse(fs.readFileSync("password_check_statuses.json"));
+
+};
+
+await updateConfig();
 
 const users = {
 
     addNewUser: async (username, email, password, accountType="individual") => {
+
+        await updateConfig();
 
         if (!["individual", "student", "admin"].includes(accountType)) {
 
@@ -316,6 +324,8 @@ const users = {
 
     getUserInfo: async (query, queryPropertyName, resultPropertyNames, queryIsAlreadyHashed=false) => {
 
+        await updateConfig();
+
         if (!userIndexProperties.includes(queryPropertyName)) {
 
             new utils.ErrorHandler("0x000021", `${queryPropertyName} does not exist in the user index.`).throwError();
@@ -373,6 +383,8 @@ const users = {
     },
 
     changeUserInfo: async (query, queryPropertyName, toChangeValue, toChangePropertyName) => {
+
+        await updateConfig();
 
         const results = await users.getUserInfo(query, queryPropertyName, ["userID"]);
 
@@ -573,6 +585,8 @@ const authentication = {
 
             }
 
+            console.log(Buffer.from(utils.decrypt(authenticationData.code, "hex")))
+
             return crypto.timingSafeEqual(Buffer.from(code, "hex"), Buffer.from(utils.decrypt(authenticationData.code, "hex"), "hex"));
 
         }
@@ -706,6 +720,8 @@ const payments = {
 
     addCoursePayment: async (userID, courseID) => {
 
+        await updateConfig();
+
         const result = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
 
         if (result.length == 0) {
@@ -788,6 +804,8 @@ const payments = {
 
     checkIfPaidFor: async (userID, courseID) => {
 
+        await updateConfig();
+        
         const paymentDataResults = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
 
         if (paymentDataResults.length == 0) {
@@ -880,7 +898,7 @@ const payments = {
 
             const courseData = paymentData.courses;
 
-            return courseData[courseID];
+            return courseData[courseID] || false;
 
         }
 
@@ -893,6 +911,8 @@ const courses = {
     // returns list, first element is the lesson number, second element is the lesson chunk
     getLessonIndexes : async (userID, courseID) => {
 
+        await updateConfig();
+        
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -909,15 +929,15 @@ const courses = {
 
         else {
 
-            const userCourseData = results[0].courseData;
+            if (!courseIDs.includes(courseID)) {
 
-            if (!courseData[courseID]) {
-
-                new utils.ErrorHandler("0x000000", "Course does not exist").throwError();
+                new utils.ErrorHandler("0x000014").throwError();
 
             }
 
-            return [userCourseData[courseID].currentLessonNumber, userCourseData[courseID].currentLessonChunk];
+            const userCourseData = results[0].courseData;
+
+            return [userCourseData[courseID]?.currentLessonNumber || 0, userCourseData[courseID]?.currentLessonChunk || 0];
 
         }
 
@@ -925,6 +945,8 @@ const courses = {
 
     updateLessonIndexes : async (userID, courseID, newLessonNumber, newLessonChunk) => {
 
+        await updateConfig();
+        
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -941,16 +963,16 @@ const courses = {
 
         else {
 
-            const userCourseData = results[0].courseData;
+            if (!courseIDs.includes(courseID)) {
 
-            if (!userCourseData[courseID]) {
-
-                new utils.ErrorHandler("0x00003C", "Course does not exist").throwError();
+                new utils.ErrorHandler("0x000014").throwError();
 
             }
 
-            const oldLessonNumber = userCourseData[courseID].currentLessonNumber;
-            const oldLessonChunk = userCourseData[courseID].currentLessonChunk;
+            const userCourseData = results[0].courseData;
+
+            const oldLessonNumber = userCourseData[courseID]?.currentLessonNumber || 0;
+            const oldLessonChunk = userCourseData[courseID]?.currentLessonChunk || 0;
             
             await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonNumber`] : Math.max(newLessonNumber, oldLessonNumber), [`courseData.${courseID}.currentLessonChunk`] : Math.max(newLessonChunk, oldLessonChunk) } });
 
@@ -1013,6 +1035,8 @@ const courses = {
 
     getSessionTimes : async (userID, courseID) => {
 
+        await updateConfig();
+        
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1028,6 +1052,12 @@ const courses = {
         }
 
         else {
+
+            if (!courseIDs.includes(courseID)) {
+
+                new utils.ErrorHandler("0x000014").throwError();
+
+            }
 
             return results[0].courseData[courseID].sessionTimes;
 
@@ -1037,6 +1067,8 @@ const courses = {
 
     updateSessionTimes : async (userID, courseID, sessionTime) => {
 
+        await updateConfig();
+        
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1052,6 +1084,12 @@ const courses = {
         }
 
         else {
+
+            if (!courseIDs.includes(courseID)) {
+
+                new utils.ErrorHandler("0x000014").throwError();
+
+            }
 
             const newSessionTimes = results[0].courseData[courseID].sessionTimes
 
@@ -1065,6 +1103,8 @@ const courses = {
 
     setChunkContentFormat : async (userID, courseID,  lessonNumber, lessonChunk, contentFormat) => {
 
+        await updateConfig();
+        
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1080,6 +1120,12 @@ const courses = {
         }
 
         else {
+
+            if (!courseIDs.includes(courseID)) {
+
+                new utils.ErrorHandler("0x000014").throwError();
+
+            }
 
             const newChunkContentTypes = results[0].courseData[courseID].chunkContentTypes
 
@@ -1099,6 +1145,8 @@ const courses = {
 
     getLessonChunkContentFormats : async (userID, courseID, lessonNumber) => {
 
+        await updateConfig();
+        
         const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1114,6 +1162,12 @@ const courses = {
         }
 
         else {
+
+            if (!courseIDs.includes(courseID)) {
+
+                new utils.ErrorHandler("0x000014").throwError();
+
+            }
 
             return results[0].courseData[courseID].chunkContentTypes[lessonNumber] || [];
 
@@ -1137,6 +1191,9 @@ const ai = {
     },
 
     setUserNumChunks : async (userID, numChunks) => {
+
+
+        await updateConfig();
 
         const results = await collections.ai.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
