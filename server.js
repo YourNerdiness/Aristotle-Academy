@@ -64,7 +64,7 @@ const pageRedirectCallbacks = {
 
         if (!req.headers.auth || req.headers.auth.mfaRequired) {
 
-            res.status(401).redirect("/index");
+            res.status(401).redirect("/signup?redirectError=You are signed out.");
 
             return true;
 
@@ -108,21 +108,21 @@ const pageRedirectCallbacks = {
 
         const courseID = req.query.courseID;
 
+        if (!courseIDs.includes(courseID)) {
+
+            res.redirect("/learn?redirectError=Course does not exist.");
+
+            return true;
+
+        }
+
         if (token && !token.mfaRequired) {
-
-            if (!courseIDs.includes(courseID)) {
-
-                res.redirect("/learn");
-
-                return true;
-
-            }
 
             const accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
 
             if (accountType == "admin") {
 
-                res.redirect("/purchaseSchoolSub");
+                res.redirect("/purchaseSchoolSub?redirectError=Admins can only purchase school subscriptions.");
 
                 return true;
 
@@ -130,25 +130,13 @@ const pageRedirectCallbacks = {
 
             if (await database.payments.checkIfPaidFor(token.userID, courseID)) {
 
-                res.redirect(`/course?courseID=${courseID}`)
+                res.redirect(`/course?courseID=${courseID}&redirectError=Course already paid for`)
 
                 return true;
 
             }
 
             return false;
-
-        }
-
-        else {
-
-            if (!courseIDs.includes(courseID)) {
-
-                res.redirect("/signup");
-
-                return true;
-
-            }
 
         }
 
@@ -162,7 +150,7 @@ const pageRedirectCallbacks = {
 
         if (!token || token.mfaRequired) {
 
-            res.status(401).redirect("/index");
+            res.status(401).redirect("/signup?redirectError=You are signed out.");
 
             return true;
 
@@ -172,7 +160,7 @@ const pageRedirectCallbacks = {
 
         if (accountType == "admin") {
 
-            res.redirect("/schools");
+            res.redirect("/schools?redirectError=Admins cannot access courses.");
 
             return true;
 
@@ -180,7 +168,7 @@ const pageRedirectCallbacks = {
 
         if (!req.query.courseID || !courseIDs.includes(req.query.courseID)) {
 
-            res.status(400).redirect("/learn");
+            res.redirect("/learn?redirectError=Course does not exist.");
 
             return true;
 
@@ -190,7 +178,7 @@ const pageRedirectCallbacks = {
 
         if (!paidFor) {
 
-            res.status(400).redirect("/learn");
+            res.status(400).redirect(`/getPro?courseID=${req.query.courseID}&redirectError=Course not paid for`);
 
             return true;
 
@@ -252,7 +240,7 @@ const pageRedirectCallbacks = {
 
             if (await database.schools.getSchoolData(token.userID)) {
 
-                res.redirect("/manageSchool");
+                res.redirect("/manageSchool?redirectError=School already exists.");
 
                 return true;
 
@@ -270,7 +258,7 @@ const pageRedirectCallbacks = {
 
         if (!token) {
 
-            res.redirect("/signup");
+            res.status(401).redirect("/signup?redirectError=You are signed out.");
 
             return true;
 
@@ -296,7 +284,7 @@ const pageRedirectCallbacks = {
 
         if (!token) {
 
-            res.redirect("/signup");
+            res.status(401).redirect("/signup?redirectError=You are signed out.");
 
             return true;
 
