@@ -16,19 +16,17 @@ const utils = {
 
         }
 
-        return arr;
-
     }
 
 }
 
-const submitExercise = async () => {
+const submitLessonChunk = async () => {
 
-    const lessonNumber = new URLSearchParams(window.location.search).get("lessonNumber");
-    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChunk");
+    const lessonNumber = Number(new URLSearchParams(window.location.search).get("lessonNumber"));
+    const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
     const courseID = new URLSearchParams(window.location.search).get("courseID");
 
-    const data = { quizScore, lessonNumber, lessonChunk, courseID };
+    const data = { lessonNumber, lessonChunk, courseID };
 
     const req = {
 
@@ -46,7 +44,7 @@ const submitExercise = async () => {
 
     document.getElementById("loadingDialog").showModal();
 
-    const res = await fetch("/completeLesson", req);
+    const res = await fetch("/completeLessonChunk", req);
 
     document.getElementById("loadingDialog").close();
 
@@ -111,8 +109,8 @@ const submitQuiz = async () => {
 
     const quizScore = points / questions.length;
 
-    const lessonNumber = new URLSearchParams(window.location.search).get("lessonNumber");
-    const lessonChunk = new URLSearchParams(window.location.search).get("lessonChunk");
+    const lessonNumber = Number(new URLSearchParams(window.location.search).get("lessonNumber"));
+    const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
     const courseID = new URLSearchParams(window.location.search).get("courseID");
 
     const data = { quizScore, lessonNumber, lessonChunk, courseID };
@@ -197,54 +195,20 @@ window.onload = async () => {
     document.getElementById("loadingDialog").showModal();
 
     const contentID = new URLSearchParams(window.location.search).get("contentID");
-
-    if (!contentID) {
-
-        $("#error").text("ContentID is missing.");
-
-        return;
-
-    }
+    const courseID = new URLSearchParams(window.location.search).get("courseID");
 
     const contentIDParts = contentID.split("|");
-
-    const data = { data: contentIDParts[0], signature: contentIDParts[1] };
-
-    const req = {
-
-        method: "POST",
-
-        headers: {
-
-            "Content-Type": "application/json"
-
-        },
-
-        body: JSON.stringify(data)
-
-    };
-
-    const res = await fetch("/verifyHMACSignature", req);
-
-    if (!res.ok) {
-
-        const error = await res.json();
-
-        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
-
-    }
-
-    if (!(await res.json()).verified) {
-
-        $("#error").text("Content route cannot be verified, possible XSS attack.");
-
-        return;
-
-    }
 
     switch (contentIDParts[0].split("/")[3][0]) {
 
         case "v":
+
+            $("#video").show();
+            $("#paragraph").hide();
+            $("#exercise").hide();
+            $("#quiz").hide();
+
+            $("#continue").on("click", submitLessonChunk);
 
             $("#video > source").first().attr("src", "https://coursecontent.aristotle.academy" + contentIDParts[0]);
 
@@ -254,33 +218,79 @@ window.onload = async () => {
 
             });
 
-            $("#video").show();
-            $("#paragraph").hide();
-            $("#exercise").hide();
-            $("#quiz").hide();
-
-            $("#continue").on("click", submitExercise);
-
             break;
 
         case "t":
-
-            $("#continue").prop("disabled", false);
-
-            $("#paragraph").html(marked.parse(await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).text()));
 
             $("#video").hide();
             $("#paragraph").show();
             $("#exercise").hide();
             $("#quiz").hide();
 
-            $("#continue").on("click", submitExercise);
+            $("#continue").on("click", submitLessonChunk);
+
+            $("#continue").prop("disabled", false);
+
+            const textCourseContentData = {
+
+                contentID,
+                courseID
+
+            };
+
+            const textCourseContentReq = {
+
+                method: "POST",
+        
+                headers: {
+        
+                    "Content-Type": "application/json"
+        
+                },
+        
+                body: JSON.stringify(textCourseContentData)
+        
+            };;
+
+            const textCourseContentRes = await (await fetch("/getLessonChunkContent", textCourseContentReq)).json();
+
+            $("#paragraph").html(marked.parse(textCourseContentRes.data));
 
             break;
 
         case "e":
 
-            const exerciseData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
+            $("#video").hide();
+            $("#paragraph").hide();
+            $("#exercise").show();
+            $("#quiz").hide();
+
+            $("#continue").on("click", submitLessonChunk);
+
+            const exerciseCourseContentData = {
+
+                contentID,
+                courseID
+
+            };
+
+            const exerciseCourseContentReq = {
+
+                method: "POST",
+        
+                headers: {
+        
+                    "Content-Type": "application/json"
+        
+                },
+        
+                body: JSON.stringify(exerciseCourseContentData)
+        
+            };;
+
+            const exerciseCourseContentRes = await (await fetch("/getLessonChunkContent", exerciseCourseContentReq)).json();
+
+            const exerciseData = JSON.parse(exerciseCourseContentRes.data);
 
             const exerciseDiv = document.getElementById("exercise");
 
@@ -292,8 +302,8 @@ window.onload = async () => {
                     localStorage.removeItem("match_tight_last_column_two_clicked");
                     localStorage.removeItem("match_tight_num_matched");
 
-                    const pairs = exerciseData.data.pairs;
                     const description = exerciseData.data.description;
+                    const pairs = exerciseData.data.pairs;
 
                     const p = document.createElement("p");
 
@@ -312,7 +322,7 @@ window.onload = async () => {
 
                     exerciseDiv.appendChild(table);
 
-                    for (let i = 0; pairs.length; i++) {
+                    for (let i = 0; i < pairs.length; i++) {
 
                         const tableRow = document.createElement("tr");
 
@@ -325,22 +335,25 @@ window.onload = async () => {
                         columnOneBtn.textContent = columnOne[i];
                         columnTwoBtn.textContent = columnTwo[i];
 
-                        columnOneBtn.addEventListener("click", () => { 
+                        columnOneBtn.addEventListener("click", () => {
+                            
+                            const correctAnswerText = pairs[pairs.findIndex((elem) => elem[0] == columnOne[i])][1];
+                            const correctAnswerBtn = $("button").filter((_, elem) => $(elem).text().trim() == correctAnswerText )[0]
 
-                            if (columnTwo[i] == localStorage.getItem("match_tight_last_column_two_clicked")) { 
+                            if (correctAnswerText == localStorage.getItem("match_tight_last_column_two_clicked")) { 
 
                                 columnOneBtn.disabled = true; 
-                                columnTwoBtn.disabled = true;
+                                correctAnswerBtn.disabled = true;
 
                                 columnOneBtn.style.backgroundColor = "";
-                                columnTwoBtn.style.backgroundColor = "";
+                                correctAnswerBtn.style.backgroundColor = "";
 
                                 localStorage.removeItem("match_tight_last_column_one_clicked");
                                 localStorage.removeItem("match_tight_last_column_two_clicked");
 
-                                localStorage.setItem("match_tight_num_matched", (localStorage.getItem("match_tight_num_matched") || 0) + 1);
+                                localStorage.setItem("match_tight_num_matched", (Number(localStorage.getItem("match_tight_num_matched") || 0)) + 1);
 
-                                if (localStorage.getItem("match_tight_num_matched") >= pairs.length) {
+                                if (Number(localStorage.getItem("match_tight_num_matched")) >= pairs.length) {
 
                                     $("#continue").prop("disabled", false);
 
@@ -353,10 +366,10 @@ window.onload = async () => {
                                 if (localStorage.getItem("match_tight_last_column_two_clicked")) {
 
                                     columnOneBtn.disabled = false; 
-                                    columnTwoBtn.disabled = false;
+                                    $("button").filter((_, elem) => $(elem).text().trim() == localStorage.getItem("match_tight_last_column_two_clicked"))[0].disabled = false;
 
                                     columnOneBtn.style.backgroundColor = "";
-                                    columnTwoBtn.style.backgroundColor = "";
+                                    $("button").filter((_, elem) => $(elem).text().trim() == localStorage.getItem("match_tight_last_column_two_clicked"))[0].style.backgroundColor = "";
 
                                     localStorage.removeItem("match_tight_last_column_one_clicked");
                                     localStorage.removeItem("match_tight_last_column_two_clicked");
@@ -378,18 +391,21 @@ window.onload = async () => {
 
                         columnTwoBtn.addEventListener("click", () => { 
 
-                            if (columnTwo[i] == localStorage.getItem("match_tight_last_column_one_clicked")) { 
+                            const correctAnswerText = pairs[pairs.findIndex((elem) => elem[1] == columnTwo[i])][0];
+                            const correctAnswerBtn = $("button").filter((_, elem) => $(elem).text().trim() == correctAnswerText )[0]
 
-                                columnOneBtn.disabled = true; 
+                            if (correctAnswerText == localStorage.getItem("match_tight_last_column_one_clicked")) { 
+
+                                correctAnswerBtn.disabled = true; 
                                 columnTwoBtn.disabled = true;
 
-                                columnOneBtn.style.backgroundColor = "";
+                                correctAnswerBtn.style.backgroundColor = "";
                                 columnTwoBtn.style.backgroundColor = "";
 
                                 localStorage.removeItem("match_tight_last_column_one_clicked");
                                 localStorage.removeItem("match_tight_last_column_two_clicked");
 
-                                localStorage.setItem("match_tight_num_matched", (localStorage.getItem("match_tight_num_matched") || 0) + 1);
+                                localStorage.setItem("match_tight_num_matched", (Number(localStorage.getItem("match_tight_num_matched")) || 0) + 1);
 
                                 if (Number(localStorage.getItem("match_tight_num_matched")) >= pairs.length) {
 
@@ -403,10 +419,10 @@ window.onload = async () => {
 
                                 if (localStorage.getItem("match_tight_last_column_one_clicked")) {
 
-                                    columnOneBtn.disabled = false; 
+                                    $("button").filter((_, elem) => $(elem).text().trim() == localStorage.getItem("match_tight_last_column_one_clicked"))[0].disabled = false; 
                                     columnTwoBtn.disabled = false;
 
-                                    columnOneBtn.style.backgroundColor = "";
+                                    $("button").filter((_, elem) => $(elem).text().trim() == localStorage.getItem("match_tight_last_column_one_clicked"))[0].style.backgroundColor = "";
                                     columnTwoBtn.style.backgroundColor = "";
 
                                     localStorage.removeItem("match_tight_last_column_one_clicked");
@@ -419,13 +435,16 @@ window.onload = async () => {
                                     columnTwoBtn.disabled = true;
                                     columnTwoBtn.style.backgroundColor = "lightgray";
 
-                                    localStorage.setItem("match_tight_last_column_two_clicked", columnOne[i]);
+                                    localStorage.setItem("match_tight_last_column_two_clicked", columnTwo[i]);
 
                                 }
 
                             }
 
                         });
+
+                        columnOneElem.appendChild(columnOneBtn);
+                        columnTwoElem.appendChild(columnTwoBtn);
 
                         tableRow.appendChild(columnOneElem);
                         tableRow.appendChild(columnTwoElem);
@@ -440,35 +459,59 @@ window.onload = async () => {
 
                     localStorage.removeItem("multiple_choice_correct_answer_index");
 
-                    const select = document.createElement("select");
-
-                    exerciseDiv.appendChild(select);
-
+                    const question = exerciseData.data.question;
                     const possibleAnswers = exerciseData.data.possibleAnswers;
-                    const correctAnswerIndex = exerciseData.data.possibleAnswers.toString();
+                    const correctAnswerIndex = exerciseData.data.correctAnswerIndex;
 
-                    localStorage.setItem("multiple_choice_correct_answer_index", correctAnswerIndex);
+                    const questionElem = document.createElement("p");
+                    questionElem.textContent = question;
+
+                    exerciseDiv.appendChild(questionElem);
+
+                    const mcDiv = document.createElement("div");
+
+                    mcDiv.id = "multiple-choice-div"
+
+                    exerciseDiv.appendChild(mcDiv);
 
                     for (let i = 0; i < possibleAnswers.length; i++) {
 
-                        const option = document.createElement("option");
+                        const selectionDiv = document.createElement("div");
 
-                        select.appendChild(option);
+                        selectionDiv.id = "exerciseMCSelectionDiv"
 
-                        option.value = i.toString();
-                        option.textContent = possibleAnswers[i];
+                        const radio = document.createElement("input");
+                        const label = document.createElement("label");
 
-                    }
+                        radio.type = "radio";
+                        radio.id = `mc${i}`;
+                        radio.name = "exercise-multiple-choice";
 
-                    select.addEventListener("change", () => {
+                        label.for = `mc${i}`;
+                        label.textContent = possibleAnswers[i];
 
-                        if (this.value == localStorage.getItem("multiple_choice_correct_answer_index")) {
-                            
-                            $("#continue").prop("disabled", false);
+                        selectionDiv.appendChild(radio);
+                        selectionDiv.appendChild(label);
+
+                        mcDiv.appendChild(selectionDiv);
+
+                        if (i == correctAnswerIndex) {
+
+                            radio.addEventListener("change", function () {
+
+                                if (this.checked) {
+
+                                    $("#continue").prop("disabled", false);
+
+                                    document.querySelectorAll("input[type=radio]").forEach((elem) => { elem.disabled = true })
+
+                                }
+
+                            });
 
                         }
 
-                    });
+                    }
 
                     break;
                     
@@ -480,20 +523,43 @@ window.onload = async () => {
 
             }
 
-            $("#video").hide();
-            $("#paragraph").hide();
-            $("#exercise").show();
-            $("#quiz").hide();
-
-            $("#continue").on("click", submitExercise);
-
             break;
 
         case "q":
 
-            const quizData = await (await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0])).json();
+            $("#video").hide();
+            $("#paragraph").hide();
+            $("#exercise").hide();
+            $("#quiz").show();
+
+            $("#continue").on("click", submitQuiz);
 
             $("#continue").prop("disabled", false);
+
+            const quizCourseContentData = {
+
+                contentID,
+                courseID
+
+            };
+
+            const quizCourseContentReq = {
+
+                method: "POST",
+        
+                headers: {
+        
+                    "Content-Type": "application/json"
+        
+                },
+        
+                body: JSON.stringify(quizCourseContentData)
+        
+            };;
+
+            const quizCourseContentRes = await (await fetch("/getLessonChunkContent", quizCourseContentReq)).json();
+
+            const quizData = JSON.parse(quizCourseContentRes.data);
 
             quizQuestionData = quizData;
 
@@ -562,13 +628,6 @@ window.onload = async () => {
                 questionTable.appendChild(tr);
 
             }
-
-            $("#video").hide();
-            $("#paragraph").hide();
-            $("#exercise").hide();
-            $("#quiz").show();
-
-            $("#continue").on("click", submitQuiz);
 
             break;
 

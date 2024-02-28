@@ -453,5 +453,20 @@
         "msg": "Admin cannot remove student from school, student account does not exist.",
         "http_error_code": 409,
         "severity": "WARNING"
+    },
+    "0x00005D" : {
+        "msg": "Cannot access course, course is not paid for.",
+        "http_error_code": 403,
+        "severity": "WARNING"
+    },
+    "0x00005E" : {
+        "msg": "Cannot access course, could not verify URL.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x00005F" : {
+        "msg": "Cannot access course, failed to GET course content.",
+        "http_error_code": 400,
+        "severity": "ERROR"
     }
 }

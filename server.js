@@ -1,17 +1,18 @@
+import ai from "./ai.js";
 import cookieParser from "cookie-parser";
-import crypto from "crypto"
+import crypto from "crypto";
 import database from "./database.js"
-import dotenv from "dotenv"
-import ejs from "ejs"
+import dotenv from "dotenv";
+import ejs from "ejs";
 import express from "express";
-import fs from "fs"
-import jwt from "jsonwebtoken"
-import morgan from "morgan"
-import nodemailer from "nodemailer"
-import stripe from "stripe"
-import utils from "./utils.js"
-import ai from "./ai.js"
+import fs from "fs";
+import jwt from "jsonwebtoken";
+import morgan from "morgan";
+import nodemailer from "nodemailer";
+import stripe from "stripe";
+import utils from "./utils.js";
 import path from "path";
+import { error } from "console";
 
 const developmentMode = process.argv.includes('-d');
 
@@ -870,7 +871,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
 
-                    if (data[expectedRequestBodyParameters[i]] < expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
+                    if (data[expectedRequestBodyParameters[i]] <= expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
 
                         new utils.ErrorHandler("0x000009").throwErrorToClient(res);
 
@@ -880,7 +881,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
 
-                    if (data[expectedRequestBodyParameters[i]] > expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
+                    if (data[expectedRequestBodyParameters[i]] >= expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
 
                         new utils.ErrorHandler("0x000009").throwErrorToClient(res);
 
@@ -1012,7 +1013,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
 
-                    if (data[expectedRequestQueryParameters[i]] < expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
+                    if (data[expectedRequestQueryParameters[i]] <= expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
 
                         new utils.ErrorHandler("0x00000F").throwErrorToClient(res);
 
@@ -1022,7 +1023,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
 
-                    if (data[expectedRequestQueryParameters[i]] > expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
+                    if (data[expectedRequestQueryParameters[i]] >= expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
 
                         new utils.ErrorHandler("0x00000F").throwErrorToClient(res);
 
@@ -1375,7 +1376,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 
 });
 
-app.use(express.json())
+app.use(express.json());
 app.use(morgan(":date - :client-ip - :user-agent - :method :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
@@ -1664,9 +1665,10 @@ app.post("/resetPassword", async (req, res) => {
 
 app.post("/learnRedirect", async (req, res) => {
 
-    await updateConfig();
-
     try {
+
+        await updateConfig();
+
 
         const token = req.headers.auth;
         const courseID = req.body.courseID;
@@ -1704,10 +1706,10 @@ app.post("/learnRedirect", async (req, res) => {
 });
 
 app.post("/buyRedirect", async (req, res) => {
-
-    await updateConfig();
     
     try {
+
+        await updateConfig();
 
         const data = req.body;
 
@@ -1966,10 +1968,10 @@ app.post("/updatePaymentDetails", async (req, res) => {
 });
 
 app.get("/getCourseData", async (req, res) => {
-
-    await updateConfig();
     
     try {
+
+        await updateConfig();
 
         const data = req.query;
 
@@ -2224,9 +2226,9 @@ app.post("/completeLessonChunk", async (req, res) => {
 
 app.post("/completeLesson", async (req, res) => {
 
-    await updateConfig();
-
     try {
+
+        await updateConfig();
 
         const token = req.headers.auth;
         const data = req.body;
@@ -2259,12 +2261,73 @@ app.post("/completeLesson", async (req, res) => {
 
 });
 
-app.post("/logSessionTime", async (req, res) => {
+app.post("/getLessonChunkContent", async (req, res) => {
 
     try {
 
         const token = req.headers.auth;
 
+        const courseID = req.body.courseID;
+        const contentID = req.body.contentID;
+
+        const contentIDParts = contentID.split("|");
+
+        const verified = utils.verifyHMAC(contentIDParts[0], contentIDParts[1], "base64url");
+
+        if (!verified) {
+
+            new utils.ErrorHandler("0x00005E").throwError();
+
+            return;
+
+        }
+
+        const paidFor = await database.payments.checkIfPaidFor(token.userID, courseID);
+
+        if (!paidFor) {
+
+            new utils.ErrorHandler("0x00005D").throwError();
+
+            return;
+
+        }
+
+        const courseContentRes = await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0]);
+
+        console.log("https://coursecontent.aristotle.academy" + contentIDParts[0])
+
+        if (!courseContentRes.ok) {
+
+            console.log(await courseContentRes.text())
+
+            new utils.ErrorHandler("0x00005F").throwError();
+
+            return;
+
+        }
+
+        else {
+
+            res.status(200).json({ msg : "OK.", data : await courseContentRes.text() })
+
+        }
+
+    }
+
+    catch (error) {
+
+
+        
+    }
+
+});
+
+app.post("/logSessionTime", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+        0x00005D
         await database.courses.updateSessionTimes(token.userID, req.body.courseID, req.body.sessionTime);
 
         res.status(200).json({ msg: "OK." });

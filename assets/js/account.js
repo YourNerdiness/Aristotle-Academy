@@ -320,11 +320,29 @@ $(document).ready(() => {
 
             }
 
+            else {
+
+                window.location.reload();
+
+            }
+
         });
 
     });
 
     $("#leaveSchool-btn").click((event) => {
+
+        const req = {
+
+            method : "POST",
+
+            headers : {
+
+                "Content-Type" : "application/json"
+
+            }
+
+        };
 
         document.getElementById("loadingDialog").showModal();
 

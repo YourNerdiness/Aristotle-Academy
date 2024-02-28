@@ -21,7 +21,7 @@ class QLearning {
         this.epsilon = 0.05;
         this.lambda = 0.9;
         this.possibleActions = possibleActions;
-        this.defaultActionValues = possibleActions.reduce((obj, key) => { obj[key] = Math.random()/20; return obj; }, {});
+        this.getDefaultActionValues = () => { return possibleActions.reduce((obj, key) => { obj[key] = Math.random()/20; return obj; }, {}) };
 
     }
 
@@ -29,7 +29,7 @@ class QLearning {
 
         if (!(await database.ai.redis.getJSON(state))) {
 
-            await database.ai.redis.setJSON(state, this.defaultActionValues);
+            await database.ai.redis.setJSON(state, this.getDefaultActionValues());
 
         }
 
