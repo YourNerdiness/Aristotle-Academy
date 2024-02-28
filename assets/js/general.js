@@ -2,7 +2,7 @@ window.onload = () => {
 
     if ((localStorage.getItem("consented") != "true") && window.location.pathname != "/tc" && window.location.pathname != "/privacy") {
 
-        document.getElementById('consentDialog').showModal()
+        document.getElementById("loadingDialog").showModal();
 
     }
 
@@ -17,5 +17,11 @@ window.onload = () => {
         setTimeout(() => { document.getElementById("redirectErrorDialog").close() }, 10000)
 
     }
+
+};
+
+window.onbeforeunload = () => {
+
+    document.getElementById("loadingDialog").showModal();
 
 };
