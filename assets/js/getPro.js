@@ -4,7 +4,7 @@ $(document).ready(function () {
 
     $("#checkout-btn").click((event) => {
 
-        const data = { item, password : $("#reenterPasswordField").val() };
+        const data = { item, courseID : new URLSearchParams(window.location.search).get("courseID"), password : $("#reenterPasswordField").val() };
 
         const req = {
 

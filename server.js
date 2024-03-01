@@ -1911,8 +1911,8 @@ app.post("/buyRedirect", async (req, res) => {
 
             customer: customerID,
 
-            success_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/manageSchool" : "/learn"),
-            cancel_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/purchaseSchoolSub" : "/getPro"),
+            success_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/manageSchool" : `/course?courseID=${data.courseID}`),
+            cancel_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/purchaseSchoolSub" : `/getPro?courseID=${data.courseID}`),
 
             currency: "aud",
             mode: (item.slice(-3) == "sub" || item.slice(0, 6) == "school") ? "subscription" : "payment",
