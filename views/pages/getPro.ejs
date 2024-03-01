@@ -17,15 +17,17 @@
 
         <button id="checkout-btn">Submit</button>
   
-      </dialog>
+    </dialog>
+
+    <h4 id="courseTitle" class="center">Get the <%= courseName %> course</h4>
 
     <div class="justify">
 
-        <section class="display-container">
+        <section id="courseOption" class="display-container" style="display: none;">
 
             <h4>Course</h4>
 
-            <button onclick="item=new URLSearchParams(window.location.search).get('courseID');document.getElementById('reenterPasswordDialog').showModal()"><%= coursePrice %> for the <%= courseName %> course</button>
+            <button onclick="item=new URLSearchParams(window.location.search).get('courseID');document.getElementById('reenterPasswordDialog').showModal()"><%= coursePrice %> for the just this course</button>
 
         </section>
 
@@ -44,6 +46,8 @@
             <button onclick="item='yearly-sub';document.getElementById('reenterPasswordDialog').showModal()"><%= yearlyPrice %> every year for all courses</button>
 
         </section>
+
+    <button id="showMoreOptions-btn" onclick="$('#courseOption').show(); $('#showMoreOptions-btn').hide()" class="center">Show More Options</button>
 
     </div>
 
