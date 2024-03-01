@@ -328,9 +328,9 @@ const ejsVars = {
 
         return {
 
-            coursePrice: "25 AUD",
-            monthlyPrice: "30 AUD",
-            yearlyPrice: "60 AUD",
+            coursePrice: "10 USD",
+            monthlyPrice: "15 USD",
+            yearlyPrice: "50 AUD",
             courseName: courseData[req.query.courseID].title
 
         }
@@ -557,16 +557,16 @@ const ejsVars = {
 
         return {
 
-            price100Students: "100 students - 5,700 AUD (5% off)",
-            price200Students: "200 students - 10,800 AUD (10% off)",
-            price300Students: "300 students - 15,300 AUD (15% off)",
-            price400Students: "400 students - 19,200 AUD (20% off)",
-            price500Students: "500 students - 22,500 AUD (25% off)",
-            price600Students: "600 students - 25,200 AUD (30% off)",
-            price700Students: "700 students - 27,300 AUD (35% off)",
-            price800Students: "800 students - 28,800 AUD (40% off)",
-            price900Students: "900 students - 29,700 AUD (45% off)",
-            price1000Students: "1000 students - 30,000 AUD (50% off)"
+            price100Students: "100 students - 4,750 USD (5% off)",
+            price200Students: "200 students - 9,000 USD (10% off)",
+            price300Students: "300 students - 12,750 USD (15% off)",
+            price400Students: "400 students - 16,000 USD (20% off)",
+            price500Students: "500 students - 18,750 USD (25% off)",
+            price600Students: "600 students - 21,000 USD (30% off)",
+            price700Students: "700 students - 22,750 USD (35% off)",
+            price800Students: "800 students - 24,000 USD (40% off)",
+            price900Students: "900 students - 24,750 AUD (45% off)",
+            price1000Students: "1000 students - 25,000 AUD (50% off)"
 
         }
 
@@ -1914,7 +1914,7 @@ app.post("/buyRedirect", async (req, res) => {
             success_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/manageSchool" : `/course?courseID=${data.courseID}`),
             cancel_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/purchaseSchoolSub" : `/getPro?courseID=${data.courseID}`),
 
-            currency: "aud",
+            currency: "usd",
             mode: (item.slice(-3) == "sub" || item.slice(0, 6) == "school") ? "subscription" : "payment",
             payment_method_types: ["card"],
 
