@@ -5,3 +5,4 @@ vm-start.sh
 .env.prod
 .env.development
 .vscode
+static/public-static-void-main-string-array-args.html
