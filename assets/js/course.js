@@ -156,11 +156,17 @@ const submitQuiz = async () => {
 
 const sendSessionTimeToServer = (sessionTime=(Date.now()-Number(localStorage.getItem("sessionStartTime")))) => {
 
+    const contentID = new URLSearchParams(window.location.search).get("contentID");
+
+    const contentIDParts = contentID.split("|");
+
     fetch('/logSessionTime', {
 
         method: 'POST',
 
-        body: JSON.stringify({ sessionTime, courseID : new URLSearchParams(window.location.search).get("courseID") }),
+        // index for contentIDParts[0].split("/") is 1 because there is a / prefix
+
+        body: JSON.stringify({ sessionTime, courseID : new URLSearchParams(window.location.search).get("courseID"), topicID : contentIDParts[0].split("/")[1]}),
 
         headers: {
 
@@ -199,7 +205,9 @@ window.onload = async () => {
 
     const contentIDParts = contentID.split("|");
 
-    switch (contentIDParts[0].split("/")[3][0]) {
+    // index for contentIDParts[0].split("/") is either 2 or 3 because there is a / prefix
+
+    switch ((contentIDParts[0].split("/")[3] || contentIDParts[0].split("/")[2])[0]) {
 
         case "v":
 
@@ -211,6 +219,8 @@ window.onload = async () => {
             $("#continue").on("click", submitLessonChunk);
 
             $("#video > source").first().attr("src", "https://coursecontent.aristotle.academy" + contentIDParts[0]);
+
+            $("#video")[0].load();
 
             $("#video").on("ended", () => {
 
@@ -593,9 +603,15 @@ window.onload = async () => {
 
                         mcFieldset.appendChild(mcLegend);
 
+                        mcLegend.textContent = question.questionText;
+
                         const possibleAnswers = question.possibleAnswers;
 
                         for (let j = 0; j < possibleAnswers.length; j++) {
+
+                            const possibleAnswerDiv = document.createElement("div");
+
+                            possibleAnswerDiv.classList = "quizMCAnswerDiv"
 
                             const answerInputElem = document.createElement("input");
                             const answerLabelElem = document.createElement("label");
@@ -603,7 +619,7 @@ window.onload = async () => {
                             answerInputElem.type = "radio";
                             answerInputElem.id = `mcAnswer${i}-${j}`;
                             answerInputElem.name = `mcAnswer${i}`;
-                            answerInputElem.value = possibleAnswers[i];
+                            answerInputElem.value = possibleAnswers[j];
 
                             if (j == 0) {
 
@@ -612,10 +628,12 @@ window.onload = async () => {
                             }
 
                             answerLabelElem.for = `mcAnswer${i}`;
-                            answerLabelElem.textContent = possibleAnswers[i];
+                            answerLabelElem.textContent = possibleAnswers[j];
 
-                            mcFieldset.appendChild(answerInputElem);
-                            mcFieldset.appendChild(answerLabelElem);
+                            possibleAnswerDiv.appendChild(answerInputElem);
+                            possibleAnswerDiv.appendChild(answerLabelElem);
+
+                            mcFieldset.appendChild(possibleAnswerDiv)
 
                         }
 

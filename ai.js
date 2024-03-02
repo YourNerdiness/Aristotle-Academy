@@ -54,7 +54,7 @@ class QLearning {
 
         if (!(await database.ai.redis.getJSON(state))) {
 
-            await database.ai.redis.setJSON(state, this.defaultActionValues);
+            await database.ai.redis.setJSON(state, this.getDefaultActionValues());
 
         }
 
@@ -169,7 +169,7 @@ const getContentID = async (userID, courseID) => {
 
         contentRoute = `/${topicID}/${lessonIndexes[1].toString()}/${filename}`
 
-        await database.courses.setChunkContentFormat(userID, courseID, lessonIndexes[0], lessonIndexes[1], contentFormat)
+        await database.courses.setChunkContentFormat(userID, courseID, topicID, lessonIndexes[1], contentFormat);
 
     }
 

@@ -12,7 +12,6 @@ import nodemailer from "nodemailer";
 import stripe from "stripe";
 import utils from "./utils.js";
 import path from "path";
-import { error } from "console";
 
 const developmentMode = process.argv.includes('-d');
 
@@ -114,6 +113,8 @@ const pageRedirectCallbacks = {
 
     getPro: async (req, res) => {
 
+        await updateConfig();
+
         const token = req.headers.auth;
 
         const courseID = req.query.courseID;
@@ -156,6 +157,8 @@ const pageRedirectCallbacks = {
 
     course: async (req, res) => {
 
+        await updateConfig();
+
         const token = req.headers.auth;
 
         if (!token || token.mfaRequired) {
@@ -194,6 +197,18 @@ const pageRedirectCallbacks = {
 
         }
 
+        const lessonIndexes = await database.courses.getLessonIndexes(token.userID, req.query.courseID);
+
+        const completedTopics = await database.courses.getCompletedTopics(token.userID);
+
+        if (lessonIndexes[0] >= courseData[req.query.courseID].topics.filter(elem => !completedTopics.includes(elem)).length) {
+
+            res.status(200).redirect(`/courseCompleted?courseID=${req.query.courseID}`);
+
+            return true;
+
+        }
+
         let additionalQueryParams = "";
 
         if (!req.query.contentID) {
@@ -205,8 +220,6 @@ const pageRedirectCallbacks = {
         }
 
         if (!req.query.lessonNumber || !req.query.lessonChunk) {
-
-            const lessonIndexes = await database.courses.getLessonIndexes(token.userID, req.query.courseID);
 
             if (!req.query.lessonNumber) {
 
@@ -325,6 +338,8 @@ const pageRedirectCallbacks = {
 const ejsVars = {
 
     getPro: async (req, res) => {
+
+        await updateConfig();
 
         return {
 
@@ -545,6 +560,8 @@ const ejsVars = {
 
     courseCompleted: async (req, res) => {
 
+        await updateConfig();
+
         return {
 
             courseName: courseData[req.query.courseID].title
@@ -614,7 +631,7 @@ const ejsVars = {
 
                     if (subscription?.status == "active") {
 
-                        for (let maxNumStudents = 100; maxNumStudents <= 1000; i += 100) {
+                        for (let maxNumStudents = 100; maxNumStudents <= 1000; maxNumStudents += 100) {
 
                             if (subIDs[`school${maxNumStudents}`] == subscription?.items?.data[0]?.plan?.id) {
 
@@ -1294,10 +1311,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
                 }
 
                 else if (event.data.object.mode == "payment") {
-
-                    const invoice = await stripeAPI.invoices.retrieve(event.data.object.invoice)
-
-                    charge = invoice.charge;
 
                     await database.payments.addCoursePayment(userID, metadata.item, "utf-8");
 
@@ -2235,7 +2248,9 @@ app.post("/completeLesson", async (req, res) => {
 
         await database.courses.updateLessonIndexes(token.userID, data.courseID, data.lessonNumber + 1, 0);
 
-        if (data.lessonNumber + 1 >= courseData[data.courseID].topics.length) {
+        const completedTopics = await database.courses.getCompletedTopics(token.userID);
+
+        if (data.lessonNumber + 1 >= courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem)).length) {
 
             res.status(200).json({ msg: "OK.", newURL: `/courseCompleted?courseID=${data.courseID}` });
 
@@ -2294,11 +2309,7 @@ app.post("/getLessonChunkContent", async (req, res) => {
 
         const courseContentRes = await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0]);
 
-        console.log("https://coursecontent.aristotle.academy" + contentIDParts[0])
-
         if (!courseContentRes.ok) {
-
-            console.log(await courseContentRes.text())
 
             new utils.ErrorHandler("0x00005F").throwError();
 
@@ -2327,8 +2338,8 @@ app.post("/logSessionTime", async (req, res) => {
     try {
 
         const token = req.headers.auth;
-        0x00005D
-        await database.courses.updateSessionTimes(token.userID, req.body.courseID, req.body.sessionTime);
+
+        await database.courses.updateSessionTimes(token.userID, req.body.courseID, req.body.topicID, req.body.sessionTime);
 
         res.status(200).json({ msg: "OK." });
 

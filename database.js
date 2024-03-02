@@ -92,7 +92,9 @@ const updateConfig = async () => {
 
     defaultCourseData = courseIDs.reduce((obj, key) => {
 
-        obj[key] = { currentLessonNumber: 0, currentLessonChunk: 0, sessionTimes: [], chunkContentTypes: [] };
+        const courseTopicIDs = courseData[key].topics;
+
+        obj[key] = { currentLessonNumber: 0, currentLessonChunk: 0, sessionTimes: courseTopicIDs.reduce((stObj, stKey) => { stObj[stKey] = []; return stObj; }, {}), chunkContentTypes: courseTopicIDs.reduce((stObj, stKey) => { stObj[stKey] = []; return stObj; }, {}) };
 
         return obj;
 
@@ -585,8 +587,6 @@ const authentication = {
 
             }
 
-            console.log(Buffer.from(utils.decrypt(authenticationData.code, "hex")))
-
             return crypto.timingSafeEqual(Buffer.from(code, "hex"), Buffer.from(utils.decrypt(authenticationData.code, "hex"), "hex"));
 
         }
@@ -1033,7 +1033,7 @@ const courses = {
 
     },
 
-    getSessionTimes : async (userID, courseID) => {
+    getSessionTimes : async (userID, courseID, topicID) => {
 
         await updateConfig();
         
@@ -1059,13 +1059,13 @@ const courses = {
 
             }
 
-            return results[0].courseData[courseID].sessionTimes;
+            return results[0].courseData[courseID].sessionTimes[topicID];
 
         }
 
     },
 
-    updateSessionTimes : async (userID, courseID, sessionTime) => {
+    updateSessionTimes : async (userID, courseID, topicID, sessionTime) => {
 
         await updateConfig();
         
@@ -1091,17 +1091,49 @@ const courses = {
 
             }
 
-            const newSessionTimes = results[0].courseData[courseID].sessionTimes
+            const newSessionTimes = results[0].courseData[courseID].sessionTimes[topicID];
 
             newSessionTimes.push(sessionTime);
 
-            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.sessionTimes`] : newSessionTimes }});
+            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.sessionTimes.${topicID}`] : newSessionTimes }});
 
         }
         
     },
 
-    setChunkContentFormat : async (userID, courseID,  lessonNumber, lessonChunk, contentFormat) => {
+    getLessonChunkContentFormats : async (userID, courseID, topicID) => {
+
+        await updateConfig();
+        
+        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            if (!courseIDs.includes(courseID)) {
+
+                new utils.ErrorHandler("0x000014").throwError();
+
+            }
+
+            return results[0].courseData[courseID].chunkContentTypes[topicID] || [];
+
+        }
+
+    },
+
+    setChunkContentFormat : async (userID, courseID, topicID, lessonChunk, contentFormat) => {
 
         await updateConfig();
         
@@ -1129,47 +1161,15 @@ const courses = {
 
             const newChunkContentTypes = results[0].courseData[courseID].chunkContentTypes
 
-            if (!newChunkContentTypes[lessonNumber]) {
+            if (!newChunkContentTypes[topicID]) {
 
-                newChunkContentTypes[lessonNumber] = [];
+                newChunkContentTypes[topicID] = [];
 
             }
             
-            newChunkContentTypes[lessonNumber][lessonChunk] = contentFormat;
+            newChunkContentTypes[topicID][lessonChunk] = contentFormat;
 
             await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.chunkContentTypes`] : newChunkContentTypes }});
-
-        }
-
-    },
-
-    getLessonChunkContentFormats : async (userID, courseID, lessonNumber) => {
-
-        await updateConfig();
-        
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
-
-        if (results.length == 0) {
-
-            new utils.ErrorHandler("0x000031").throwError();
-
-        }
-
-        else if (results.length > 1) {
-
-            new utils.ErrorHandler("0x000032").throwError();
-
-        }
-
-        else {
-
-            if (!courseIDs.includes(courseID)) {
-
-                new utils.ErrorHandler("0x000014").throwError();
-
-            }
-
-            return results[0].courseData[courseID].chunkContentTypes[lessonNumber] || [];
 
         }
 
@@ -1191,7 +1191,6 @@ const ai = {
     },
 
     setUserNumChunks : async (userID, numChunks) => {
-
 
         await updateConfig();
 
@@ -1576,7 +1575,7 @@ const schools = {
 
                 if (school.schoolSubID.content) {
 
-                    await stripeAPI.subscriptions.cancel(utils.decrypt(school.schoolSubID.content, "utf-8"));
+                    await stripeAPI.subscriptions.cancel(utils.decrypt(school.schoolSubID, "utf-8"));
 
                 }
 
