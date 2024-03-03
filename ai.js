@@ -21,7 +21,7 @@ class QLearning {
         this.epsilon = 0.05;
         this.lambda = 0.9;
         this.possibleActions = possibleActions;
-        this.getDefaultActionValues = () => { return possibleActions.reduce((obj, key) => { obj[key] = Math.random()/20; return obj; }, {}) };
+        this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = Math.random()/(key == discourageAction ? 35 : 20); return obj; }, {}) };
 
     }
 
@@ -29,7 +29,7 @@ class QLearning {
 
         if (!(await database.ai.redis.getJSON(state))) {
 
-            await database.ai.redis.setJSON(state, this.getDefaultActionValues());
+            await database.ai.redis.setJSON(state, this.getDefaultActionValues(Number(state.split("|")[1]) < 3 ? "e" : ""));
 
         }
 
@@ -54,7 +54,7 @@ class QLearning {
 
         if (!(await database.ai.redis.getJSON(state))) {
 
-            await database.ai.redis.setJSON(state, this.getDefaultActionValues());
+            await database.ai.redis.setJSON(state, this.getDefaultActionValues(Number(state.split("|")[1]) < 3 ? "e" : ""));
 
         }
 
@@ -133,7 +133,7 @@ const getContentID = async (userID, courseID) => {
 
     else {
 
-        const state = userIDHash + lessonIndexes[1].toString();
+        const state = userIDHash + "|" + lessonIndexes[1].toString();
 
         const contentFormat = await qLearning.selectAction(state);
 
