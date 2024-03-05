@@ -968,13 +968,8 @@ const courses = {
                 new utils.ErrorHandler("0x000014").throwError();
 
             }
-
-            const userCourseData = results[0].courseData;
-
-            const oldLessonNumber = userCourseData[courseID]?.currentLessonNumber || 0;
-            const oldLessonChunk = userCourseData[courseID]?.currentLessonChunk || 0;
             
-            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonNumber`] : Math.max(newLessonNumber, oldLessonNumber), [`courseData.${courseID}.currentLessonChunk`] : Math.max(newLessonChunk, oldLessonChunk) } });
+            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonNumber`] : newLessonNumber, [`courseData.${courseID}.currentLessonChunk`] : newLessonChunk} });
 
 
         }
@@ -1190,9 +1185,103 @@ const ai = {
     
     },
 
-    setUserNumChunks : async (userID, numChunks) => {
+    setStateObj : async (userIDHash, state, stateObj) => {
 
-        await updateConfig();
+        const results = await collections.ai.find({ userIDHash }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            await collections.ai.updateOne({ userIDHash }, { $set : { [`qTable.${state}`] : stateObj }});
+
+        }
+
+    },
+
+    getStateObj : async (userIDHash, state) => {
+
+        const results = await collections.ai.find({ userIDHash }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return results[0].qTable[state];
+
+        }
+
+    },
+
+    setQValue : async (userIDHash, state, action, qValue) => {
+
+        const results = await collections.ai.find({ userIDHash }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            await collections.ai.updateOne({ userIDHash }, { $set : { [`qTable.${state}.${action}`] : qValue }});
+
+        }
+
+    },
+
+    getQValue : async (userIDHash, state, action) => {
+
+        const results = await collections.ai.find({ userIDHash }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return (results[0].qTable[state] || {})[action];
+
+        }
+
+    },
+
+    setUserNumChunks : async (userID, numChunks) => {
 
         const results = await collections.ai.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
@@ -1210,7 +1299,7 @@ const ai = {
 
         else {
 
-            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { numChunks }});
+            await collections.ai.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { numChunks }});
 
         }
 

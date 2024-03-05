@@ -19,7 +19,7 @@ class QLearning {
 
         this.alpha = 0.3;
         this.epsilon = 0.05;
-        this.lambda = 0.9;
+        this.lambda = 0.99;
         this.possibleActions = possibleActions;
         this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = Math.random()/(key == discourageAction ? 35 : 20); return obj; }, {}) };
 
@@ -27,13 +27,13 @@ class QLearning {
 
     async calculateQValues (reward, state, action) {
 
-        if (!(await database.ai.redis.getJSON(state))) {
+        if (!(await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]))) {
 
-            await database.ai.redis.setJSON(state, this.getDefaultActionValues(Number(state.split("|")[1]) < 3 ? "e" : ""));
+            await database.ai.setStateObj(state.split("|")[0], state.split("|")[1], this.getDefaultActionValues(Number(state.split("|")[1]) < 3 ? "e" : ""));
 
         }
 
-        let oldQValue = await database.ai.redis.getJSON(state, "." + action) || 0.0;
+        let oldQValue = await database.ai.getQValue(state.split("|")[0], state.split("|")[1], action) || 0.0;
 
         return oldQValue + this.alpha * (reward - oldQValue);
 
@@ -44,7 +44,7 @@ class QLearning {
         
         for (let i = 0; i < stateActionPairs.length; i++) {
 
-            await database.ai.redis.setJSON(stateActionPairs[i][0], await this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1]), "." + stateActionPairs[i][1]);
+            await database.ai.setQValue(stateActionPairs[i][0].split("|")[0], stateActionPairs[i][0].split("|")[1], stateActionPairs[i][1], await this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1]));
 
         }
 
@@ -52,9 +52,9 @@ class QLearning {
 
     async selectAction (state) {
 
-        if (!(await database.ai.redis.getJSON(state))) {
+        if (!(await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]))) {
 
-            await database.ai.redis.setJSON(state, this.getDefaultActionValues(Number(state.split("|")[1]) < 3 ? "e" : ""));
+            await database.ai.setStateObj(state.split("|")[0], state.split("|")[1], this.getDefaultActionValues(Number(state.split("|")[1]) < 3 ? "e" : ""));
 
         }
 
@@ -64,7 +64,7 @@ class QLearning {
 
         }
 
-        const actionRewards = await database.ai.redis.getJSON(state);
+        const actionRewards = await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]);
 
         let maxReward = -Infinity;
         let maxRewardAction = null;
