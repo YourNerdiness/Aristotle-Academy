@@ -113,3 +113,15 @@ const completeMFA = async () => {
     }
     
 };
+
+window.onload = () => {
+
+    const showMFA = new URLSearchParams(window.location.search).get("showMFA");
+
+    if (showMFA === "true") {
+        
+        document.getElementById("mfaDialog").showModal();
+
+    }
+
+}

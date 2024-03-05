@@ -87,9 +87,15 @@ const pageRedirectCallbacks = {
 
         if (req.headers.auth && !req.headers.auth.mfaRequired) {
 
-            res.status(409).redirect("/account");
+            res.status(409).redirect("/learn");
 
             return true;
+
+        }
+
+        else if (req.headers.auth?.mfaRequired) {
+
+            res.redirect("/signin?showMFA=true");
 
         }
 
@@ -101,9 +107,15 @@ const pageRedirectCallbacks = {
 
         if (req.headers.auth && !req.headers.auth.mfaRequired) {
 
-            res.status(409).redirect("/account");
+            res.status(409).redirect("/learn");
 
             return true;
+
+        }
+
+        else if (req.headers.auth?.mfaRequired) {
+
+            res.redirect("/signup?showMFA=true");
 
         }
 
@@ -211,14 +223,6 @@ const pageRedirectCallbacks = {
 
         let additionalQueryParams = "";
 
-        if (!req.query.contentID) {
-
-            const contentID = await ai.getContentID(token.userID, req.query.courseID);
-
-            additionalQueryParams += `&contentID=${contentID}`;
-
-        }
-
         if (!req.query.lessonNumber || !req.query.lessonChunk) {
 
             if (!req.query.lessonNumber) {
@@ -232,6 +236,14 @@ const pageRedirectCallbacks = {
                 additionalQueryParams += `&lessonChunk=${lessonIndexes[1]}`;
 
             }
+
+        }
+
+        if (!req.query.contentID) {
+
+            const contentID = await ai.getContentID(token.userID, req.query.courseID);
+
+            additionalQueryParams += `&contentID=${contentID}`;
 
         }
 
@@ -874,7 +886,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                     case "float":
 
-                        if (Number.isInteger(data[expectedRequestBodyParameters[i]])) {
+                        if (Number.isInteger(data[expectedRequestBodyParameters[i]]) && data[expectedRequestBodyParameters[i]] % 1 != 0) {
 
                             new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected float.`).throwErrorToClient(res);
 
@@ -1924,8 +1936,8 @@ app.post("/buyRedirect", async (req, res) => {
 
             customer: customerID,
 
-            success_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/manageSchool" : `/course?courseID=${data.courseID}`),
-            cancel_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/purchaseSchoolSub" : `/getPro?courseID=${data.courseID}`),
+            success_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/manageSchool" : data.courseID ? `/course?courseID=${data.courseID}` : "/account"),
+            cancel_url: process.env.DOMAIN_NAME + (item.slice(0, 6) == "school" ? "/purchaseSchoolSub" : data.courseID ? `/getPro?courseID=${data.courseID}` : "/account"),
 
             currency: "usd",
             mode: (item.slice(-3) == "sub" || item.slice(0, 6) == "school") ? "subscription" : "payment",
@@ -2260,15 +2272,17 @@ app.post("/completeLesson", async (req, res) => {
 
         }
 
-        const sessionTimes = await database.courses.getSessionTimes(token.userID, data.courseID)
+        const sessionTimes = await database.courses.getSessionTimes(token.userID, data.courseID, data.topicID);
 
-        const averageSessionTime = (sessionTimes).reduce((acc, elem) => acc + elem) / sessionTimes.length;
+        const averageSessionTime = (sessionTimes).reduce((acc, elem) => acc + elem, 0) / (sessionTimes.length || 1);
 
-        await ai.updateAI(token.userID, data.courseData, data.lessonNumber, data.quizScore, averageSessionTime)
+        await ai.updateAI(token.userID, data.courseID, data.lessonNumber, data.quizScore, averageSessionTime);
+
+        await database.courses.addCompletedTopic(token.userID, data.topicID);
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
-        res.status(200).json({ msg: "OK.", newURL: `/course?lessonNumber=${data.lessonNumber + 1}&lessonChunk=${0}&courseID=${data.courseID}contentID=${contentID}` });
+        res.status(200).json({ msg: "OK.", newURL: `/course?lessonNumber=${data.lessonNumber + 1}&lessonChunk=${0}&courseID=${data.courseID}&contentID=${contentID}` });
 
     } catch (error) {
 
