@@ -345,7 +345,7 @@ const ejsVars = {
 
             coursePrice: "10 USD",
             monthlyPrice: "15 USD",
-            yearlyPrice: "50 AUD",
+            yearlyPrice: "50 USD",
             courseName: courseData[req.query.courseID].title
 
         }
@@ -1930,6 +1930,8 @@ app.post("/buyRedirect", async (req, res) => {
             currency: "usd",
             mode: (item.slice(-3) == "sub" || item.slice(0, 6) == "school") ? "subscription" : "payment",
             payment_method_types: ["card"],
+
+            allow_promotion_codes : true,
 
             line_items
 
