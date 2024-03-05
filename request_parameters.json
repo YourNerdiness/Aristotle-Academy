@@ -442,6 +442,13 @@
 
             },
 
+            "topicID" : {
+
+                "type": "string",
+                "format": "base64url"
+
+            },
+
             "quizScore" : {
 
                 "type": "number",
