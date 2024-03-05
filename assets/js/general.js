@@ -2,7 +2,7 @@ window.onload = () => {
 
     if ((localStorage.getItem("consented") != "true") && window.location.pathname != "/tc" && window.location.pathname != "/privacy") {
 
-        document.getElementById("loadingDialog").showModal();
+        document.getElementById("consentDialog").showModal();
 
     }
 
