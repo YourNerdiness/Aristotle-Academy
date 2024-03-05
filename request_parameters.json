@@ -208,7 +208,8 @@
 
             "courseID" : {
 
-                "type" : "string"
+                "type" : "string",
+                "format" : "base64url"
 
             }
 
