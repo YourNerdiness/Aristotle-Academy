@@ -10,9 +10,15 @@
 
 }
 
-video {
+#video {
 
-    max-width: 1280x;
+    max-width: 1280px;
     max-height: 720px;
+
+}
+
+#paragraph {
+
+    text-align: left;
 
 }

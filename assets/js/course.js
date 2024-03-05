@@ -46,8 +46,6 @@ const submitLessonChunk = async () => {
 
     const res = await fetch("/completeLessonChunk", req);
 
-    document.getElementById("loadingDialog").close();
-
     if (res.ok) {
 
         const { newURL } = await res.json();
@@ -57,6 +55,8 @@ const submitLessonChunk = async () => {
     }
 
     else {
+
+        document.getElementById("loadingDialog").close();
 
         const error = await res.json();
         
@@ -107,13 +107,20 @@ const submitQuiz = async () => {
 
     }
 
+    sendSessionTimeToServer()
+
     const quizScore = points / questions.length;
 
     const lessonNumber = Number(new URLSearchParams(window.location.search).get("lessonNumber"));
     const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
     const courseID = new URLSearchParams(window.location.search).get("courseID");
+    const contentID = new URLSearchParams(window.location.search).get("contentID");
 
-    const data = { quizScore, lessonNumber, lessonChunk, courseID };
+    const contentIDParts = contentID.split("|");
+
+    const topicID = contentIDParts[0].split("/")[1];
+
+    const data = { quizScore, lessonNumber, lessonChunk, courseID, topicID };
 
     const req = {
 
@@ -133,8 +140,6 @@ const submitQuiz = async () => {
 
     const res = await fetch("/completeLesson", req);
 
-    document.getElementById("loadingDialog").close();
-
     if (res.ok) {
 
         const { newURL } = await res.json();
@@ -144,6 +149,8 @@ const submitQuiz = async () => {
     }
 
     else {
+
+        document.getElementById("loadingDialog").close();
 
         const error = await res.json();
         
@@ -264,7 +271,7 @@ window.onload = async () => {
 
             const textCourseContentRes = await (await fetch("/getLessonChunkContent", textCourseContentReq)).json();
 
-            $("#paragraph").html(marked.parse(textCourseContentRes.data));
+            $("#paragraph").html(marked.parse(textCourseContentRes.data.replace(/>/gm, "")));
 
             break;
 
