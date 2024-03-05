@@ -9,3 +9,10 @@
     display: inline;
 
 }
+
+video {
+
+    max-width: 1280x;
+    max-height: 720px;
+
+}
