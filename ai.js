@@ -125,7 +125,7 @@ const getContentID = async (userID, courseID) => {
 
     let contentRoute;
 
-    if (lessonIndexes[1] >= Math.max(topicData[topicID].minChunks, Math.min(chunksPerLesson, topicData[topicID].maxChunks))) {
+    if (lessonIndexes[1] >= Math.max(topicData[topicID].minChunks, Math.min(chunksPerLesson - 1, topicData[topicID].maxChunks))) {
 
         contentRoute = `/${topicID}/quiz.json`;
 
@@ -195,9 +195,9 @@ const updateAI = async (userID, courseID, lessonNumber, quizScore, averageSessio
 
     await qLearning.updateQValues(stateActionPairs, quizScore);
 
-    if (averageSessionTime > 600000) {
+    if (averageSessionTime > 3600000) {
 
-        if (quizScore > 0.85) {
+        if (quizScore > 0.85 && currentUserNumChunks > 1) {
 
             const currentUserNumChunks = await database.ai.getUserNumChunks(userID);
 
