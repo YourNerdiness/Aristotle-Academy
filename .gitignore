@@ -6,3 +6,4 @@ vm-start.sh
 .env.development
 .vscode
 static/public-static-void-main-string-array-args.html
+docker_build.sh
