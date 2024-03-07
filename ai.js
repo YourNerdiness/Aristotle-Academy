@@ -51,9 +51,6 @@ class QLearning {
 
         }
 
-        console.log(promises)
-        console.log(await Promise.all(promises))
-
         await Promise.all(await Promise.all(promises))
 
     }
