@@ -93,9 +93,8 @@ const getContentID = async (userID, courseID) => {
     await updateConfig();
 
     const userIDHash = utils.hash(userID, "base64");
-    const lessonIndexes = await database.courses.getLessonIndexes(userID, courseID);
 
-    const completedTopics = await database.courses.getCompletedTopics(userID);
+    const completedTopics = await database.topics.getCompletedTopics(userID);
 
     if (courseData[courseID].topics.length == 0) {
 
@@ -109,23 +108,15 @@ const getContentID = async (userID, courseID) => {
 
     }
 
-    let topicID;
+    const topicID = courseData[courseID].topics.filter(elem => !completedTopics.includes(elem))[0];
 
-    let i = 0;
-
-    do {
-
-        topicID = courseData[courseID].topics[i];
-
-        i++;
-
-    } while(completedTopics.includes(topicID));
+    const currentLessonChunk = await database.topics.getLessonChunk(userID, topicID);
 
     const chunksPerLesson = await database.ai.getUserNumChunks(userID);
 
     let contentRoute;
 
-    if (lessonIndexes[1] >= Math.max(topicData[topicID].minChunks, Math.min(chunksPerLesson - 1, topicData[topicID].maxChunks))) {
+    if (currentLessonChunk >= Math.max(topicData[topicID].minChunks, Math.min(chunksPerLesson - 1, topicData[topicID].maxChunks))) {
 
         contentRoute = `/${topicID}/quiz.json`;
 
@@ -133,7 +124,7 @@ const getContentID = async (userID, courseID) => {
 
     else {
 
-        const state = userIDHash + "|" + lessonIndexes[1].toString();
+        const state = userIDHash + "|" + currentLessonChunk.toString();
 
         const contentFormat = await qLearning.selectAction(state);
 
@@ -167,9 +158,9 @@ const getContentID = async (userID, courseID) => {
 
         }
 
-        contentRoute = `/${topicID}/${lessonIndexes[1].toString()}/${filename}`
+        contentRoute = `/${topicID}/${currentLessonChunk.toString()}/${filename}`
 
-        await database.courses.setChunkContentFormat(userID, courseID, topicID, lessonIndexes[1], contentFormat);
+        await database.topics.setChunkContentFormat(userID, topicID, currentLessonChunk, contentFormat);
 
     }
 
@@ -179,23 +170,24 @@ const getContentID = async (userID, courseID) => {
 
 };
 
-const updateAI = async (userID, courseID, lessonNumber, quizScore, averageSessionTime) => {
+const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
 
-    const actions = (await database.courses.getLessonChunkContentFormats(userID, courseID, lessonNumber)).reverse();
-
+    const actions = (await database.topics.getLessonChunkContentFormats(userID, topicID)).reverse();
     const userIDHash = utils.hash(userID, "base64");
 
     const stateActionPairs = [];
 
     for (let i = 0; i < actions.length; i++) {
 
-        stateActionPairs.push([userIDHash + i.toString(), actions[i] || new utils.ErrorHandler("0x00003F").throwError()])
+        stateActionPairs.push([userIDHash + "|" + i.toString(), actions[i] || new utils.ErrorHandler("0x00003F").throwError()])
 
     }
 
+    console.log(stateActionPairs)
+
     await qLearning.updateQValues(stateActionPairs, quizScore);
 
-    if (averageSessionTime > 3600000) {
+    if (averageSessionTime > 3600000) { // 1 hour per lesson
 
         if (quizScore > 0.85 && currentUserNumChunks > 1) {
 
@@ -209,7 +201,7 @@ const updateAI = async (userID, courseID, lessonNumber, quizScore, averageSessio
 
     else {
 
-        if (quizScore < 0.75) {
+        if (quizScore < 0.65) {
 
             const currentUserNumChunks = await database.ai.getUserNumChunks(userID);
 

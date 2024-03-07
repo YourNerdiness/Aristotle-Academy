@@ -63,16 +63,6 @@
 
     },
 
-    "/signout" : {
-
-        "methodToMatch" : "GET",
-        
-        "mustBeSignedIn" : true,
-        "mustBeSignedOut" : false,
-        "mfaMustBeRequired" : false
-
-    },
-
     "/completeMFA" : {
 
         "methodToMatch" : "POST",
@@ -382,11 +372,10 @@
         "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
-            "lessonNumber": {
+            "topicID" : {
 
-                "type" : "number",
-                "format" : "integer",
-                "minimumValue" : 0
+                "type": "string",
+                "format": "base64url"
 
             },
 
@@ -419,11 +408,10 @@
         "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
-            "lessonNumber" : {
+            "topicID" : {
 
-                "type": "number",
-                "format" : "integer",
-                "minimumValue" : 0
+                "type": "string",
+                "format": "base64url"
 
             },
 
@@ -442,17 +430,9 @@
 
             },
 
-            "topicID" : {
-
-                "type": "string",
-                "format": "base64url"
-
-            },
-
             "quizScore" : {
 
                 "type": "number",
-                "format" : "float",
                 "minimumValue" : 0,
                 "maximumValue" : 1
 
@@ -498,67 +478,13 @@
 
     },
 
-    "/getPro" : {
+    "/signout" : {
 
-        "methodToMatch" : "POST",
+        "methodToMatch" : "GET",
         
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
-        "mfaMustBeRequired" : false,
-        "allowedAccountTypes" : ["individual", "student"],
-        "queryParameters": {
-
-            "courseID" : {
-
-                "type": "string",
-                "format": "base64url"
-
-            }
-
-        }
-
-    },
-
-    "/course" : {
-
-        "methodToMatch" : "POST",
-        
-        "mustBeSignedIn" : true,
-        "mustBeSignedOut" : false,
-        "mfaMustBeRequired" : false,
-        "allowedAccountTypes" : ["individual", "student"],
-        "queryParameters": {
-
-            "courseID" : {
-
-                "type": "string",
-                "format": "base64url"
-
-            },
-
-            "contentID"  : {
-
-                "type": "string"
-
-            },
-
-            "lessonNumber" : {
-
-                "type": "number",
-                "format" : "integer",
-                "minimumValue" : 0
-
-            },
-
-            "lessonChunk" : {
-
-                "type": "number",
-                "format" : "integer",
-                "minimumValue" : 0
-
-            }
-
-        }
+        "mfaMustBeRequired" : false
 
     }
 

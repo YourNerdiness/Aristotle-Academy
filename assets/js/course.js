@@ -22,11 +22,11 @@ const utils = {
 
 const submitLessonChunk = async () => {
 
-    const lessonNumber = Number(new URLSearchParams(window.location.search).get("lessonNumber"));
+    const topicID = new URLSearchParams(window.location.search).get("topicID");
     const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
     const courseID = new URLSearchParams(window.location.search).get("courseID");
 
-    const data = { lessonNumber, lessonChunk, courseID };
+    const data = { topicID, lessonChunk, courseID };
 
     const req = {
 
@@ -111,16 +111,12 @@ const submitQuiz = async () => {
 
     const quizScore = points / questions.length;
 
-    const lessonNumber = Number(new URLSearchParams(window.location.search).get("lessonNumber"));
+    const topicID = new URLSearchParams(window.location.search).get("topicID");
     const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
     const courseID = new URLSearchParams(window.location.search).get("courseID");
     const contentID = new URLSearchParams(window.location.search).get("contentID");
 
-    const contentIDParts = contentID.split("|");
-
-    const topicID = contentIDParts[0].split("/")[1];
-
-    const data = { quizScore, lessonNumber, lessonChunk, courseID, topicID };
+    const data = { quizScore, lessonChunk, courseID, topicID };
 
     const req = {
 
@@ -173,7 +169,7 @@ const sendSessionTimeToServer = (sessionTime=(Date.now()-Number(localStorage.get
 
         // index for contentIDParts[0].split("/") is 1 because there is a / prefix
 
-        body: JSON.stringify({ sessionTime, courseID : new URLSearchParams(window.location.search).get("courseID"), topicID : contentIDParts[0].split("/")[1]}),
+        body: JSON.stringify({ sessionTime, courseID : new URLSearchParams(window.location.search).get("courseID"), topicID : new URLSearchParams(window.location.search).get("topicID") }),
 
         headers: {
 

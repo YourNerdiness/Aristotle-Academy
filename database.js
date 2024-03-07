@@ -28,7 +28,7 @@ const collections = {
     payments : db.collection("payments"),
     authentication : db.collection("authentication"),
     jwts : db.collection("jwts"), 
-    courses : db.collection("courses"),
+    topics : db.collection("courses"),
     ai : db.collection("ai"),
     schools : db.collection("schools"),
     config : db.collection("config")
@@ -64,7 +64,7 @@ const authEmailTransport = nodemailer.createTransport({
     },
 });
 
-let courseData, courseIDs, defaultCourseData, defaultCoursePaymentData, propertyEncodings, userDataProperties, userIndexProperties, paymentDataProperties, paymentIndexProperties, allProperties, passwordCheckStatuses;
+let courseData, topicData, courseIDs, topicIDs, defaultTopicData, defaultCoursePaymentData, propertyEncodings, userDataProperties, userIndexProperties, paymentDataProperties, paymentIndexProperties, allProperties, passwordCheckStatuses;
 
 const updateConfig = async () => {
 
@@ -88,13 +88,32 @@ const updateConfig = async () => {
 
     }
 
+    const topicDataResults = await collections.config.find({ name: `${developmentMode ? "dev_" : ""}topic_data` }).toArray();
+
+    if (topicDataResults.length == 0) {
+
+        new utils.ErrorHandler("0x000018").throwError();
+
+    }
+
+    else if (topicDataResults.length > 1) {
+
+        new utils.ErrorHandler("0x000019").throwError();
+
+    }
+
+    else {
+
+        topicData = topicDataResults[0].data;
+
+    }
+
     courseIDs = Object.keys(courseData);
+    topicIDs = Object.keys(topicData);
 
-    defaultCourseData = courseIDs.reduce((obj, key) => {
+    defaultTopicData = topicIDs.reduce((obj, key) => {
 
-        const courseTopicIDs = courseData[key].topics;
-
-        obj[key] = { currentLessonNumber: 0, currentLessonChunk: 0, sessionTimes: courseTopicIDs.reduce((stObj, stKey) => { stObj[stKey] = []; return stObj; }, {}), chunkContentTypes: courseTopicIDs.reduce((stObj, stKey) => { stObj[stKey] = []; return stObj; }, {}) };
+        obj[key] = { currentLessonChunk: 0, sessionTimes: [], chunkContentTypes: [] };
 
         return obj;
 
@@ -300,10 +319,10 @@ const users = {
             await collections.users.insertOne(userDocument);
             await collections.payments.insertOne(paymentDocument);
 
-            await collections.courses.insertOne({
+            await collections.topics.insertOne({
 
                 userIDHash,
-                courseData: defaultCourseData,
+                topicData: defaultTopicData,
                 completedTopics: []
 
             });
@@ -488,7 +507,7 @@ const users = {
             await collections.payments.deleteOne({ "index.userID" : userIDHash });
             await collections.jwts.deleteMany({ userIDHash });
             await collections.ai.deleteOne({ userIDHash });
-            await collections.courses.deleteOne({ userIDHash});
+            await collections.topics.deleteOne({ userIDHash});
             await collections.authentication.deleteOne({ userIDHash });
 
             if (accountType == "student") {
@@ -906,14 +925,13 @@ const payments = {
 
 };
 
-const courses = {
+const topics = {
 
-    // returns list, first element is the lesson number, second element is the lesson chunk
-    getLessonIndexes : async (userID, courseID) => {
+    getLessonChunk : async (userID, topicID) => {
 
         await updateConfig();
         
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -929,25 +947,25 @@ const courses = {
 
         else {
 
-            if (!courseIDs.includes(courseID)) {
+            if (!topicIDs.includes(topicID)) {
 
-                new utils.ErrorHandler("0x000014").throwError();
+                new utils.ErrorHandler("0x000060").throwError();
 
             }
 
-            const userCourseData = results[0].courseData;
+            const userTopicData = results[0].topicData;
 
-            return [userCourseData[courseID]?.currentLessonNumber || 0, userCourseData[courseID]?.currentLessonChunk || 0];
+            return userTopicData[topicID]?.currentLessonChunk || 0;
 
         }
 
     },
 
-    updateLessonIndexes : async (userID, courseID, newLessonNumber, newLessonChunk) => {
+    updateLessonChunk : async (userID, topicID, newLessonChunk) => {
 
         await updateConfig();
         
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -963,13 +981,13 @@ const courses = {
 
         else {
 
-            if (!courseIDs.includes(courseID)) {
+            if (!topicIDs.includes(topicID)) {
 
-                new utils.ErrorHandler("0x000014").throwError();
+                new utils.ErrorHandler("0x000060").throwError();
 
             }
             
-            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.currentLessonNumber`] : newLessonNumber, [`courseData.${courseID}.currentLessonChunk`] : newLessonChunk} });
+            await collections.topics.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`topicData.${topicID}.currentLessonChunk`] : newLessonChunk } });
 
 
         }
@@ -978,7 +996,7 @@ const courses = {
 
     getCompletedTopics : async (userID) => {
 
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -1002,7 +1020,7 @@ const courses = {
 
     addCompletedTopic : async (userID, completedTopic) => {
 
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -1022,17 +1040,17 @@ const courses = {
 
             newCompletedTopics.push(completedTopic);
 
-            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { completedTopics : newCompletedTopics }});
+            await collections.topics.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { completedTopics : newCompletedTopics }});
 
         }
 
     },
 
-    getSessionTimes : async (userID, courseID, topicID) => {
+    getSessionTimes : async (userID, topicID) => {
 
         await updateConfig();
         
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -1048,23 +1066,23 @@ const courses = {
 
         else {
 
-            if (!courseIDs.includes(courseID)) {
+            if (!topicIDs.includes(topicID)) {
 
                 new utils.ErrorHandler("0x000014").throwError();
 
             }
 
-            return results[0].courseData[courseID].sessionTimes[topicID];
+            return results[0].topicData[topicID]?.sessionTimes || [];
 
         }
 
     },
 
-    updateSessionTimes : async (userID, courseID, topicID, sessionTime) => {
+    updateSessionTimes : async (userID, topicID, sessionTime) => {
 
         await updateConfig();
         
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -1080,27 +1098,27 @@ const courses = {
 
         else {
 
-            if (!courseIDs.includes(courseID)) {
+            if (!topicIDs.includes(topicID)) {
 
                 new utils.ErrorHandler("0x000014").throwError();
 
             }
 
-            const newSessionTimes = results[0].courseData[courseID].sessionTimes[topicID];
+            const newSessionTimes = results[0].topicData[topicID]?.sessionTimes || [];
 
             newSessionTimes.push(sessionTime);
 
-            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.sessionTimes.${topicID}`] : newSessionTimes }});
+            await collections.topics.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`topicData.${topicID}.sessionTimes`] : newSessionTimes }});
 
         }
         
     },
 
-    getLessonChunkContentFormats : async (userID, courseID, topicID) => {
+    getLessonChunkContentFormats : async (userID, topicID) => {
 
         await updateConfig();
         
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -1116,23 +1134,23 @@ const courses = {
 
         else {
 
-            if (!courseIDs.includes(courseID)) {
+            if (!topicIDs.includes(topicID)) {
 
                 new utils.ErrorHandler("0x000014").throwError();
 
             }
 
-            return results[0].courseData[courseID].chunkContentTypes[topicID] || [];
+            return results[0].topicData[topicID]?.chunkContentTypes || [];
 
         }
 
     },
 
-    setChunkContentFormat : async (userID, courseID, topicID, lessonChunk, contentFormat) => {
+    setChunkContentFormat : async (userID, topicID, lessonChunk, contentFormat) => {
 
         await updateConfig();
         
-        const results = await collections.courses.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
+        const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
 
@@ -1148,23 +1166,17 @@ const courses = {
 
         else {
 
-            if (!courseIDs.includes(courseID)) {
+            if (!topicIDs.includes(topicID)) {
 
                 new utils.ErrorHandler("0x000014").throwError();
 
             }
 
-            const newChunkContentTypes = results[0].courseData[courseID].chunkContentTypes
-
-            if (!newChunkContentTypes[topicID]) {
-
-                newChunkContentTypes[topicID] = [];
-
-            }
+            const newChunkContentTypes = results[0].topicData[topicID]?.chunkContentTypes || [];
             
-            newChunkContentTypes[topicID][lessonChunk] = contentFormat;
+            newChunkContentTypes[lessonChunk] = contentFormat;
 
-            await collections.courses.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`courseData.${courseID}.chunkContentTypes`] : newChunkContentTypes }});
+            await collections.topics.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { [`topicData.${topicID}.chunkContentTypes`] : newChunkContentTypes }});
 
         }
 
@@ -1173,17 +1185,6 @@ const courses = {
 };
 
 const ai = {
-
-    redis : {
-
-        set : async (key, val) => await redisClient.set(key, val),
-        setJSON : async (key, val, path="$") => await redisClient.json.set(key, path, val),
-        get : async (key) => await redisClient.get(key),
-        getJSON : async (key, path="$") => await redisClient.json.get(key, { path }),
-        del : async (key) => await redisClient.del(key),
-        delJSON : async (key, path="$") => await redisClient.json.del(key, path)
-    
-    },
 
     setStateObj : async (userIDHash, state, stateObj) => {
 
@@ -1741,7 +1742,7 @@ export default {
     authorization,
     verification,
     payments,
-    courses,
+    topics,
     ai,
     schools,
     config

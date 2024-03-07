@@ -93,9 +93,11 @@ const pageRedirectCallbacks = {
 
         }
 
-        else if (req.headers.auth?.mfaRequired) {
+        else if (req.query.showMFA != "true" && req.headers.auth?.mfaRequired) {
 
             res.redirect("/signin?showMFA=true");
+
+            return true;
 
         }
 
@@ -113,9 +115,11 @@ const pageRedirectCallbacks = {
 
         }
 
-        else if (req.headers.auth?.mfaRequired) {
+        else if (req.query.showMFA != "true" && req.headers.auth?.mfaRequired) {
 
             res.redirect("/signup?showMFA=true");
+
+            return true;
 
         }
 
@@ -199,6 +203,16 @@ const pageRedirectCallbacks = {
 
         }
 
+        const completedTopics = await database.topics.getCompletedTopics(token.userID);
+
+        if (courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
+
+            res.redirect(`/courseCompleted?courseID=${data.courseID}`);
+
+            return true;
+
+        }
+
         const paidFor = await database.payments.checkIfPaidFor(token.userID, req.query.courseID);
 
         if (!paidFor) {
@@ -209,11 +223,21 @@ const pageRedirectCallbacks = {
 
         }
 
-        const lessonIndexes = await database.courses.getLessonIndexes(token.userID, req.query.courseID);
+        let additionalQueryParams = "";
 
-        const completedTopics = await database.courses.getCompletedTopics(token.userID);
+        let topicID = req.query.topicID
 
-        if (lessonIndexes[0] >= courseData[req.query.courseID].topics.filter(elem => !completedTopics.includes(elem)).length) {
+        if (!topicID) {
+
+            topicID = courseData[req.query.courseID].topics.filter(elem => !completedTopics.includes(elem))[0];
+
+            additionalQueryParams += `&topicID=${topicID}`
+
+        }
+
+        const lessonChunk = await database.topics.getLessonChunk(token.userID, topicID);
+
+        if (courseData[req.query.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
 
             res.status(200).redirect(`/courseCompleted?courseID=${req.query.courseID}`);
 
@@ -221,21 +245,9 @@ const pageRedirectCallbacks = {
 
         }
 
-        let additionalQueryParams = "";
+        if (!req.query.lessonChunk) {
 
-        if (!req.query.lessonNumber || !req.query.lessonChunk) {
-
-            if (!req.query.lessonNumber) {
-
-                additionalQueryParams += `&lessonNumber=${lessonIndexes[0]}`;
-
-            }
-
-            if (!req.query.lessonChunk) {
-
-                additionalQueryParams += `&lessonChunk=${lessonIndexes[1]}`;
-
-            }
+            additionalQueryParams += `&lessonChunk=${lessonChunk}`;
 
         }
 
@@ -874,7 +886,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                     case "integer":
 
-                        if (!Number.isInteger(data[expectedRequestBodyParameters[i]])) {
+                        if (typeof data[expectedRequestBodyParameters[i]] != "number" || data[expectedRequestBodyParameters[i]] % 1 != 0) {
 
                             new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected integer.`).throwErrorToClient(res);
 
@@ -886,7 +898,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                     case "float":
 
-                        if (Number.isInteger(data[expectedRequestBodyParameters[i]]) && data[expectedRequestBodyParameters[i]] % 1 != 0) {
+                        if (typeof data[expectedRequestBodyParameters[i]] != "number" || data[expectedRequestBodyParameters[i]] % 1 == 0) {
 
                             new utils.ErrorHandler("0x000008", `Body parameter ${expectedRequestBodyParameters[i]} is of the incorrect format, expected float.`).throwErrorToClient(res);
 
@@ -900,7 +912,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
 
-                    if (data[expectedRequestBodyParameters[i]] <= expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
+                    if (data[expectedRequestBodyParameters[i]] < expectedRequestBodyData[expectedRequestBodyParameters[i]].minimumValue) {
 
                         new utils.ErrorHandler("0x000009").throwErrorToClient(res);
 
@@ -910,7 +922,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
 
-                    if (data[expectedRequestBodyParameters[i]] >= expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
+                    if (data[expectedRequestBodyParameters[i]] > expectedRequestBodyData[expectedRequestBodyParameters[i]].maximumValue) {
 
                         new utils.ErrorHandler("0x000009").throwErrorToClient(res);
 
@@ -1042,7 +1054,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
 
-                    if (data[expectedRequestQueryParameters[i]] <= expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
+                    if (data[expectedRequestQueryParameters[i]] < expectedRequestQueryData[expectedRequestQueryParameters[i]].minimumValue) {
 
                         new utils.ErrorHandler("0x00000F").throwErrorToClient(res);
 
@@ -1052,7 +1064,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
                 if (expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
 
-                    if (data[expectedRequestQueryParameters[i]] >= expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
+                    if (data[expectedRequestQueryParameters[i]] > expectedRequestQueryData[expectedRequestQueryParameters[i]].maximumValue) {
 
                         new utils.ErrorHandler("0x00000F").throwErrorToClient(res);
 
@@ -1153,8 +1165,8 @@ const ejsRenderMiddleware = async (req, res, next) => {
 
             let navVars = {
 
-                accountRoute: req.headers.auth ? "/account" : "/signup",
-                accountText: req.headers.auth ? "Account" : "Signup"
+                accountRoute: req.headers.auth && !req.headers.auth.mfaRequired ? "/account" : "/signup",
+                accountText: req.headers.auth && !req.headers.auth.mfaRequired ? "Account" : "Signup"
 
             };
 
@@ -1706,6 +1718,16 @@ app.post("/learnRedirect", async (req, res) => {
 
         }
 
+        const completedTopics = await database.topics.getCompletedTopics(token.userID);
+
+        if (courseData[courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
+
+            res.status(200).json({ msg: "OK.", url: `/courseCompleted?courseID=${courseID}` });
+
+            return;
+
+        }
+
         const paidFor = await database.payments.checkIfPaidFor(token.userID, courseID);
 
         if (paidFor) {
@@ -2237,11 +2259,21 @@ app.post("/completeLessonChunk", async (req, res) => {
         const token = req.headers.auth;
         const data = req.body;
 
-        await database.courses.updateLessonIndexes(token.userID, data.courseID, data.lessonNumber, data.lessonChunk + 1);
+        await database.topics.updateLessonChunk(token.userID, data.topicID, data.lessonChunk + 1);
+
+        const completedTopics = await database.topics.getCompletedTopics(token.userID);
+
+        if (courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
+
+            res.status(200).json({ msg: "OK.", newURL: `/courseCompleted?courseID=${data.courseID}` });
+
+            return;
+
+        }
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
-        res.status(200).json({ msg: "OK.", newURL: `/course?lessonNumber=${data.lessonNumber}&lessonChunk=${data.lessonChunk + 1}&courseID=${data.courseID}&contentID=${contentID}` });
+        res.status(200).json({ msg: "OK.", newURL: `/course?topicID=${data.topicID}&lessonChunk=${data.lessonChunk + 1}&courseID=${data.courseID}&contentID=${contentID}` });
 
     } catch (error) {
 
@@ -2260,11 +2292,12 @@ app.post("/completeLesson", async (req, res) => {
         const token = req.headers.auth;
         const data = req.body;
 
-        await database.courses.updateLessonIndexes(token.userID, data.courseID, data.lessonNumber + 1, 0);
+        await database.topics.updateLessonChunk(token.userID, data.topicID, 0);
+        await database.topics.addCompletedTopic(token.userID, data.topicID);
 
-        const completedTopics = await database.courses.getCompletedTopics(token.userID);
+        const completedTopics = await database.topics.getCompletedTopics(token.userID);
 
-        if (data.lessonNumber + 1 >= courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem)).length) {
+        if (courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
 
             res.status(200).json({ msg: "OK.", newURL: `/courseCompleted?courseID=${data.courseID}` });
 
@@ -2272,17 +2305,15 @@ app.post("/completeLesson", async (req, res) => {
 
         }
 
-        const sessionTimes = await database.courses.getSessionTimes(token.userID, data.courseID, data.topicID);
+        const sessionTimes = await database.topics.getSessionTimes(token.userID, data.topicID);
 
         const averageSessionTime = (sessionTimes).reduce((acc, elem) => acc + elem, 0) / (sessionTimes.length || 1);
 
-        await ai.updateAI(token.userID, data.courseID, data.lessonNumber, data.quizScore, averageSessionTime);
-
-        await database.courses.addCompletedTopic(token.userID, data.topicID);
+        await ai.updateAI(token.userID, data.topicID, data.quizScore, averageSessionTime);
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
-        res.status(200).json({ msg: "OK.", newURL: `/course?lessonNumber=${data.lessonNumber + 1}&lessonChunk=${0}&courseID=${data.courseID}&contentID=${contentID}` });
+        res.status(200).json({ msg: "OK.", newURL: `/course?topicID=${courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem))[0]}&lessonChunk=0&courseID=${data.courseID}&contentID=${contentID}` });
 
     } catch (error) {
 
@@ -2355,7 +2386,7 @@ app.post("/logSessionTime", async (req, res) => {
 
         const token = req.headers.auth;
 
-        await database.courses.updateSessionTimes(token.userID, req.body.courseID, req.body.topicID, req.body.sessionTime);
+        await database.topics.updateSessionTimes(token.userID, req.body.topicID, req.body.sessionTime);
 
         res.status(200).json({ msg: "OK." });
 

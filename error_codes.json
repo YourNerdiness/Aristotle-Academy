@@ -468,5 +468,10 @@
         "msg": "Cannot access course, failed to GET course content.",
         "http_error_code": 400,
         "severity": "ERROR"
+    },
+    "0x000060" : {
+        "msg": "Topic does not exist.",
+        "http_error_code": 404,
+        "severity": "WARNING"
     }
 }
