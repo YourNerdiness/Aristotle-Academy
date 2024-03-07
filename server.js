@@ -205,9 +205,9 @@ const pageRedirectCallbacks = {
 
         const completedTopics = await database.topics.getCompletedTopics(token.userID);
 
-        if (courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
+        if (courseData[req.query.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
 
-            res.redirect(`/courseCompleted?courseID=${data.courseID}`);
+            res.redirect(`/courseCompleted?courseID=${req.query.courseID}`);
 
             return true;
 
