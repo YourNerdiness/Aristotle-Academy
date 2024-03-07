@@ -5,7 +5,7 @@ const signin = async () => {
 
     if (!username || !password) {
 
-        document.getElementById("error").textContent = "Mising sign in data.";
+        document.getElementById("error").textContent = "Missing sign in data.";
 
         return;
 
@@ -96,7 +96,7 @@ window.onload = () => {
     const showMFA = new URLSearchParams(window.location.search).get("showMFA");
 
     if (showMFA === "true") {
-        
+
         document.getElementById("mfaDialog").showModal();
 
     }
