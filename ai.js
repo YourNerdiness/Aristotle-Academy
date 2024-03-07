@@ -42,11 +42,19 @@ class QLearning {
     // stateActionPairs is an array of state-action pairs, representing the actions taken in the states before the reward was received. stateActionPairs[0] is the most recent state-action pair, where the reward was received, stateActionPairs[1] is the second most recent state-action pair, etc
     async updateQValues (stateActionPairs, reward) {
         
+        const promises = [];
+
         for (let i = 0; i < stateActionPairs.length; i++) {
 
-            await database.ai.setQValue(stateActionPairs[i][0].split("|")[0], stateActionPairs[i][0].split("|")[1], stateActionPairs[i][1], await this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1]));
+            promises.push(this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1])
+                .then(newQValue => { return database.ai.setQValue(stateActionPairs[i][0].split("|")[0], stateActionPairs[i][0].split("|")[1], stateActionPairs[i][1], newQValue) }));
 
         }
+
+        console.log(promises)
+        console.log(await Promise.all(promises))
+
+        await Promise.all(await Promise.all(promises))
 
     }
 
@@ -94,6 +102,8 @@ const getContentID = async (userID, courseID) => {
 
     const userIDHash = utils.hash(userID, "base64");
 
+    const chunksPerLessonProm = database.ai.getUserNumChunks(userID);
+
     const completedTopics = await database.topics.getCompletedTopics(userID);
 
     if (courseData[courseID].topics.length == 0) {
@@ -110,9 +120,10 @@ const getContentID = async (userID, courseID) => {
 
     const topicID = courseData[courseID].topics.filter(elem => !completedTopics.includes(elem))[0];
 
-    const currentLessonChunk = await database.topics.getLessonChunk(userID, topicID);
+    const currentLessonChunkProm = database.topics.getLessonChunk(userID, topicID);
 
-    const chunksPerLesson = await database.ai.getUserNumChunks(userID);
+    const currentLessonChunk = await currentLessonChunkProm;
+    const chunksPerLesson = await chunksPerLessonProm;
 
     let contentRoute;
 
@@ -183,9 +194,9 @@ const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
 
     }
 
-    console.log(stateActionPairs)
+    const updateQValuesProm = qLearning.updateQValues(stateActionPairs, quizScore);
 
-    await qLearning.updateQValues(stateActionPairs, quizScore);
+    let setUserNumChunksProm;
 
     if (averageSessionTime > 3600000) { // 1 hour per lesson
 
@@ -193,7 +204,7 @@ const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
 
             const currentUserNumChunks = await database.ai.getUserNumChunks(userID);
 
-            await database.ai.setUserNumChunks(userID, currentUserNumChunks - 1);
+            setUserNumChunksProm = database.ai.setUserNumChunks(userID, currentUserNumChunks - 1);
 
         }
 
@@ -205,10 +216,18 @@ const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
 
             const currentUserNumChunks = await database.ai.getUserNumChunks(userID);
 
-            await database.ai.setUserNumChunks(userID, currentUserNumChunks + 1);
+            setUserNumChunksProm = database.ai.setUserNumChunks(userID, currentUserNumChunks + 1);
     
         }
 
+    }
+
+    await updateQValuesProm;
+
+    if (setUserNumChunksProm) {
+
+        await setUserNumChunksProm;
+        
     }
 
 }

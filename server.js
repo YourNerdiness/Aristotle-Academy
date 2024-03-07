@@ -1463,19 +1463,24 @@ app.post("/signin", async (req, res) => {
         const username = data.username;
         const password = data.password;
 
-        if (!(await database.authentication.verifyPassword(username, password))) {
+        const passwordProm = database.authentication.verifyPassword(username, password)
+        const userDataProm = database.users.getUserInfo(username, "username", ["userID"])
+
+        const passwordCorrect = await passwordProm;
+
+        if (!passwordCorrect) {
 
             new utils.ErrorHandler("0x000012").throwError();
 
-            return;
-
         }
 
-        const userID = (await database.users.getUserInfo(username, "username", ["userID"]))[0].userID;
+        const userID = (await userDataProm)[0].userID;
 
-        await database.authentication.sendMFAEmail(userID);
+        const mfaProm = database.authentication.sendMFAEmail(userID);
+        const jwtTokenProm = generateToken(username, userID, true);
 
-        const jwtToken = await generateToken(username, userID, true);
+        await mfaProm;
+        const jwtToken = await jwtTokenProm;
 
         res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: 1000 * 60 * 30, overwrite: true }).json({ msg: "OK." });
 
@@ -1493,11 +1498,24 @@ app.post("/signin", async (req, res) => {
 
 app.get("/signout", async (req, res) => {
 
-    const token = req.headers.auth;
+    try {
 
-    await database.authorization.deleteJWT(token.userID, token.jwtID);
+        const token = req.headers.auth;
 
-    res.status(200).clearCookie("jwt").clearCookie("passwordReset").json({ msg: "OK." });
+        await database.authorization.deleteJWT(token.userID, token.jwtID);
+
+        res.status(200).clearCookie("jwt").clearCookie("passwordReset").json({ msg: "OK." });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+        return;
+
+    }
+
 
 });
 
@@ -1590,15 +1608,22 @@ app.post("/changeUserDetails", async (req, res) => {
 
         }
 
-        await database.users.changeUserInfo(token.userID, "userID", data.toChangeValue, data.toChangePropertyName);
+        const changeUserInfoProm = database.users.changeUserInfo(token.userID, "userID", data.toChangeValue, data.toChangePropertyName);
 
         if (data.toChangePropertyName == "username") {
 
-            res.status(200).cookie("jwt", await generateToken(data.toChangeValue, token.userID), { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite: true }).json({ msg: "OK." });
+            const jwtTokenProm = generateToken(data.toChangeValue, token.userID);
+
+            await changeUserInfoProm;
+            const jwtToken = await jwtTokenProm;
+
+            res.status(200).cookie("jwt", jwtToken, { httpOnly: true, maxAge: process.env.JWT_EXPIRES_MS, overwrite: true }).json({ msg: "OK." });
 
             return;
 
         }
+
+        await changeUserInfoProm;
 
         res.status(200).json({ msg: "OK." });
 
@@ -1628,7 +1653,9 @@ app.post("/sendPasswordResetEmail", async (req, res) => {
 
         }
 
-        await database.authentication.sendMFAEmail(userID);
+        const mfaProm = database.authentication.sendMFAEmail(userID);
+
+        await mfaProm;
 
         const time = Date.now();
 
@@ -1678,7 +1705,7 @@ app.post("/resetPassword", async (req, res) => {
 
         }
 
-        if (!database.authentication.verifyMFACode(utils.decrypt(passwordResetCookie.userID, "base64"), data.code)) {
+        if (!(await database.authentication.verifyMFACode(utils.decrypt(passwordResetCookie.userID, "base64"), data.code))) {
 
             new utils.ErrorHandler("0x000046").throwErrorToClient(res);
 
@@ -1706,7 +1733,6 @@ app.post("/learnRedirect", async (req, res) => {
 
         await updateConfig();
 
-
         const token = req.headers.auth;
         const courseID = req.body.courseID;
 
@@ -1718,7 +1744,11 @@ app.post("/learnRedirect", async (req, res) => {
 
         }
 
-        const completedTopics = await database.topics.getCompletedTopics(token.userID);
+        const completedTopicsProm = database.topics.getCompletedTopics(token.userID);
+        const paidForProm = database.payments.checkIfPaidFor(token.userID, courseID);
+
+        const completedTopics = await completedTopicsProm;
+        const paidFor = await paidForProm;
 
         if (courseData[courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
 
@@ -1727,8 +1757,6 @@ app.post("/learnRedirect", async (req, res) => {
             return;
 
         }
-
-        const paidFor = await database.payments.checkIfPaidFor(token.userID, courseID);
 
         if (paidFor) {
 
@@ -1765,7 +1793,13 @@ app.post("/buyRedirect", async (req, res) => {
 
         const token = req.headers.auth;
 
-        const accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
+        const accountTypeProm = database.users.getUserInfo(token.userID, "userID", ["accountType"]);
+        const customerIDProm = database.users.getUserInfo(token.userID, "userID", ["stripeCustomerID"]);
+        const subIDProm = database.payments.getSubID(token.userID);
+
+        const accountType = (await accountTypeProm)[0].accountType;
+        const customerID = (await customerIDProm)[0].stripeCustomerID;
+        const subID = await subIDProm;
 
         if (accountType == "student") {
 
@@ -1787,13 +1821,10 @@ app.post("/buyRedirect", async (req, res) => {
 
         }
 
-        const customerID = (await database.users.getUserInfo(token.userID, "userID", ["stripeCustomerID"]))[0].stripeCustomerID;
 
         const metadata = {};
 
         let line_items;
-
-        const subID = await database.payments.getSubID(token.userID);
 
         switch (item) {
 
@@ -2238,20 +2269,6 @@ app.post("/adminDeleteSchoolStudent", async (req, res) => {
 
 });
 
-app.post("/verifyHMACSignature", (req, res) => {
-
-    try {
-
-        res.status(200).json({ msg: "OK.", verified: utils.verifyHMAC(req.body.data, req.body.signature, "base64url") })
-
-    } catch (error) {
-
-        handleRequestError(error, res);
-
-    }
-
-});
-
 app.post("/completeLessonChunk", async (req, res) => {
 
     try {
@@ -2292,8 +2309,11 @@ app.post("/completeLesson", async (req, res) => {
         const token = req.headers.auth;
         const data = req.body;
 
-        await database.topics.updateLessonChunk(token.userID, data.topicID, 0);
-        await database.topics.addCompletedTopic(token.userID, data.topicID);
+        const updateLessonChunkProm =  database.topics.updateLessonChunk(token.userID, data.topicID, 0);
+        const addCompleteTopicProm = database.topics.addCompletedTopic(token.userID, data.topicID);
+
+        await updateLessonChunkProm;
+        await addCompleteTopicProm;
 
         const completedTopics = await database.topics.getCompletedTopics(token.userID);
 
@@ -2344,7 +2364,11 @@ app.post("/getLessonChunkContent", async (req, res) => {
 
         }
 
-        const paidFor = await database.payments.checkIfPaidFor(token.userID, courseID);
+        const paidForProm = database.payments.checkIfPaidFor(token.userID, courseID);
+        const courseContentResProm = fetch("https://coursecontent.aristotle.academy" + contentIDParts[0]);
+
+        const paidFor = await paidForProm;
+        const courseContentRes = await courseContentResProm;
 
         if (!paidFor) {
 
@@ -2353,8 +2377,6 @@ app.post("/getLessonChunkContent", async (req, res) => {
             return;
 
         }
-
-        const courseContentRes = await fetch("https://coursecontent.aristotle.academy" + contentIDParts[0]);
 
         if (!courseContentRes.ok) {
 
@@ -2374,7 +2396,7 @@ app.post("/getLessonChunkContent", async (req, res) => {
 
     catch (error) {
 
-
+        handleRequestError(error, res);
         
     }
 

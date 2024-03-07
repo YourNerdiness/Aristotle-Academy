@@ -336,32 +336,6 @@
 
     },
 
-    "/verifyHMACSignature" : {
-
-        "methodToMatch" : "POST",
-        
-        "mustBeSignedIn" : true,
-        "mustBeSignedOut" : false,
-        "mfaMustBeRequired" : false,
-        "bodyParameters" : {
-
-            "data" : {
-
-                "type" : "string"
-
-            },
-
-            "signature" : {
-
-                "type" : "string",
-                "format" : "base64url"
-
-            }
-
-        }
-
-    },
-
     "/completeLessonChunk" : {
 
         "methodToMatch" : "POST",

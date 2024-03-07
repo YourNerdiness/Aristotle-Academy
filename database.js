@@ -170,10 +170,14 @@ const users = {
 
         let userID = crypto.randomBytes(256).toString("base64");
 
-        let userIDResults = await users.getUserInfo(userID, "userID", ["userID"]);
-        const usernameResults = await users.getUserInfo(username, "username", ["userID"]);
-        const emailResults = await users.getUserInfo(email, "email", ["userID"]);
+        const userIDResultsProm = users.getUserInfo(userID, "userID", ["userID"]);
+        const usernameResultsProm = users.getUserInfo(username, "username", ["userID"]);
+        const emailResultsProm = users.getUserInfo(email, "email", ["userID"]);
         
+        let userIDResults = await userIDResultsProm;
+        const usernameResults = await usernameResultsProm;
+        const emailResults = await emailResultsProm;
+
         while (userIDResults.length > 0) {
 
             userID = crypto.randomBytes(256).toString("base64");
@@ -310,7 +314,7 @@ const users = {
 
         const welcomeEmailContent = `Welcome to Aristotle Academy, we hope you'll benefit from our service. Here is your code to verify your email: <br> <h5>${emailVerificationCode}</h5>`;
 
-        utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
+        await utils.sendEmail(authEmailTransport, "Welcome to Aristotle Academy!", welcomeEmailContent, email, true, username);
 
         const session = mongoClient.startSession();
 
