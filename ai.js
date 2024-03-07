@@ -17,15 +17,14 @@ class QLearning {
 
     constructor (possibleActions) {
 
-        this.alpha = 0.3;
         this.epsilon = 0.05;
-        this.lambda = 0.99;
+        this.lambda = 1;
         this.possibleActions = possibleActions;
         this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = Math.random()/(key == discourageAction ? 35 : 20); return obj; }, {}) };
 
     }
 
-    async calculateQValues (reward, state, action) {
+    async calculateQValues (reward, state, action, learningRate) {
 
         if (!(await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]))) {
 
@@ -35,18 +34,18 @@ class QLearning {
 
         let oldQValue = await database.ai.getQValue(state.split("|")[0], state.split("|")[1], action) || 0.0;
 
-        return oldQValue + this.alpha * (reward - oldQValue);
+        return oldQValue + this.learningRate * (reward - oldQValue);
 
     }
 
     // stateActionPairs is an array of state-action pairs, representing the actions taken in the states before the reward was received. stateActionPairs[0] is the most recent state-action pair, where the reward was received, stateActionPairs[1] is the second most recent state-action pair, etc
-    async updateQValues (stateActionPairs, reward) {
+    async updateQValues (stateActionPairs, reward, learningRate) {
         
         const promises = [];
 
         for (let i = 0; i < stateActionPairs.length; i++) {
 
-            promises.push(this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1])
+            promises.push(this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1], learningRate)
                 .then(newQValue => { return database.ai.setQValue(stateActionPairs[i][0].split("|")[0], stateActionPairs[i][0].split("|")[1], stateActionPairs[i][1], newQValue) }));
 
         }
@@ -191,7 +190,9 @@ const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
 
     }
 
-    const updateQValuesProm = qLearning.updateQValues(stateActionPairs, quizScore);
+    const completedTopics = await database.topics.getCompletedTopics(userID);
+
+    const updateQValuesProm = qLearning.updateQValues(stateActionPairs, quizScore, 1 / (completedTopics.length || 1));
 
     let setUserNumChunksProm;
 
