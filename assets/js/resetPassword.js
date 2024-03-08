@@ -89,6 +89,14 @@ $(document).ready(function () {
 
         const data = { newPassword : $("#password").val(), code : $("#code").val() };
 
+        if (!(/^[0-9A-Fa-f]+$/.test(data.code)) || data.code.length != 8) {
+
+            $("#error").text("MFA code invalid.");
+
+            return;
+
+        }
+
         const req = {
 
             method : "POST",

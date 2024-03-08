@@ -53,6 +53,14 @@ const completeMFA = async () => {
 
     const code = document.getElementById("code").value;
 
+    if (!(/^[0-9A-Fa-f]+$/.test(code)) || code.length != 8) {
+
+        $("#mfaError").text("MFA code invalid.");
+
+        return;
+
+    }
+
     const data = { code };
 
     const req = {

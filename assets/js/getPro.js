@@ -48,6 +48,14 @@ $(document).ready(function () {
 
         const data = { accessCode : $("#schoolAccessCode").val() };
 
+        if (!(/^[0-9A-Fa-f]+$/.test(data.accessCode)) || data.accessCode.length != 8) {
+
+            $("#error").text("Access code invalid.");
+
+            return;
+
+        }
+
         const req = {
 
             method : "POST",
