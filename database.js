@@ -310,7 +310,7 @@ const users = {
 
         const userIDHash = utils.hash(userID, "base64");
 
-        const emailVerificationCode = crypto.randomBytes(6).toString("hex");
+        const emailVerificationCode = crypto.randomBytes(4).toString("hex");
 
         const welcomeEmailContent = `Welcome to Aristotle Academy, we hope you'll benefit from our service. Here is your code to verify your email: <br> <h5>${emailVerificationCode}</h5>`;
 
@@ -574,7 +574,7 @@ const authentication = {
 
         const userData = (await users.getUserInfo(userID, "userID", ["username", "email"]))[0];
 
-        const emailVerificationCode = crypto.randomBytes(6).toString("hex");
+        const emailVerificationCode = crypto.randomBytes(4).toString("hex");
 
         await collections.authentication.updateOne({ userIDHash : utils.hash(userID, "base64") }, { $set : { code : utils.encrypt(emailVerificationCode, "hex"), timestamp : Date.now() } });
 
