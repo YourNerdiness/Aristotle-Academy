@@ -130,12 +130,12 @@
         "severity": "ALERT"
     },
     "0x00001A" : {
-        "msg": "Cannot create user because username is already in use.",
+        "msg": "Cannot create user because username is already in use. Try signing in. This may be because your MFA isn't completed, so if you've just signed up, still try signing in.",
         "http_error_code": 409,
         "severity": "WARNING"
     },
     "0x00001B" : {
-        "msg": "Cannot create user because email is already in use.",
+        "msg": "Cannot create user because email is already in use. Try signing in. This may be because your MFA isn't completed, so if you've just signed up, still try signing in.",
         "http_error_code": 409,
         "severity": "WARNING"
     },
