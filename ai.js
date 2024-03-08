@@ -17,14 +17,29 @@ class QLearning {
 
     constructor (possibleActions) {
 
-        this.epsilon = 0.05;
         this.lambda = 1;
         this.possibleActions = possibleActions;
-        this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = Math.random()/(key == discourageAction ? 35 : 20); return obj; }, {}) };
+        this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = (key == discourageAction ? (Math.random()/20) : (Math.random()/50)); return obj; }, {}) };
 
     }
 
-    async calculateQValues (reward, state, action, learningRate) {
+    _normalizeVector (vector) {
+
+        const scalerSum = vector.reduce((acc, val) => acc + val, 0);
+
+        const newVector = [];
+
+        for (let i = 0; i < vector.length; i++) {
+
+            newVector[i] = vector[i] / scalerSum;
+
+        }
+
+        return newVector;
+
+    }
+
+    async _calculateQValues (reward, state, action, learningRate) {
 
         if (!(await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]))) {
 
@@ -34,7 +49,7 @@ class QLearning {
 
         let oldQValue = await database.ai.getQValue(state.split("|")[0], state.split("|")[1], action) || 0.0;
 
-        return oldQValue + this.learningRate * (reward - oldQValue);
+        return oldQValue + learningRate * (reward - oldQValue);
 
     }
 
@@ -45,7 +60,7 @@ class QLearning {
 
         for (let i = 0; i < stateActionPairs.length; i++) {
 
-            promises.push(this.calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1], learningRate)
+            promises.push(this._calculateQValues(this.lambda**i*reward, stateActionPairs[i][0], stateActionPairs[i][1], learningRate)
                 .then(newQValue => { return database.ai.setQValue(stateActionPairs[i][0].split("|")[0], stateActionPairs[i][0].split("|")[1], stateActionPairs[i][1], newQValue) }));
 
         }
@@ -56,35 +71,45 @@ class QLearning {
 
     async selectAction (state) {
 
+        // TODO: make for for negative rewards, potentially in normalization code
+
         if (!(await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]))) {
 
             await database.ai.setStateObj(state.split("|")[0], state.split("|")[1], this.getDefaultActionValues(Number(state.split("|")[1]) < 3 ? "e" : ""));
 
         }
 
-        if (Math.random() < this.epsilon) {
+        const actionRewards = await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]);
 
-            return this.possibleActions[Math.floor(Math.random()*this.possibleActions.length)];
+        const rewards = Object.values(actionRewards);
+        const normalizedRewards = this._normalizeVector(rewards);
+
+        for (let i = 0; i < rewards.length; i++) {
+
+            const actionRewardsKey = Object.keys(actionRewards).find((val) => val == rewards[i]);
+
+            actionRewards[actionRewardsKey] = normalizedRewards[i];
 
         }
 
-        const actionRewards = await database.ai.getStateObj(state.split("|")[0], state.split("|")[1]);
+        const selectNum = Math.random();
+        let acc = 0;
 
-        let maxReward = -Infinity;
-        let maxRewardAction = null;
+        let selectedAction;
 
         for (let action of this.possibleActions) {
 
-            if ((actionRewards[action] || 0.0) > maxReward) {
+            if (selectNum >= acc) {
 
-                maxReward = actionRewards[action] || 0.0;
-                maxRewardAction = action;
+                selectedAction = action;
 
             }
 
+            acc += actionRewards[action];
+
         }
 
-        return maxRewardAction;
+        return selectedAction;
 
     }
 
@@ -192,7 +217,7 @@ const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
 
     const completedTopics = await database.topics.getCompletedTopics(userID);
 
-    const updateQValuesProm = qLearning.updateQValues(stateActionPairs, quizScore, 1 / (completedTopics.length || 1));
+    const updateQValuesProm = qLearning.updateQValues(stateActionPairs, quizScore, Math.max(1 / (completedTopics.length || 1), 0.05));
 
     let setUserNumChunksProm;
 
