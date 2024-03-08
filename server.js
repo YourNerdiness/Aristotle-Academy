@@ -761,15 +761,7 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
         }
 
-        if (requestParameters[req.url].mustBeSignedIn && !requestParameters[req.url].mfaMustBeRequired && token.mfaRequired) {
-
-            new utils.ErrorHandler("0x000003", `MFA must be completed to make a request to ${req.url}.`).throwErrorToClient(res);
-
-            return;
-
-        }
-
-        if (requestParameters[req.url].mustBeSignedOut && token) {
+        if (requestParameters[req.url].mustBeSignedOut && token && (!token.mfaRequired || requestParameters[req.url].mfaMustBeRequired)) {
 
             new utils.ErrorHandler("0x000002", `Must not be signed in to make a request to ${req.url}.`).throwErrorToClient(res);
 
@@ -777,7 +769,15 @@ const requestVerificationMiddleware = async (req, res, next) => {
 
         }
 
-        if (requestParameters[req.url].mfaMustBeRequired && (!token || !token.mfaRequired)) {
+        if (requestParameters[req.url].mfaMustBeRequired && !(token?.mfaRequired)) {
+
+            new utils.ErrorHandler("0x000003", `MFA must be completed to make a request to ${req.url}.`).throwErrorToClient(res);
+
+            return;
+
+        }
+
+        if (requestParameters[req.url].mfaMustNotBeRequired && token?.mfaRequired) {
 
             new utils.ErrorHandler("0x000004", `MFA must not be completed to make a request to ${req.url}.`).throwErrorToClient(res);
 

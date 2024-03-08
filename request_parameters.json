@@ -7,6 +7,7 @@
         "mustBeSignedIn" : false,
         "mustBeSignedOut" : true,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : false,
         "bodyParameters" : {
 
             "username" : {
@@ -45,6 +46,7 @@
         "mustBeSignedIn" : false,
         "mustBeSignedOut" : true,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : false,
         "bodyParameters" : {
 
             "username" : {
@@ -63,6 +65,17 @@
 
     },
 
+    "/signout" : {
+
+        "methodToMatch" : "GET",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true
+
+    },
+
     "/completeMFA" : {
 
         "methodToMatch" : "POST",
@@ -70,6 +83,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : true,
+        "mfaMustNotBeRequired" : false,
         "bodyParameters" : {
 
             "code" : {
@@ -90,6 +104,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "bodyParameters" : {
 
             "password" : {
@@ -109,6 +124,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "bodyParameters" : {
 
             "password" : {
@@ -139,8 +155,9 @@
         "methodToMatch" : "POST",
         
         "mustBeSignedIn" : false,
-        "mustBeSignedOut" : false,
+        "mustBeSignedOut" : true,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : false,
         "bodyParameters" : {
 
             "val" : {
@@ -165,8 +182,9 @@
         "methodToMatch" : "POST",
         
         "mustBeSignedIn" : false,
-        "mustBeSignedOut" : false,
+        "mustBeSignedOut" : true,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : false,
         "bodyParameters" : {
 
             "newPassword" : {
@@ -193,6 +211,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters" : {
 
@@ -214,6 +233,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["individual", "admin"],
         "bodyParameters" : {
 
@@ -240,6 +260,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["individual", "admin"],
         "bodyParameters" : {
 
@@ -260,6 +281,7 @@
         "mustBeSignedIn" : false,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : false,
         "queryParameters" : {
 
             "filter" : {
@@ -280,6 +302,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["student", "individual"],
         "bodyParameters" : {
 
@@ -301,6 +324,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["student"]
 
     },
@@ -312,6 +336,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["admin"]
 
     },
@@ -323,6 +348,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["admin"],
         "bodyParameters" : {
 
@@ -343,6 +369,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
@@ -379,6 +406,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
@@ -423,6 +451,7 @@
         "mustBeSignedIn" : true,
         "mustBeSignedOut" : false,
         "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
         "allowedAccountTypes" : ["individual", "student"],
         "bodyParameters": {
 
@@ -449,16 +478,6 @@
             }
 
         }
-
-    },
-
-    "/signout" : {
-
-        "methodToMatch" : "GET",
-        
-        "mustBeSignedIn" : true,
-        "mustBeSignedOut" : false,
-        "mfaMustBeRequired" : false
 
     }
 
