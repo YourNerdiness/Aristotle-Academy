@@ -10,24 +10,106 @@ h4 {
 
 }
 
-#first-sect {
+@keyframes fadeIn {
 
-    max-height: 70vw;
+    from {
 
-    overflow: hidden;
+        opacity: 0;
+
+    }
+
+    to {
+
+        opacity: 1;
+
+    }
 
 }
 
+@keyframes fadeOut {
 
-#quote {
+    from {
 
-    font-size: 72px;
+        opacity: 1;
 
-    font-family: Luminari, fantasy;
-    font-style: italic;
+    }
 
-    max-height: 0.5*100vw;
+    to {
 
-    border-style: solid;
+        opacity: 0;
+
+    }
+
+}
+
+.fade-in {
+
+    animation: fadeIn 1.5s ease-in-out forwards;
+
+}
+
+.fade-out {
+
+    animation: fadeOut 1.5s ease-in-out forwards;
+
+}
+
+.sect  {
+
+    min-height: 1100px;
+
+}
+
+div > h3, div > h5 {
+
+    max-width: 500px;
+
+}
+
+.left-sect > div {
+
+    text-align: left;
+
+}
+
+.right-sect > div {
+
+    text-align: right;
+
+}
+
+#sect1 {
+
+    background: linear-gradient(to right, rgba(255, 0, 0, 0.2), white);
+
+}
+
+#sect2 {
+
+    background: linear-gradient(to left, rgba(0, 255, 0, 0.2), white);
+
+}
+
+#sect3 {
+
+    background: linear-gradient(to left, rgba(0, 0, 255, 0.2), white);
+
+}
+
+#sect4 {
+
+    background: linear-gradient(to right, rgba(255, 165, 0, 0.2), white);
+
+}
+
+#sect5 {
+
+    background: linear-gradient(to right, rgba(255, 0, 255, 0.4), white);
+
+}
+
+b {
+
+    font-size: 48px;
 
 }
