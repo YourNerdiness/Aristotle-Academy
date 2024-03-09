@@ -331,7 +331,7 @@ const users = {
 
             });
 
-            await collections.ai.insertOne({ userIDHash, numChunks: 6 });
+            await collections.ai.insertOne({ userIDHash, numChunks: 6, qTable : {} });
 
             await collections.authentication.insertOne({
 
