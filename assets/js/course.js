@@ -1,6 +1,8 @@
 let time;
 let quizQuestionData;
 
+let quizScore;
+
 const utils = {
 
     shuffleArray : (arr=[]) => {
@@ -65,7 +67,8 @@ const submitLessonChunk = async () => {
     }
 
 };
-const submitQuiz = async () => {
+
+const showQuizScore = () => {
 
     const questions = quizQuestionData?.questions;
 
@@ -107,14 +110,25 @@ const submitQuiz = async () => {
 
     }
 
-    sendSessionTimeToServer()
+    quizScore = points / questions.length;
+    quizPerc = quizScore * 100
+    quizPercRounded = Math.round(quizPerc);
 
-    const quizScore = points / questions.length;
+    $("#quizScore").text(`${quizPercRounded}%`)
+
+    $("#quizScoreDialog")[0].showModal();
+
+    $(".quizInput").forEach((elem) => { elem.disabled = true });
+
+}
+
+const submitQuiz = async () => {
+
+    sendSessionTimeToServer()
 
     const topicID = new URLSearchParams(window.location.search).get("topicID");
     const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
     const courseID = new URLSearchParams(window.location.search).get("courseID");
-    const contentID = new URLSearchParams(window.location.search).get("contentID");
 
     const data = { quizScore, lessonChunk, courseID, topicID };
 
@@ -545,7 +559,7 @@ window.onload = async () => {
             $("#exercise").hide();
             $("#quiz").show();
 
-            $("#continue").on("click", submitQuiz);
+            $("#continue").on("click", showQuizScore);
 
             $("#continue").prop("disabled", false);
 
@@ -622,6 +636,7 @@ window.onload = async () => {
                             answerInputElem.type = "radio";
                             answerInputElem.id = `mcAnswer${i}-${j}`;
                             answerInputElem.name = `mcAnswer${i}`;
+                            answerInputElem.classList = "quizInput"
                             answerInputElem.value = possibleAnswers[j];
 
                             if (j == 0) {
