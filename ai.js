@@ -19,7 +19,7 @@ class QLearning {
 
         this.lambda = 1;
         this.possibleActions = possibleActions;
-        this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = (key == discourageAction ? (Math.random()/20) : (Math.random()/50)); return obj; }, {}) };
+        this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = (key == discourageAction ? (Math.random()/50) : (Math.random()/50)); return obj; }, {}) };
 
     }
 
@@ -86,7 +86,7 @@ class QLearning {
 
         for (let i = 0; i < rewards.length; i++) {
 
-            const actionRewardsKey = Object.keys(actionRewards).find((val) => val == rewards[i]);
+            const actionRewardsKey = Object.keys(actionRewards).find((key) => actionRewards[key] == rewards[i]);
 
             actionRewards[actionRewardsKey] = normalizedRewards[i];
 
