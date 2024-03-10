@@ -411,7 +411,7 @@ const users = {
 
         await updateConfig();
 
-        const results = await users.getUserInfo(query, queryPropertyName, ["userID"]);
+        const results = await users.getUserInfo(query, queryPropertyName, ["userID", "stripeCustomerID"]);
 
         if (results.length == 0) {
 
@@ -459,6 +459,31 @@ const users = {
             if (!userDataProperties.includes(toChangePropertyName) || toChangePropertyName == "userID") {
 
                 new utils.ErrorHandler("0x000029", "Property either does not exist or is not allowed to be changed.").throwError();
+
+            }
+
+            if (toChangePropertyName == "email") {
+
+                try {
+
+                    await stripeAPI.customers.update(userData.stripeCustomerID, { email : toChangeValue })
+        
+                } catch (error) {
+        
+                    switch (error.raw.code) {
+        
+                        case "email_invalid":
+        
+                            new utils.ErrorHandler("0x000063", "Email is invalid.").throwError();
+        
+                        default:
+        
+                            new utils.ErrorHandler("0x00001E", error.raw.message).throwError();
+        
+                    }
+        
+                }
+
 
             }
 

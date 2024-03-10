@@ -483,5 +483,10 @@
         "msg": "Cannot change email to non-school-domain email, try leaving the school first.",
         "http_error_code": 409,
         "severity": "WARNING"
+    },
+    "0x000063" : {
+        "msg": "Cannot update user because email is invalid.",
+        "http_error_code": 400,
+        "severity": "WARNING"
     }
 }
