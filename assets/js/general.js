@@ -18,6 +18,34 @@ window.onload = () => {
 
     }
 
+    // useClass is a class set to show and hide img elements and the input element of the password, meant to distinguish multiple password inputs in a document
+
+    alert("hello")
+
+    $(".showPassword").click(function(event) {
+
+        const classList = $(this).attr("class");
+
+        const useClass = classList.split(" ").filter((val) => val != "showPassword")[0]
+
+        $(`.showPassword.${useClass}`).hide();
+        $(`.hidePassword.${useClass}`).show();
+        $(`input.${useClass}`).attr("type", "text")
+
+    });
+
+    $(".hidePassword").click(function(event) {
+
+        const classList = $(this).attr("class");
+
+        const useClass = classList.split(" ").filter((val) => val != "hidePassword")[0]
+
+        $(`.showPassword.${useClass}`).show();
+        $(`.hidePassword.${useClass}`).hide();
+        $(`input.${useClass}`).attr("type", "password")
+
+    });
+
 };
 
 window.onbeforeunload = () => {

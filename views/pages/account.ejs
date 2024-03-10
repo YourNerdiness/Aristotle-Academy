@@ -10,8 +10,12 @@
 
         <form>
 
-            <label for="usernamePasswordField">Please re-enter your password:</label>
-            <input type="password" id="usernamePasswordField" name="usernamePasswordField">
+            <label for="usernamePasswordField" class="passwordLabel">
+                Please re-enter your password:
+                <img class="showPassword usernamePassword" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword usernamePassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+            </label>
+            <input type="password" id="usernamePasswordField" class="usernamePassword" name="usernamePasswordField">
 
             <label for="newUsernameField">Please enter your new username:</label>
             <input type="text" id="newUsernameField" name="newUsernameField">
@@ -30,8 +34,12 @@
 
         <form>
 
-            <label for="emailPasswordField">Please re-enter your password:</label>
-            <input type="password" id="emailPasswordField" name="emailPasswordField">
+            <label for="emailPasswordField" class="passwordLabel">
+                Please re-enter your password:
+                <img class="showPassword emailPassword" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword emailPassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+            </label>
+            <input type="password" id="emailPasswordField" class="emailPassword" name="emailPasswordField">
 
             <label for="newEmailField">Please enter your new email:</label>
             <input type="email" id="newEmailField" name="newEmailField">
@@ -50,11 +58,19 @@
 
         <form>
 
-            <label for="passwordPasswordField">Please enter your old password:</label>
-            <input type="password" id="passwordPasswordField" name="passwordPasswordField">
+            <label for="passwordPasswordField" class="passwordLabel">
+                Please enter your old password:
+                <img class="showPassword passwordPassword" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword passwordPassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+            </label>
+            <input type="password" id="passwordPasswordField" class="passwordPassword" name="passwordPasswordField">
 
-            <label for="newPasswordField">Please enter your new password:</label>
-            <input type="password" id="newPasswordField" name="newPasswordField">
+            <label for="newPasswordField" class="passwordLabel">
+                Please enter your new password:
+                <img class="showPassword newPassword" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword newPassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+            </label>
+            <input type="password" id="newPasswordField" class="newPassword" name="newPasswordField">
 
         </form>
 
@@ -70,10 +86,14 @@
 
         <form>
 
-            <label for="subPasswordField">Please re-enter your password:</label>
-            <input type="password" id="subPasswordField" name="subPasswordField">
+            <label for="subPasswordField" class="passwordLabel">
+                Please re-enter your password:
+                <img class="showPassword subPassword" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword subPassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+            </label>
+            <input type="password" id="subPasswordField" class="subPassword" name="subPasswordField">
 
-            <label for="newSubTypeField">Please select your subscription type:</label>
+            <label for="newSubTypeField">Please select your subscription type:</label>password
             <select id="newSubTypeField">
 
                 <option>None</option>
@@ -96,8 +116,11 @@
         
         <form>
         
-            <label for="updatePaymentPasswordField">Please re-enter your password:</label>
-            <input type="password" id="updatePaymentPasswordField" name="updatePaymentPasswordField">
+            <label for="updatePaymentPasswordField" class="passwordLabel">Please re-enter your password:</label>
+                <img class="showPassword paymentPassword" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword paymentPassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+            </label>
+            <input type="password" id="updatePaymentPasswordField" class="paymentPassword" name="updatePaymentPasswordField">
         
         </form>
         
@@ -140,8 +163,11 @@
 
         <form>
 
-            <label for="deletePasswordField">Please re-enter your password:</label>
-            <input type="password" id="deletePasswordField" name="deletePasswordField">
+            <label for="deletePasswordField" class="passwordLabel">Please re-enter your password:
+                <img class="showPassword deletePassword" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword deletePassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+            </label>
+            <input type="password" id="deletePasswordField" class="deletePassword" name="deletePasswordField">
 
 
         </form>

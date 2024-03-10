@@ -23,8 +23,12 @@
         <label for="ipAddr">School Network's Public IP Address</label>
         <input id="ipAddr" name="ipAddr" type="text">
 
-        <label for="password">Re-enter password</label>
-        <input id="password" name="password" type="password">
+        <label for="password" class="passwordLabel">
+            Re-enter password
+            <img class="showPassword password" src="images/show-password.png" width="32px" height="32px">
+            <img class="hidePassword password" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+        </label>
+        <input id="password" class="password" name="password" type="password">
 
         <label for="schoolName">Enter school name</label>
         <input id="schoolName" name="schoolName" type="text">

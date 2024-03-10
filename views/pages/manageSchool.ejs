@@ -6,8 +6,12 @@
 
     <form>
 
-        <label for="subPasswordField">Please re-enter your password:</label>
-        <input type="password" id="subPasswordField" name="subPasswordField">
+        <label for="subPasswordField" class="passwordLabel">
+            Re-enter password:
+            <img class="showPassword subPassword" src="images/show-password.png" width="32px" height="32px">
+            <img class="hidePassword subPassword" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
+          </label>
+        <input type="password" id="subPasswordField" class="subPassword" name="subPasswordField">
 
         <label for="numStudents">Number of students</label>
         <select id="numStudents" name="numStudents">
