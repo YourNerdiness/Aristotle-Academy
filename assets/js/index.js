@@ -20,7 +20,7 @@ $(document).ready(function () {
 
         });
 
-    }, { threshold: 0.5 });
+    }, { threshold: 0.1 });
 
     document.querySelectorAll(".sect").forEach(el => observer.observe(el));
 
