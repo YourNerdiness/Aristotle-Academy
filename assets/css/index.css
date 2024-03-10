@@ -60,6 +60,12 @@ h4 {
 
 }
 
+.sect > img {
+
+    max-width: 50vw;
+
+}
+
 div > h3, div > h5 {
 
     max-width: 500px;
@@ -92,13 +98,13 @@ div > h3, div > h5 {
 
 #sect3 {
 
-    background: linear-gradient(to left, rgba(0, 0, 255, 0.2), white);
+    background: linear-gradient(to right, rgba(0, 0, 255, 0.2), white);
 
 }
 
 #sect4 {
 
-    background: linear-gradient(to right, rgba(255, 165, 0, 0.2), white);
+    background: linear-gradient(to left, rgba(255, 165, 0, 0.2), white);
 
 }
 
