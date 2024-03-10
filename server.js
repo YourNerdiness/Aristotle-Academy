@@ -2399,9 +2399,9 @@ app.post("/completeLesson", async (req, res) => {
 
         const sessionTimes = await database.topics.getSessionTimes(token.userID, data.topicID);
 
-        const averageSessionTime = (sessionTimes).reduce((acc, elem) => acc + elem, 0) / (sessionTimes.length || 1);
+        const summedSessionTimes = (sessionTimes).reduce((acc, elem) => acc + elem, 0);
 
-        await ai.updateAI(token.userID, data.topicID, data.quizScore, averageSessionTime);
+        await ai.updateAI(token.userID, data.topicID, data.quizScore, summedSessionTimes);
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 

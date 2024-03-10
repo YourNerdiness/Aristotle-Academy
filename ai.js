@@ -202,7 +202,7 @@ const getContentID = async (userID, courseID) => {
 
 };
 
-const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
+const updateAI = async (userID, topicID, quizScore, summedSessionTimes) => {
 
     const actions = (await database.topics.getLessonChunkContentFormats(userID, topicID)).reverse();
     const userIDHash = utils.hash(userID, "base64");
@@ -221,7 +221,7 @@ const updateAI = async (userID, topicID, quizScore, averageSessionTime) => {
 
     let setUserNumChunksProm;
 
-    if (averageSessionTime > 3600000) { // 1 hour per lesson
+    if (summedSessionTimes > 3600000) { // 1 hour per lesson
 
         if (quizScore > 0.85 && currentUserNumChunks > 1) {
 
