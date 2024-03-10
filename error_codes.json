@@ -476,7 +476,12 @@
     },
     "0x000061" : {
         "msg": "Cannot create school, domain is invalid.",
-        "http_error_code": 400,
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000062" : {
+        "msg": "Cannot change email to non-school-domain email, try leaving the school first.",
+        "http_error_code": 409,
         "severity": "WARNING"
     }
 }

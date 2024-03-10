@@ -1600,11 +1600,39 @@ app.post("/changeUserDetails", async (req, res) => {
         const username = token.username;
         const password = data.password;
 
-        if (!(await database.authentication.verifyPassword(username, password))) {
+        const passwordVerifiedProm = database.authentication.verifyPassword(username, password);
+
+        if (!(await passwordVerifiedProm)) {
 
             new utils.ErrorHandler("0x000012").throwError();
 
             return;
+
+        }
+
+        if (data.toChangePropertyName == "email") {
+
+            const userData = (await database.users.getUserInfo(token.userID, "userID", ["accountType", "schoolID"]))[0];
+
+            console.log(userData);
+
+            if (userData.accountType == "student" && userData.schoolID) {
+
+                const schoolData = await database.schools.getSchoolDataBySchoolID(userData.schoolID);
+
+                let userDomain = data.toChangeValue.split("@")
+                userDomain = userDomain[userDomain.length - 1]
+                const schoolDomain = utils.decrypt(schoolData.domain, "utf-8");
+
+                if (!developmentMode && userDomain != schoolDomain) {
+
+                    new utils.ErrorHandler("0x000062").throwError();
+
+                    return;
+
+                }
+
+            }
 
         }
 
