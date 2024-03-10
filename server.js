@@ -1949,7 +1949,7 @@ app.post("/buyRedirect", async (req, res) => {
 
                     if (!schoolData) {
 
-                        if (!data.ipAddr) {
+                        if (!data.domain) {
 
                             new utils.ErrorHandler("0x000006").throwError();
     
@@ -1961,7 +1961,13 @@ app.post("/buyRedirect", async (req, res) => {
     
                         }
 
-                        await database.schools.createSchool(token.userID, data.schoolName, Number(item.substring(6)), data.ipAddr);
+                        if(!(/^[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$/gm.test(data.domain))) {
+
+                            new utils.ErrorHandler("0x000061").throwError();
+                
+                        }                
+
+                        await database.schools.createSchool(token.userID, data.schoolName, Number(item.substring(6)), data.domain);
                         
                     }
 
@@ -2108,7 +2114,10 @@ app.post("/joinSchool", async (req, res) => {
         const token = req.headers.auth;
         const data = req.body;
 
-        const schoolData = await database.schools.getSchoolDataByAccessCode(data.accessCode);
+        const schoolDataProm = database.schools.getSchoolDataByAccessCode(data.accessCode);
+        const userDataProm = database.users.getUserInfo(token.userID, "userID", ["email"]);
+
+        const schoolData = await schoolDataProm;
 
         if (!schoolData) {
 
@@ -2116,9 +2125,13 @@ app.post("/joinSchool", async (req, res) => {
 
         }
 
-        const schoolIpAddr = utils.decrypt(schoolData.ipAddr, "utf-8");
+        const userData = await userDataProm;
 
-        if (!developmentMode && req.ip != schoolIpAddr) {
+        let userDomain = userData[0].email.split("@")
+        userDomain = userDomain[userDomain.length - 1]
+        const schoolDomain = utils.decrypt(schoolData.domain, "utf-8");
+
+        if (!developmentMode && userDomain != schoolDomain) {
 
             new utils.ErrorHandler("0x000051").throwError();
 

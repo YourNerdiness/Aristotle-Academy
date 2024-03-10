@@ -1338,7 +1338,7 @@ const ai = {
 
 const schools = {
 
-    createSchool : async (adminUserID, schoolName, maxNumStudents, ipAddr) => {
+    createSchool : async (adminUserID, schoolName, maxNumStudents, domain) => {
 
         const adminUserIDHash = utils.hash(adminUserID, "base64");
         
@@ -1410,7 +1410,7 @@ const schools = {
             maxNumStudents : utils.encrypt(maxNumStudents.toString(), "utf-8"),
             studentUserIDs : [],
             schoolName : utils.encrypt(schoolName, "utf-8"),
-            ipAddr : utils.encrypt(ipAddr, "utf-8"),
+            domain : utils.encrypt(domain, "utf-8"),
             schoolSubID : utils.encrypt("", "utf-8"),
             adminUserID : utils.encrypt(adminUserID, "base64"),
             schoolID : utils.encrypt(schoolID, "base64"),

@@ -395,7 +395,7 @@
         "severity": "WARNING"
     },
     "0x000051" : {
-        "msg": "Cannot join school, must join from school's IP address.",
+        "msg": "Cannot join school, must join from school's email domain.",
         "http_error_code": 401,
         "severity": "WARNING"
     },
@@ -472,6 +472,11 @@
     "0x000060" : {
         "msg": "Topic does not exist.",
         "http_error_code": 404,
+        "severity": "WARNING"
+    },
+    "0x000061" : {
+        "msg": "Cannot create school, domain is invalid.",
+        "http_error_code": 400,
         "severity": "WARNING"
     }
 }

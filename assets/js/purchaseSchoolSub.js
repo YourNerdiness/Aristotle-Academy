@@ -4,7 +4,13 @@ $(document).ready(() => {
 
         $("#error").text("");
 
-        const data = { item : $("#numStudents").val(), ipAddr : $("#ipAddr").val(), schoolName : $("#schoolName").val(), password : $("#password").val() };
+        const data = { item : $("#numStudents").val(), domain : $("#domain").val(), schoolName : $("#schoolName").val(), password : $("#password").val() };
+
+        if(!(/^[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-\.]+$/gm.test(data.domain))) {
+
+            $("#error").text("Domain is invalid.");
+
+        }
 
         const req = {
 

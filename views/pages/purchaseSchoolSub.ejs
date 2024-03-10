@@ -1,40 +1,78 @@
 <main class="center">
 
-    <div id="formDiv">
+    <form id="formDiv" onsubmit="return false;">
 
         <p id="error"></p>
 
-        <label for="numStudents">Number of students</label>
-        <select id="numStudents" name="numStudents">
+        <div>
 
-            <option value="school100"><%= price100Students %></option>
-            <option value="school200"><%= price200Students %></option>
-            <option value="school300"><%= price300Students %></option>
-            <option value="school400"><%= price400Students %></option>
-            <option value="school500"><%= price500Students %></option>
-            <option value="school600"><%= price600Students %></option>
-            <option value="school700"><%= price700Students %></option>
-            <option value="school800"><%= price800Students %></option>
-            <option value="school900"><%= price900Students %></option>
-            <option value="school1000"><%= price1000Students %></option>
+            <label for="numStudents">Number of students</label>
+            <select id="numStudents" name="numStudents">
 
-        </select>
+                <option value="school100">
+                    <%= price100Students %>
+                </option>
+                <option value="school200">
+                    <%= price200Students %>
+                </option>
+                <option value="school300">
+                    <%= price300Students %>
+                </option>
+                <option value="school400">
+                    <%= price400Students %>
+                </option>
+                <option value="school500">
+                    <%= price500Students %>
+                </option>
+                <option value="school600">
+                    <%= price600Students %>
+                </option>
+                <option value="school700">
+                    <%= price700Students %>
+                </option>
+                <option value="school800">
+                    <%= price800Students %>
+                </option>
+                <option value="school900">
+                    <%= price900Students %>
+                </option>
+                <option value="school1000">
+                    <%= price1000Students %>
+                </option>
 
-        <label for="ipAddr">School Network's Public IP Address</label>
-        <input id="ipAddr" name="ipAddr" type="text">
+            </select>
 
-        <label for="password" class="passwordLabel">
-            Re-enter password
-            <img class="showPassword password" src="images/show-password.png" width="32px" height="32px">
-            <img class="hidePassword password" src="images/hide-password.png" width="32px" height="32px" style="display: none;">
-        </label>
-        <input id="password" class="password" name="password" type="password">
+        </div>
 
-        <label for="schoolName">Enter school name</label>
-        <input id="schoolName" name="schoolName" type="text">
+        <div>
 
-        <button id="submit" style="display: block;">Submit</button>
+            <label for="domain">Students' email domain (for example, if your school's students email follows<br>the form
+                of student@school.edu, then their domain would be school.edu)</label>
+            <input id="domain" name="domain" type="text">
 
-    </div>
+        </div>
+
+        <div>
+
+            <label for="password" class="passwordLabel">
+                Re-enter password
+                <img class="showPassword password" src="images/show-password.png" width="32px" height="32px">
+                <img class="hidePassword password" src="images/hide-password.png" width="32px" height="32px"
+                    style="display: none;">
+            </label>
+            <input id="password" class="password" name="password" type="password">
+
+        </div>
+
+        <div>
+
+            <label for="schoolName">Enter school name</label>
+            <input id="schoolName" name="schoolName" type="text">
+
+        </div>
+
+        <button id="submit">Submit</button>
+
+    </form>
 
 </main>
