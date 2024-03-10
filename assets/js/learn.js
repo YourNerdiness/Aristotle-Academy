@@ -244,7 +244,9 @@ const getGenerateCourseElems = () => {
 
 };
 
-const init = async () => {
+window.onresize = generateCourseElems;
+
+$(document).ready(async () => {
 
     await getCourseData();
 
@@ -252,8 +254,4 @@ const init = async () => {
 
     generateCourseElems();
 
-};
-
-window.onresize = generateCourseElems;
-
-init();
+});

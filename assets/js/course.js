@@ -269,9 +269,9 @@ const showIncorrectDialog = () => {
 document.onmousemove = resetTimer;
 document.onmousedown = resetTimer
 document.onkeydown = resetTimer;
-window.onbeforeunload = () => localStorage.setItem("lastSessionEndTime", Date.now());
+$(window).on("unload", localStorage.setItem("lastSessionEndTime", Date.now()));
 
-window.onload = async () => {
+$(document).ready(async () => {
 
     document.getElementById("loadingDialog").showModal();
 
@@ -772,4 +772,4 @@ window.onload = async () => {
 
     resetTimer();
 
-}
+});

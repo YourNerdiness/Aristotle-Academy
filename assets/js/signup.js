@@ -122,7 +122,7 @@ const completeMFA = async () => {
     
 };
 
-window.onload = () => {
+$(document).ready(() => {
 
     const showMFA = new URLSearchParams(window.location.search).get("showMFA");
 
@@ -132,4 +132,4 @@ window.onload = () => {
 
     }
 
-}
+});
