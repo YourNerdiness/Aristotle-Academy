@@ -1540,15 +1540,15 @@ const schools = {
 
         else {
 
-            const students = await users.getUserInfo(studentUserID, "userID", ["userID"]);
+            const studentsUserData = await users.getUserInfo(studentUserID, "userID", ["stripeCustomerID"]);
 
-            if (students.length == 0) {
+            if (studentsUserData.length == 0) {
 
                 new utils.ErrorHandler("0x000031").throwError();
     
             }
     
-            else if (students.length > 1) {
+            else if (studentsUserData.length > 1) {
     
                 new utils.ErrorHandler("0x000032").throwError();
     
@@ -1570,6 +1570,12 @@ const schools = {
                     await collections.users.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.accountType" : utils.encrypt("student", "utf-8") }});
                     await collections.users.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.schoolID" : utils.encrypt(utils.decrypt(school.schoolID, "base64"), "base64") }}); // encryption is rerun so as to prevent data repetition
                     await collections.payments.updateOne({ "index.userID" : studentUserIDHash }, { $set : { "data.schoolID" : utils.encrypt(utils.decrypt(school.schoolID, "base64"), "base64") }}); // encryption is rerun so as to prevent data repetition
+
+                    (await stripeAPI.subscriptions.list({ customer : studentsUserData[0].stripeCustomerID })).data.forEach(async (sub) => {
+                
+                        await stripeAPI.subscriptions.cancel(sub.id);
+        
+                    });
 
                 });
 
