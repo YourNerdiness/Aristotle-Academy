@@ -20,8 +20,6 @@ window.onload = () => {
 
     // useClass is a class set to show and hide img elements and the input element of the password, meant to distinguish multiple password inputs in a document
 
-    alert("hello")
-
     $(".showPassword").click(function(event) {
 
         const classList = $(this).attr("class");
