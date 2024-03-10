@@ -250,6 +250,22 @@ const resetTimer = () => {
 
 }
 
+const showCorrectDialog = () => {
+
+    document.getElementById("correctDialog").show();
+
+    setTimeout(() => { document.getElementById("correctDialog").close(); }, 1000)
+
+}
+
+const showIncorrectDialog = () => {
+
+    document.getElementById("incorrectDialog").show();
+
+    setTimeout(() => { document.getElementById("incorrectDialog").close(); }, 1000)
+
+}
+
 document.onmousemove = resetTimer;
 document.onmousedown = resetTimer
 document.onkeydown = resetTimer;
@@ -418,6 +434,8 @@ window.onload = async () => {
 
                             if (correctAnswerText == localStorage.getItem("match_tight_last_column_two_clicked")) { 
 
+                                showCorrectDialog();
+
                                 columnOneBtn.disabled = true; 
                                 correctAnswerBtn.disabled = true;
 
@@ -440,6 +458,8 @@ window.onload = async () => {
                             else {
 
                                 if (localStorage.getItem("match_tight_last_column_two_clicked")) {
+
+                                    showIncorrectDialog();
 
                                     columnOneBtn.disabled = false; 
                                     $("button").filter((_, elem) => $(elem).text().trim() == localStorage.getItem("match_tight_last_column_two_clicked"))[0].disabled = false;
@@ -472,6 +492,8 @@ window.onload = async () => {
 
                             if (correctAnswerText == localStorage.getItem("match_tight_last_column_one_clicked")) { 
 
+                                showCorrectDialog();
+
                                 correctAnswerBtn.disabled = true; 
                                 columnTwoBtn.disabled = true;
 
@@ -494,6 +516,8 @@ window.onload = async () => {
                             else {
 
                                 if (localStorage.getItem("match_tight_last_column_one_clicked")) {
+
+                                    showIncorrectDialog();
 
                                     $("button").filter((_, elem) => $(elem).text().trim() == localStorage.getItem("match_tight_last_column_one_clicked"))[0].disabled = false; 
                                     columnTwoBtn.disabled = false;
@@ -575,13 +599,21 @@ window.onload = async () => {
 
                             radio.addEventListener("change", function () {
 
-                                if (this.checked) {
+                                showCorrectDialog();
 
-                                    $("#continue").prop("disabled", false);
+                                $("#continue").prop("disabled", false);
 
-                                    document.querySelectorAll("input[type=radio]").forEach((elem) => { elem.disabled = true })
+                                document.querySelectorAll("input[type=radio]").forEach((elem) => { elem.disabled = true })
 
-                                }
+                            });
+
+                        }
+
+                        else {
+
+                            radio.addEventListener("change", function () {
+
+                                showIncorrectDialog();
 
                             });
 
