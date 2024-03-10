@@ -5,3 +5,4 @@ vm-start.sh
 .env.development
 .vscode
 docker_build.sh
+dfm.html
