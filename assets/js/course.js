@@ -22,6 +22,52 @@ const utils = {
 
 }
 
+const backLessonChunk = async () => {
+
+    const topicID = new URLSearchParams(window.location.search).get("topicID");
+    const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
+    const courseID = new URLSearchParams(window.location.search).get("courseID");
+
+    const data = { topicID, lessonChunk, courseID };
+
+    const req = {
+
+        method: "POST",
+
+        headers: {
+
+            "Content-Type": "application/json"
+
+        },
+
+        body: JSON.stringify(data)
+
+    };
+
+    document.getElementById("loadingDialog").showModal();
+
+    const res = await fetch("/backLessonChunk", req);
+
+    if (res.ok) {
+
+        const { newURL } = await res.json();
+
+        window.location.href = newURL;
+
+    }
+
+    else {
+
+        document.getElementById("loadingDialog").close();
+
+        const error = await res.json();
+        
+        $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+
+    }
+
+};
+
 const submitLessonChunk = async () => {
 
     const topicID = new URLSearchParams(window.location.search).get("topicID");
@@ -175,13 +221,9 @@ const sendSessionTimeToServer = (sessionTime=(Date.now()-Number(localStorage.get
 
     const contentID = new URLSearchParams(window.location.search).get("contentID");
 
-    const contentIDParts = contentID.split("|");
-
     fetch('/logSessionTime', {
 
         method: 'POST',
-
-        // index for contentIDParts[0].split("/") is 1 because there is a / prefix
 
         body: JSON.stringify({ sessionTime, courseID : new URLSearchParams(window.location.search).get("courseID"), topicID : new URLSearchParams(window.location.search).get("topicID") }),
 
@@ -219,6 +261,13 @@ window.onload = async () => {
 
     const contentID = new URLSearchParams(window.location.search).get("contentID");
     const courseID = new URLSearchParams(window.location.search).get("courseID");
+    const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
+
+    if (lessonChunk > 0) {
+
+        $("#back").on("click", backLessonChunk).prop("disabled", false);
+
+    }
 
     const contentIDParts = contentID.split("|");
 

@@ -362,6 +362,43 @@
 
     },
 
+    "/backLessonChunk" : {
+
+        "methodToMatch" : "POST",
+        
+        "mustBeSignedIn" : true,
+        "mustBeSignedOut" : false,
+        "mfaMustBeRequired" : false,
+        "mfaMustNotBeRequired" : true,
+        "allowedAccountTypes" : ["individual", "student"],
+        "bodyParameters": {
+
+            "topicID" : {
+
+                "type": "string",
+                "format": "base64url"
+
+            },
+
+            "lessonChunk": {
+
+                "type": "number",
+                "format" : "integer",
+                "minimumValue" : 1
+
+            },
+
+            "courseID": {
+
+                "type": "string",
+                "format": "base64url"
+
+            }
+
+        }
+
+    },
+
     "/completeLessonChunk" : {
 
         "methodToMatch" : "POST",

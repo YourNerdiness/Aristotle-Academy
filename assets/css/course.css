@@ -22,3 +22,15 @@
     text-align: left;
 
 }
+
+.button-left {
+    display: block;
+    margin-left: 0;
+
+}
+
+.button-right {
+    display: block;
+    margin-left: auto;
+
+}

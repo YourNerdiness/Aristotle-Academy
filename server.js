@@ -2269,6 +2269,37 @@ app.post("/adminDeleteSchoolStudent", async (req, res) => {
 
 });
 
+app.post("/backLessonChunk", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+        const data = req.body;
+
+        await database.topics.updateLessonChunk(token.userID, data.topicID, data.lessonChunk - 1);
+
+        const completedTopics = await database.topics.getCompletedTopics(token.userID);
+
+        if (courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
+
+            res.status(200).json({ msg: "OK.", newURL: `/courseCompleted?courseID=${data.courseID}` });
+
+            return;
+
+        }
+
+        const contentID = await ai.getContentID(token.userID, data.courseID);
+
+        res.status(200).json({ msg: "OK.", newURL: `/course?topicID=${data.topicID}&lessonChunk=${data.lessonChunk - 1}&courseID=${data.courseID}&contentID=${contentID}` });
+
+    } catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
 app.post("/completeLessonChunk", async (req, res) => {
 
     try {
