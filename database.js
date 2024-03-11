@@ -154,11 +154,19 @@ const updateConfig = async () => {
 
 await updateConfig();
 
+const updateConfigClockCallback = async () => {
+
+    await updateConfig();
+
+    setTimeout(updateConfigClockCallback, process.env.CONFIG_CLOCK_MS);
+
+};
+
+setTimeout(updateConfigClockCallback, process.env.CONFIG_CLOCK_MS);
+
 const users = {
 
     addNewUser: async (username, email, password, accountType="individual") => {
-
-        await updateConfig();
 
         if (!["individual", "student", "admin"].includes(accountType)) {
 
@@ -349,8 +357,6 @@ const users = {
 
     getUserInfo: async (query, queryPropertyName, resultPropertyNames, queryIsAlreadyHashed=false) => {
 
-        await updateConfig();
-
         if (!userIndexProperties.includes(queryPropertyName)) {
 
             new utils.ErrorHandler("0x000021", `${queryPropertyName} does not exist in the user index.`).throwError();
@@ -408,8 +414,6 @@ const users = {
     },
 
     changeUserInfo: async (query, queryPropertyName, toChangeValue, toChangePropertyName) => {
-
-        await updateConfig();
 
         const results = await users.getUserInfo(query, queryPropertyName, ["userID", "stripeCustomerID"]);
 
@@ -768,8 +772,6 @@ const payments = {
 
     addCoursePayment: async (userID, courseID) => {
 
-        await updateConfig();
-
         const result = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
 
         if (result.length == 0) {
@@ -851,8 +853,6 @@ const payments = {
     },
 
     checkIfPaidFor: async (userID, courseID) => {
-
-        await updateConfig();
         
         const paymentDataResults = await collections.payments.find({ "index.userID": utils.hash(userID, "base64") }).toArray();
 
@@ -957,8 +957,6 @@ const payments = {
 const topics = {
 
     getLessonChunk : async (userID, topicID) => {
-
-        await updateConfig();
         
         const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
@@ -992,8 +990,6 @@ const topics = {
 
     updateLessonChunk : async (userID, topicID, newLessonChunk) => {
 
-        await updateConfig();
-        
         const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1077,8 +1073,6 @@ const topics = {
 
     getSessionTimes : async (userID, topicID) => {
 
-        await updateConfig();
-        
         const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1109,8 +1103,6 @@ const topics = {
 
     updateSessionTimes : async (userID, topicID, sessionTime) => {
 
-        await updateConfig();
-        
         const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1145,8 +1137,6 @@ const topics = {
 
     getLessonChunkContentFormats : async (userID, topicID) => {
 
-        await updateConfig();
-        
         const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {
@@ -1177,8 +1167,6 @@ const topics = {
 
     setChunkContentFormat : async (userID, topicID, lessonChunk, contentFormat) => {
 
-        await updateConfig();
-        
         const results = await collections.topics.find({ userIDHash : utils.hash(userID, "base64") }).toArray();
 
         if (results.length == 0) {

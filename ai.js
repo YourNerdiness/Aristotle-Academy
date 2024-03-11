@@ -13,6 +13,16 @@ const updateConfig = async () => {
 
 await updateConfig();
 
+const updateConfigClockCallback = async () => {
+
+    await updateConfig();
+
+    setTimeout(updateConfigClockCallback, process.env.CONFIG_CLOCK_MS);
+
+};
+
+setTimeout(updateConfigClockCallback, process.env.CONFIG_CLOCK_MS);
+
 class QLearning {
 
     constructor (possibleActions) {
@@ -118,8 +128,6 @@ class QLearning {
 const qLearning = new QLearning(["v", "p", "e"]) // video, paragraph, and exercise respectively
 
 const getContentID = async (userID, courseID) => {
-
-    await updateConfig();
 
     const userIDHash = utils.hash(userID, "base64");
 

@@ -52,6 +52,16 @@ const updateConfig = async () => {
 
 await updateConfig();
 
+const updateConfigClockCallback = async () => {
+
+    await updateConfig();
+
+    setTimeout(updateConfigClockCallback, process.env.CONFIG_CLOCK_MS);
+
+};
+
+setTimeout(updateConfigClockCallback, process.env.CONFIG_CLOCK_MS);
+
 const handleRequestError = (error, res) => {
 
     if (error.throwErrorToClient) {
@@ -132,8 +142,6 @@ const pageRedirectCallbacks = {
 
     getPro: async (req, res) => {
 
-        await updateConfig();
-
         const token = req.headers.auth;
 
         const courseID = req.query.courseID;
@@ -175,8 +183,6 @@ const pageRedirectCallbacks = {
     },
 
     course: async (req, res) => {
-
-        await updateConfig();
 
         const token = req.headers.auth;
 
@@ -375,8 +381,6 @@ const pageRedirectCallbacks = {
 const ejsVars = {
 
     getPro: async (req, res) => {
-
-        await updateConfig();
 
         return {
 
@@ -607,8 +611,6 @@ const ejsVars = {
     },
 
     courseCompleted: async (req, res) => {
-
-        await updateConfig();
 
         return {
 
@@ -1783,8 +1785,6 @@ app.post("/learnRedirect", async (req, res) => {
 
     try {
 
-        await updateConfig();
-
         const token = req.headers.auth;
         const courseID = req.body.courseID;
 
@@ -1835,8 +1835,6 @@ app.post("/learnRedirect", async (req, res) => {
 app.post("/buyRedirect", async (req, res) => {
     
     try {
-
-        await updateConfig();
 
         const data = req.body;
 
@@ -1929,7 +1927,6 @@ app.post("/buyRedirect", async (req, res) => {
                     if (subscription.status == "active" && subscription.items.data[0].price.id == subIDs.monthly) {
 
                         new utils.ErrorHandler("0x000015").throwError();
-
 
                     }
 
@@ -2108,8 +2105,6 @@ app.post("/updatePaymentDetails", async (req, res) => {
 app.get("/getCourseData", async (req, res) => {
     
     try {
-
-        await updateConfig();
 
         const data = req.query;
 
@@ -2399,8 +2394,6 @@ app.post("/completeLessonChunk", async (req, res) => {
 app.post("/completeLesson", async (req, res) => {
 
     try {
-
-        await updateConfig();
 
         const token = req.headers.auth;
         const data = req.body;
