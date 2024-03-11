@@ -58,3 +58,111 @@
     display: block;
 
 }
+
+#chatgptHelpIconDiv {
+
+    position: fixed;
+
+    display: flex;
+
+    top: 150px;
+    left: 90vw;
+
+    align-items: center;
+
+}
+
+#chatgptHelpTooltip {
+
+    display: inline;
+
+    background-color: rgba(0, 0, 255, 0.2);
+
+    border-radius: 10px;
+
+}
+
+#chatgptHelpIconImg {
+
+    display: inline;
+
+}
+
+#chatgptHelpChatDiv {
+
+    background-color: rgba(0, 0, 255, 0.1);
+
+    position: fixed;
+
+    top: 150px;
+    left: calc(90vw - 96px);
+
+    width: 256px;
+    height: 512px;
+
+}
+
+#chatgptHelpChatHeaderDiv {
+
+    background-color: red;
+
+    width: 256px;
+    height: 32px;
+
+}
+
+#chatgptHelpChatHeaderText {
+
+    font-size: 20px;
+
+}
+
+#chatgptHelpChatHeaderDivider {
+
+    font-size: 20px;
+    font-weight: 800;
+
+}
+
+#chatgptHelpChatCloseBtn {
+
+    font-size: 20px;
+
+    height: 32px;
+
+    align-items: center;
+
+}
+
+#chatgptHelpChatCloseBtn:hover {
+    cursor: pointer;
+}
+
+.chatgptHelpChatHeaderElem {
+
+    color: white;
+    display: inline-block;
+
+}
+
+@keyframes fadeOut {
+
+    from {
+
+        opacity: 1;
+
+    }
+
+    to {
+
+        opacity: 0;
+
+    }
+
+}
+
+.fade-out {
+
+    animation: fadeOut 2s ease-in-out forwards;
+
+}

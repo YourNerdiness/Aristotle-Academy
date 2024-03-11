@@ -273,8 +273,21 @@ $(window).on("unload", localStorage.setItem("lastSessionEndTime", Date.now()));
 
 $(document).ready(async () => {
 
-
     document.getElementById("loadingDialog").showModal();
+
+    setTimeout(() => { $("#chatgptHelpTooltip").prop("class", "fade-out") }, 5000);
+
+    $("#chatgptHelpIconImg").click(() => {
+
+        $("#chatgptHelpChatDiv").show();
+
+    });
+
+    $("#chatgptHelpChatCloseBtn").click(() => {
+
+        $("#chatgptHelpChatDiv").hide();
+
+    })
 
     const contentID = new URLSearchParams(window.location.search).get("contentID");
     const courseID = new URLSearchParams(window.location.search).get("courseID");
