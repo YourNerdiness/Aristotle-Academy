@@ -29,7 +29,7 @@ class QLearning {
 
         this.lambda = 1;
         this.possibleActions = possibleActions;
-        this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = (key == discourageAction ? (Math.random()/50) : (Math.random()/50)); return obj; }, {}) };
+        this.getDefaultActionValues = (discourageAction) => { return possibleActions.reduce((obj, key) => { obj[key] = (key == discourageAction ? (Math.random()/50) : (Math.random()/20)); return obj; }, {}) };
 
     }
 
