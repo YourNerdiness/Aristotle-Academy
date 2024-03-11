@@ -194,7 +194,19 @@ const pageRedirectCallbacks = {
 
         }
 
-        const accountType = (await database.users.getUserInfo(token.userID, "userID", ["accountType"]))[0].accountType;
+        if (!req.query.courseID || !courseIDs.includes(req.query.courseID)) {
+
+            res.redirect("/learn?redirectError=Course does not exist.");
+
+            return true;
+
+        }
+
+        const accountTypeProm = database.users.getUserInfo(token.userID, "userID", ["accountType"]);
+        const completedTopicsProm = database.topics.getCompletedTopics(token.userID);
+        const paidForProm = database.payments.checkIfPaidFor(token.userID, req.query.courseID);
+
+        const accountType = (await accountTypeProm)[0].accountType;
 
         if (accountType == "admin") {
 
@@ -204,15 +216,7 @@ const pageRedirectCallbacks = {
 
         }
 
-        if (!req.query.courseID || !courseIDs.includes(req.query.courseID)) {
-
-            res.redirect("/learn?redirectError=Course does not exist.");
-
-            return true;
-
-        }
-
-        const completedTopics = await database.topics.getCompletedTopics(token.userID);
+        const completedTopics = await completedTopicsProm;
 
         if (courseData[req.query.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
 
@@ -222,7 +226,7 @@ const pageRedirectCallbacks = {
 
         }
 
-        const paidFor = await database.payments.checkIfPaidFor(token.userID, req.query.courseID);
+        const paidFor = await paidForProm;
 
         if (!paidFor) {
 
