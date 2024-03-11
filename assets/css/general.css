@@ -7,6 +7,16 @@ html {
 
 }
 
+body {
+
+    font-family: "Open Sans", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-style: normal;
+    font-variation-settings:
+        "wdth" 100;
+
+}
 #title {
 
     font-size: 64px;
@@ -57,10 +67,15 @@ nav > * {
 
 }
 
-.left {
+.text-left {
 
-    display: block;
     text-align: left;
+
+}
+
+.text-right {
+
+    text-align: right;
 
 }
 
