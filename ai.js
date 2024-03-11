@@ -150,6 +150,7 @@ const getContentID = async (userID, courseID) => {
     const topicID = courseData[courseID].topics.filter(elem => !completedTopics.includes(elem))[0];
 
     const currentLessonChunkProm = database.topics.getLessonChunk(userID, topicID);
+    const lessonChunkFormatsProm = database.topics.getLessonChunkContentFormats(userID, topicID);
 
     const currentLessonChunk = await currentLessonChunkProm;
     const chunksPerLesson = await chunksPerLessonProm;
@@ -164,9 +165,11 @@ const getContentID = async (userID, courseID) => {
 
     else {
 
+        const lessonChunkFormats = await lessonChunkFormatsProm;
+
         const state = userIDHash + "|" + currentLessonChunk.toString();
 
-        const contentFormat = await qLearning.selectAction(state);
+        const contentFormat = lessonChunkFormats[currentLessonChunk] || await qLearning.selectAction(state); // will select previously selected chunk type if available, if not, will run Q-learning
 
         let filename;
 
@@ -231,7 +234,7 @@ const updateAI = async (userID, topicID, quizScore, summedSessionTimes) => {
 
     if (summedSessionTimes > 3600000) { // 1 hour per lesson
 
-        if (quizScore > 0.85 && currentUserNumChunks > 1) {
+        if (quizScore > 0.85) {
 
             const currentUserNumChunks = await database.ai.getUserNumChunks(userID);
 
