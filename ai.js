@@ -148,7 +148,7 @@ const getContentID = async (userID, courseID) => {
 
     let contentRoute;
 
-    if (currentLessonChunk >= Math.max(topicData[topicID].minChunks, Math.min(chunksPerLesson - 1, topicData[topicID].maxChunks))) {
+    if (currentLessonChunk > Math.max(topicData[topicID].minChunks - 1, Math.min(chunksPerLesson - 1, topicData[topicID].maxChunks - 1))) {
 
         contentRoute = `/${topicID}/quiz.json`;
 
