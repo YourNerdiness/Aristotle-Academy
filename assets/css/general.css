@@ -57,6 +57,13 @@ nav > * {
 
 }
 
+.left {
+
+    display: block;
+    text-align: left;
+
+}
+
 .center {
 
     display: flex;

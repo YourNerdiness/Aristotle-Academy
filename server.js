@@ -37,13 +37,16 @@ const notificationEmailTransport = nodemailer.createTransport({
     },
 });
 
-let subIDs, courseData, courseIDs;
+let subIDs, courseData, courseIDs, topicData;
 
 const updateConfig = async () => {
 
     subIDs = await database.config.getConfigData("sub_ids");
+
     courseData = await database.config.getConfigData("course_data");
     courseIDs = Object.keys(courseData);
+
+    topicData = await database.config.getConfigData("topic_data");
 
 };
 
@@ -235,8 +238,6 @@ const pageRedirectCallbacks = {
 
         }
 
-        const lessonChunk = await database.topics.getLessonChunk(token.userID, topicID);
-
         if (courseData[req.query.courseID].topics.filter(elem => !completedTopics.includes(elem)).length == 0) {
 
             res.status(200).redirect(`/courseCompleted?courseID=${req.query.courseID}`);
@@ -247,7 +248,19 @@ const pageRedirectCallbacks = {
 
         if (!req.query.lessonChunk) {
 
+            const lessonChunk = await database.topics.getLessonChunk(token.userID, topicID);
+
             additionalQueryParams += `&lessonChunk=${lessonChunk}`;
+
+        }
+
+        if (!req.query.lessonMaxChunk) {
+
+            const chunksPerLesson = await database.ai.getUserNumChunks(token.userID);
+            
+            const lessonMaxChunk = Math.max(topicData[topicID].minChunks - 1, Math.min(chunksPerLesson - 1, topicData[topicID].maxChunks - 1))
+
+            additionalQueryParams += `&lessonMaxChunk=${lessonMaxChunk}`
 
         }
 
@@ -577,6 +590,17 @@ const ejsVars = {
             subStatus,
             accountType,
             schoolName
+
+        }
+
+    },
+
+    course: async (req, res) => {
+
+        return {
+
+            courseName: courseData[req.query.courseID].title,
+            topicName: topicData[req.query.topicID].title
 
         }
 

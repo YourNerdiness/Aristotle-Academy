@@ -273,11 +273,17 @@ $(window).on("unload", localStorage.setItem("lastSessionEndTime", Date.now()));
 
 $(document).ready(async () => {
 
+
     document.getElementById("loadingDialog").showModal();
 
     const contentID = new URLSearchParams(window.location.search).get("contentID");
     const courseID = new URLSearchParams(window.location.search).get("courseID");
     const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
+    const lessonMaxChunk = Number(new URLSearchParams(window.location.search).get("lessonMaxChunk"));
+
+    const lessonCompletionPerc = ((lessonChunk + 1)/(lessonMaxChunk + 1))*100
+
+    $("#lessonProgress").css("background-image", `linear-gradient(to right, yellow 0%, yellow ${lessonCompletionPerc}%, transparent ${lessonCompletionPerc}%)`)
 
     if (lessonChunk > 0) {
 

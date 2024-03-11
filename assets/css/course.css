@@ -30,7 +30,31 @@
 }
 
 .button-right {
+
     display: block;
     margin-left: auto;
+
+}
+
+#lessonProgress {
+
+    border-radius: 20px;
+
+    background-color: gray;
+
+    width: 200px;
+    height: 20px;
+
+}
+
+#infoDiv {
+
+    display: block;
+
+}
+
+#contentDiv {
+
+    display: block;
 
 }

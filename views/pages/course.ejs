@@ -22,40 +22,62 @@
 
 </dialog>
 
-<main class="center">
+<main>
 
     <p id="error"></p>
 
-    <table>
+    <div id="infoDiv">
+    
+        <h2>Course: <%= courseName %></h2>
+        <h3>Lesson: <%= topicName %></h3>
+        <h4>Lesson progress:
+            <div id="lessonProgress"></div>
+        </h4>
+    
+    </div>
 
-        <tr>
-    
-            <td>
-                
-                <video id="video" width="1280" height="720" controls style="display: none;">
-    
-                    <source type="video/mp4">
-    
-                </video>
-    
-            </td>
-    
-            <td><p id="paragraph" style="display: none;"></p></td>
-    
-            <td><section id="exercise" style="display: none;"></section></td>
-    
-            <td><section id="quiz" style="display: none;"></section></td>
-    
-        </tr>
+    <br>
 
-        <tr>
-
-            <td><button id="back" class="button-left" disabled>Back</button></td>
-            <td><button id="continue" class="button-right" disabled>Continue</button></td>
-
-        </tr>
+    <div class="center">
     
-    </table>
+        <table id="contentDiv">
+    
+            <tr>
+    
+                <td>
+    
+                    <video id="video" width="1280" height="720" controls style="display: none;">
+    
+                        <source type="video/mp4">
+    
+                    </video>
+    
+                </td>
+    
+                <td>
+                    <p id="paragraph" style="display: none;"></p>
+                </td>
+    
+                <td>
+                    <section id="exercise" style="display: none;"></section>
+                </td>
+    
+                <td>
+                    <section id="quiz" style="display: none;"></section>
+                </td>
+    
+            </tr>
+    
+            <tr>
+    
+                <td><button id="back" class="button-left" disabled>Back</button></td>
+                <td><button id="continue" class="button-right" disabled>Continue</button></td>
+    
+            </tr>
+    
+        </table>
+    
+    </div>
 
 </main>
 
