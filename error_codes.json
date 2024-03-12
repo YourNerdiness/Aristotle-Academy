@@ -488,5 +488,20 @@
         "msg": "Cannot update user because email is invalid.",
         "http_error_code": 400,
         "severity": "WARNING"
+    },
+    "0x000064" : {
+        "msg": "Cannot create chat session, chat session already exists.",
+        "http_error_code": 409,
+        "severity": "WARNING"
+    },
+    "0x000065" : {
+        "msg": "Cannot get GPT response, chatID cookie missing.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x000066" : {
+        "msg": "Cannot get GPT response, chatID invalid.",
+        "http_error_code": 400,
+        "severity": "WARNING"
     }
 }

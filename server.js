@@ -9,6 +9,7 @@ import fs from "fs";
 import jwt from "jsonwebtoken";
 import morgan from "morgan";
 import nodemailer from "nodemailer";
+import OpenAI from "openai";
 import stripe from "stripe";
 import utils from "./utils.js";
 import path from "path";
@@ -1249,6 +1250,10 @@ morgan.token("client-ip", (req) => {
 });
 
 const stripeAPI = stripe(process.env.STRIPE_SK);
+const openaiAPI = new OpenAI({
+    organization : process.env.OPENAI_ORG,
+    apiKey : process.env.OPENAI_KEY
+});
 
 const app = express();
 
@@ -2506,6 +2511,133 @@ app.post("/logSessionTime", async (req, res) => {
         res.status(200).json({ msg: "OK." });
 
     } catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+app.post("/startGPTSession", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+
+        const chatIDCookie = req.cookies.chatID;
+
+        if (chatIDCookie) {
+
+            const chatID = utils.decrypt(chatIDCookie, "base64");
+
+            const chatData = await database.chat.getChat(chatID);
+
+            if (chatData) {
+
+                new utils.ErrorHandler("0x000064").throwError();
+
+                return;
+
+            }
+
+        }
+
+        const chatID = await database.chat.createNewChat(token.userID);
+
+        res.status(200).cookie("chatID", utils.encrypt(chatID, "base64")).json({ msg : "OK." });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+app.post("/startGPTSession", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+
+        const chatIDCookie = req.cookies.chatID;
+
+        if (chatIDCookie) {
+
+            const chatID = utils.decrypt(chatIDCookie, "base64");
+
+            const chatData = await database.chat.getChat(chatID);
+
+            if (chatData) {
+
+                new utils.ErrorHandler("0x000064").throwError();
+
+                return;
+
+            }
+
+        }
+
+        const chatID = await database.chat.createNewChat(token.userID);
+
+        res.status(200).cookie("chatID", utils.encrypt(chatID, "base64")).json({ msg : "OK." });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+app.post("/getGPTChatResponse", async (req, res) => {
+
+    try {
+
+        const token = req.headers.auth;
+
+        const chatIDCookie = req.cookies.chatID;
+
+        if (!chatIDCookie) {
+
+            new utils.ErrorHandler("0x000065").throwError();
+
+        }
+
+        const chatID = utils.decrypt(chatIDCookie, "base64");
+
+        const chatData = await database.chat.getChat(chatID);
+
+        if (!chatData) {
+
+            new utils.ErrorHandler("0x000066").throwError();
+
+            return;
+
+        }
+
+        const messages = chatData.messages;
+
+        const completion = await openaiAPI.chat.completions.create({
+
+            messages,
+            model: "gpt-4-0125-preview",
+
+        });
+
+        const messageData = completion.choices[0].message;
+
+        await database.chat.addChatMessage(chatID, messageData.role, messageData.content);
+
+        res.status(200).json({ msg : "OK.", gptResponse : messageData.content });
+
+    }
+
+    catch (error) {
 
         handleRequestError(error, res);
 
