@@ -1753,7 +1753,7 @@ const chat = {
 
         if (results.length == 0) {
 
-            new utils.ErrorHandler("0x000031").throwError();
+            return null;
 
         }
 
