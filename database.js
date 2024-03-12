@@ -1873,6 +1873,7 @@ export default {
     topics,
     ai,
     schools,
+    chat,
     config
 
 };
