@@ -31,6 +31,7 @@ const collections = {
     topics : db.collection("courses"),
     ai : db.collection("ai"),
     schools : db.collection("schools"),
+    chat : db.collection("chat"),
     config : db.collection("config")
     
 };
@@ -1699,6 +1700,110 @@ const schools = {
     },
 
 };
+
+const chat = {
+
+    createNewChat : async (userID) => {
+
+        const userIDResults = await users.getUserInfo(userID, "userID", ["userID"]);
+
+        if (userIDResults.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (userIDResults.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        let chatID;
+        let chatIDHash;
+        let chatIDExists;
+
+        do {
+
+            chatID = crypto.randomBytes(32).toString("base64");
+
+            chatIDHash = utils.hash(chatID, "base64");
+
+            const chatIDResults = await (collections.schools.find({ chatIDHash })).toArray();
+
+            if (chatIDResults.length > 1) {
+
+                new utils.ErrorHandler("0x000032").throwError();
+    
+            }
+
+            chatIDExists = chatIDResults.length == 1;
+
+        } while (chatIDExists)
+
+        await collections.chat.insertOne({ userIDHash, chatIDHash, messages : [] });
+
+        return chatID;
+
+    },
+
+    getChat : async (chatID) => {
+
+        const results = await collections.chat.find({ chatIDHash : utils.hash(chatID, "base64") }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            return results[0];
+
+        }
+
+    },
+
+    addChatMessage : async (chatID, role, messageContent) => {
+
+        const chatIDHash = utils.hash(chatID, "base64");
+
+        const results = await collections.chat.find({ chatIDHash }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            const chatData = results[0];
+
+            const newMessages = chatData.messages;
+
+            newMessages.push({ role, content : messageContent });
+
+            await collections.chat.updateOne({ chatIDHash }, { $set : { messages : newMessages } });
+
+        }
+
+    }
+
+}
 
 const config = {
 
