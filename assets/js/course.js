@@ -279,15 +279,9 @@ $(document).ready(async () => {
 
     $("#chatgptHelpIconImg").click(() => {
 
-        $("#chatgptHelpChatDiv").show();
+        $("#chatgptHelpChatDiv").toggle();
 
     });
-
-    $("#chatgptHelpChatCloseBtn").click(() => {
-
-        $("#chatgptHelpChatDiv").hide();
-
-    })
 
     const contentID = new URLSearchParams(window.location.search).get("contentID");
     const courseID = new URLSearchParams(window.location.search).get("courseID");
