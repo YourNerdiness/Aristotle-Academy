@@ -2526,43 +2526,10 @@ app.post("/startGPTSession", async (req, res) => {
 
         const chatIDCookie = req.cookies.chatID;
 
-        if (chatIDCookie) {
+        const courseID = req.body.courseID;
+        const contentID = req.body.contentID;
 
-            const chatID = utils.decrypt(chatIDCookie, "base64");
-
-            const chatData = await database.chat.getChat(chatID);
-
-            if (chatData) {
-
-                new utils.ErrorHandler("0x000064").throwError();
-
-                return;
-
-            }
-
-        }
-
-        const chatID = await database.chat.createNewChat(token.userID);
-
-        res.status(200).cookie("chatID", utils.encrypt(chatID, "base64")).json({ msg : "OK." });
-
-    }
-
-    catch (error) {
-
-        handleRequestError(error, res);
-
-    }
-
-});
-
-app.post("/startGPTSession", async (req, res) => {
-
-    try {
-
-        const token = req.headers.auth;
-
-        const chatIDCookie = req.cookies.chatID;
+        const contentIDParts = contentID.split("|");
 
         if (chatIDCookie) {
 
@@ -2580,9 +2547,109 @@ app.post("/startGPTSession", async (req, res) => {
 
         }
 
+        const verified = utils.verifyHMAC(contentIDParts[0], contentIDParts[1], "base64url");
+
+        if (!verified) {
+
+            new utils.ErrorHandler("0x000067").throwError();
+
+            return;
+
+        }
+
+        const paidForProm = database.payments.checkIfPaidFor(token.userID, courseID);
+        const courseContentResProm = fetch("https://coursecontent.aristotle.academy" + contentIDParts[0].replace("video.mp4", "subtitles.srt"));
+
+        const paidFor = await paidForProm;
+        const courseContentRes = await courseContentResProm;
+
+        if (!paidFor) {
+
+            new utils.ErrorHandler("0x000068").throwError();
+
+            return;
+
+        }
+
+        if (!courseContentRes.ok) {
+
+            new utils.ErrorHandler("0x00005F").throwError();
+
+            return;
+
+        }
+
         const chatID = await database.chat.createNewChat(token.userID);
 
-        res.status(200).cookie("chatID", utils.encrypt(chatID, "base64")).json({ msg : "OK." });
+        let messageContent = `You are a learning assistant on a website called Aristotle Academy - Learn 2.0. 
+        This website offers education that has AI behind it to adapt to each student's learning style. 
+        Your job is to answer the students' questions.
+        The student you are currently working with is working on a course called ${courseData[courseID].title}. 
+        Currently, they are working on a lesson called ${topicData[contentIDParts[0].split("/")[1]].title}. `;
+
+        switch ((contentIDParts[0].split("/")[3] || contentIDParts[0].split("/")[2])[0]) {
+
+            case "v":
+
+                messageContent += `They are currently working on a video in this lesson. This video has the following transcription: ${await courseContentRes.text()}.`;
+
+                break;
+
+            case "t":
+
+                messageContent += `They are currently working on an article in this lesson. This contents of this article is as follows: ${await courseContentRes.text()}.`;
+
+                break;
+
+            case "e":
+
+                messageContent += `They are currently working on an exercise in this lesson. If they ask a question about this exercise, do not respond in such a way that simply answers the question for them. Instead, help them, and ask a follow up question that guides them towards the correct answer. `;
+
+                const exerciseData = await courseContentRes.json();
+
+                switch (exerciseData.type) {
+
+                    case "match-tight":
+                        
+                        messageContent += `They are currently working on an exercise where they must match pairs. They are answering the question ${exerciseData.data.description}. The have to match the following pairs: `;
+
+                        for (const pair in exerciseData.data.pairs) {
+
+                            messageContent += `${pair[0]} with ${pair[1]}, `;
+                            
+                        }
+
+                        break;
+    
+                    case "multiple-choice":
+
+                        messageContent += `They are currently on a multiple choice question. They are answering the question ${exerciseData.data.question}. The possible answers are: `
+
+                        for (const possibleAnswer in exerciseData.data.possibleAnswers) {
+
+                            messageContent += `${possibleAnswer}, `
+
+                        }
+
+                        messageContent += `The correct answer is ${exerciseData.data.possibleAnswers[exerciseData.data.correctAnswerIndex]}.`;
+
+                        break;
+                        
+                    default:
+    
+                        new utils.ErrorHandler("0x00006A").throwError();
+    
+                        break;
+    
+                }
+
+                break;
+
+        }
+
+        await database.chat.addChatMessage(chatID, "system", messageContent);
+
+        res.status(200).cookie("chatID", utils.encrypt(chatID, "base64")).json({ msg : "OK." }).json({ msg : "OK." });
 
     }
 
@@ -2598,7 +2665,10 @@ app.post("/getGPTChatResponse", async (req, res) => {
 
     try {
 
+        const data = req.body;
         const token = req.headers.auth;
+
+        const courseID = req.body.courseID;
 
         const chatIDCookie = req.cookies.chatID;
 
@@ -2610,7 +2680,19 @@ app.post("/getGPTChatResponse", async (req, res) => {
 
         const chatID = utils.decrypt(chatIDCookie, "base64");
 
-        const chatData = await database.chat.getChat(chatID);
+        const paidForProm = database.payments.checkIfPaidFor(token.userID, courseID);
+        const chatDataProm = database.chat.getChat(chatID);
+
+        const paidFor = await paidForProm;
+        let chatData = await chatDataProm;
+
+        if (!paidFor) {
+
+            new utils.ErrorHandler("0x000068").throwError();
+
+            return;
+
+        }
 
         if (!chatData) {
 
@@ -2619,6 +2701,10 @@ app.post("/getGPTChatResponse", async (req, res) => {
             return;
 
         }
+
+        await database.chat.addChatMessage(chatID, "user", data.messageContent);
+
+        chatData = await database.chat.getChat(chatID);
 
         const messages = chatData.messages;
 

@@ -503,5 +503,25 @@
         "msg": "Cannot get GPT response, chatID invalid.",
         "http_error_code": 400,
         "severity": "WARNING"
+    },
+    "0x000067" : {
+        "msg": "Cannot create chat session, could not verify URL.",
+        "http_error_code": 400,
+        "severity": "WARNING"
+    },
+    "0x000068" : {
+        "msg": "Cannot create chat session, course is not paid for.",
+        "http_error_code": 403,
+        "severity": "WARNING"
+    },
+    "0x000069" : {
+        "msg": "Cannot create chat session, failed to GET course content.",
+        "http_error_code": 400,
+        "severity": "ERROR"
+    },
+    "0x00006A" : {
+        "msg": "Cannot create chat session, exercise type invalid.",
+        "http_error_code": 400,
+        "severity": "ERROR"
     }
 }
