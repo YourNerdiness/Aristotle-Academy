@@ -543,6 +543,7 @@ const users = {
             await collections.ai.deleteOne({ userIDHash });
             await collections.topics.deleteOne({ userIDHash});
             await collections.authentication.deleteOne({ userIDHash });
+            await collections.chat.deleteMany({ userIDHash });
 
             if (accountType == "student") {
 
