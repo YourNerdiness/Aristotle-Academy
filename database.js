@@ -1803,6 +1803,32 @@ const chat = {
 
         }
 
+    },
+
+    deleteChat : async (chatID) => {
+
+        const chatIDHash = utils.hash(chatID, "base64");
+
+        const results = await collections.chat.find({ chatIDHash }).toArray();
+
+        if (results.length == 0) {
+
+            new utils.ErrorHandler("0x000031").throwError();
+
+        }
+
+        else if (results.length > 1) {
+
+            new utils.ErrorHandler("0x000032").throwError();
+
+        }
+
+        else {
+
+            await collections.chat.deleteOne({ chatIDHash });
+
+        }
+
     }
 
 }

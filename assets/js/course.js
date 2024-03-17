@@ -271,6 +271,26 @@ document.onmousedown = resetTimer
 document.onkeydown = resetTimer;
 $(window).on("unload", localStorage.setItem("lastSessionEndTime", Date.now()));
 
+const checkIfChatExists = () => {
+
+    const cookies = document.cookie.split(';');
+
+    for (let i = 0; i < cookies.length; i++) {
+
+        const cookie = cookies[i].trim();
+
+        if (cookie.startsWith("chatID=")) {
+
+            return true;
+
+        }
+
+    }
+
+    return false;
+
+}
+
 $(document).ready(async () => {
 
     document.getElementById("loadingDialog").showModal();
@@ -284,23 +304,7 @@ $(document).ready(async () => {
 
     const chatWindow = document.getElementById("chatgptHelpChatMainDiv");
 
-    const cookies = document.cookie.split(';');
-
-    let chatExists = false;
-
-    for (let i = 0; i < cookies.length; i++) {
-
-        const cookie = cookies[i].trim();
-
-        if (cookie.startsWith("chatID=")) {
-
-            chatExists = true;
-
-            break;
-
-        }
-
-    }
+    let chatExists = checkIfChatExists();
 
     if (chatExists) {
 
@@ -371,6 +375,8 @@ $(document).ready(async () => {
     });
 
     $("#chatgptHelpChatInputBtn").click(async () => {
+
+        chatExists = checkIfChatExists();
 
         const messageContent = $("#chatgptHelpChatInputText").val();
 

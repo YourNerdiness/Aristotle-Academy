@@ -2357,6 +2357,16 @@ app.post("/backLessonChunk", async (req, res) => {
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
 
+        if (req.cookies.chatID) {
+
+            const chatID = utils.decrypt(req.cookies.chatID, "base64");
+
+            await database.chat.deleteChat(chatID);
+
+            res.clearCookie("chatID")
+
+        }
+
         res.status(200).json({ msg: "OK.", newURL: `/course?topicID=${data.topicID}&lessonChunk=${data.lessonChunk - 1}&courseID=${data.courseID}&contentID=${contentID}` });
 
     } catch (error) {
@@ -2387,6 +2397,16 @@ app.post("/completeLessonChunk", async (req, res) => {
         }
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
+
+        if (req.cookies.chatID) {
+
+            const chatID = utils.decrypt(req.cookies.chatID, "base64");
+
+            await database.chat.deleteChat(chatID);
+
+            res.clearCookie("chatID")
+
+        }
 
         res.status(200).json({ msg: "OK.", newURL: `/course?topicID=${data.topicID}&lessonChunk=${data.lessonChunk + 1}&courseID=${data.courseID}&contentID=${contentID}` });
 
@@ -2428,6 +2448,16 @@ app.post("/completeLesson", async (req, res) => {
         await ai.updateAI(token.userID, data.topicID, data.quizScore, summedSessionTimes);
 
         const contentID = await ai.getContentID(token.userID, data.courseID);
+
+        if (req.cookies.chatID) {
+
+            const chatID = utils.decrypt(req.cookies.chatID, "base64");
+
+            await database.chat.deleteChat(chatID);
+
+            res.clearCookie("chatID")
+
+        }
 
         res.status(200).json({ msg: "OK.", newURL: `/course?topicID=${courseData[data.courseID].topics.filter(elem => !completedTopics.includes(elem))[0]}&lessonChunk=0&courseID=${data.courseID}&contentID=${contentID}` });
 
