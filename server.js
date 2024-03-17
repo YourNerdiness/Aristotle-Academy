@@ -1649,8 +1649,6 @@ app.post("/changeUserDetails", async (req, res) => {
 
             const userData = (await database.users.getUserInfo(token.userID, "userID", ["accountType", "schoolID"]))[0];
 
-            console.log(userData);
-
             if (userData.accountType == "student" && userData.schoolID) {
 
                 const schoolData = await database.schools.getSchoolDataBySchoolID(userData.schoolID);
@@ -2613,9 +2611,9 @@ app.post("/startGPTSession", async (req, res) => {
                         
                         messageContent += `They are currently working on an exercise where they must match pairs. They are answering the question ${exerciseData.data.description}. The have to match the following pairs: `;
 
-                        for (const pair in exerciseData.data.pairs) {
+                        for (let i = 0; i < exerciseData.data.pairs.length; i++) {
 
-                            messageContent += `${pair[0]} with ${pair[1]}, `;
+                            messageContent += `${exerciseData.data.pairs[i][0]} with ${exerciseData.data.pairs[i][1]}, `;
                             
                         }
 
@@ -2649,7 +2647,7 @@ app.post("/startGPTSession", async (req, res) => {
 
         await database.chat.addChatMessage(chatID, "system", messageContent);
 
-        res.status(200).cookie("chatID", utils.encrypt(chatID, "base64")).json({ msg : "OK." }).json({ msg : "OK." });
+        res.status(200).cookie("chatID", utils.encrypt(chatID, "base64")).json({ msg : "OK." });
 
     }
 
@@ -2668,7 +2666,7 @@ app.post("/getGPTChatResponse", async (req, res) => {
         const data = req.body;
         const token = req.headers.auth;
 
-        const courseID = req.body.courseID;
+        const courseID = data.courseID;
 
         const chatIDCookie = req.cookies.chatID;
 
@@ -2720,6 +2718,61 @@ app.post("/getGPTChatResponse", async (req, res) => {
         await database.chat.addChatMessage(chatID, messageData.role, messageData.content);
 
         res.status(200).json({ msg : "OK.", gptResponse : messageData.content });
+
+    }
+
+    catch (error) {
+
+        handleRequestError(error, res);
+
+    }
+
+});
+
+app.post("/getGPTMessageList", async (req, res) => {
+
+    try {
+
+        const data = req.body;
+        const token = req.headers.auth;
+
+        const courseID = data.courseID;
+
+        const chatIDCookie = req.cookies.chatID;
+
+        if (!chatIDCookie) {
+
+            new utils.ErrorHandler("0x000065").throwError();
+
+        }
+
+        const chatID = utils.decrypt(chatIDCookie, "base64");
+
+        const paidForProm = database.payments.checkIfPaidFor(token.userID, courseID);
+        const chatDataProm = database.chat.getChat(chatID);
+
+        const paidFor = await paidForProm;
+        const chatData = await chatDataProm;
+
+        if (!paidFor) {
+
+            new utils.ErrorHandler("0x00006B").throwError();
+
+            return;
+
+        }
+
+        if (!chatData) {
+
+            new utils.ErrorHandler("0x00006C").throwError();
+
+            return;
+
+        }
+
+        const messages = chatData.messages.filter(message => message.role == "user" || message.role == "assistant");
+
+        res.status(200).json({ msg : "OK.", messages })
 
     }
 

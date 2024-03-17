@@ -95,9 +95,8 @@
 
 #chatgptHelpChatDiv {
 
-    background-color: rgba(0, 0, 255, 0.1);
-
     position: fixed;
+    display: grid;
 
     top: 150px;
     left: calc(90vw - 96px);
@@ -114,10 +113,10 @@
 
 #chatgptHelpChatHeaderDiv {
 
-    background-color: red;
+    background-color: black;
 
-    width: 256px;
-    height: 32px;
+    width: 100%;
+    height: 48px;
 
     border-top-left-radius: 14px;
     border-top-right-radius: 14px;
@@ -133,6 +132,86 @@
 .chatgptHelpChatHeaderElem {
 
     color: white;
+
+}
+
+#chatgptHelpChatMainDiv {
+
+    background-color: rgba(0, 0, 0, 0.4);
+
+    height: 368px;
+    width: 100%;
+
+    overflow-y: scroll;
+
+}
+
+#chatgptHelpChatInputDiv {
+
+    display: flex;
+    align-items: center;
+
+    background-color: rgba(0, 0, 0, 0.6);
+
+    height: 96px;
+    width: 100%;
+
+}
+
+#chatgptHelpChatInputDiv > * {
+
+    display: flex;
+    align-items: center;
+
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+
+}
+
+#chatgptHelpChatInputText {
+
+    width: 70%;
+
+    margin: 0%;
+
+}
+
+#chatgptHelpChatInputBtn {
+
+    height: 90%;
+
+    margin: 0%;
+
+}
+
+.userGPTMessage, .aiGPTMessage {
+
+    font-weight: 100;
+    font-size: 14px;
+
+    width: 100%;
+
+    border-radius: 10px;
+
+    height: min-content;
+
+}
+
+.userGPTMessage {
+
+    text-align: right;
+
+    color: white;
+    background-color: darkblue;
+
+}
+
+.aiGPTMessage {
+
+    text-align: left;
+
+    color: white;
+    background-color: purple;
 
 }
 

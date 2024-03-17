@@ -523,5 +523,15 @@
         "msg": "Cannot create chat session, exercise type invalid.",
         "http_error_code": 400,
         "severity": "ERROR"
+    },
+    "0x00006B" : {
+        "msg": "Cannot get chat message list, course is not paid for.",
+        "http_error_code": 403,
+        "severity": "WARNING"
+    },
+    "0x00006C" : {
+        "msg": "Cannot get chat message list, chatID invalid.",
+        "http_error_code": 400,
+        "severity": "ERROR"
     }
 }

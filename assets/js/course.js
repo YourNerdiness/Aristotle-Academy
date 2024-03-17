@@ -277,16 +277,214 @@ $(document).ready(async () => {
 
     setTimeout(() => { $("#chatgptHelpTooltip").prop("class", "fade-out") }, 5000);
 
-    $("#chatgptHelpIconImg").click(() => {
-
-        $("#chatgptHelpChatDiv").toggle();
-
-    });
-
     const contentID = new URLSearchParams(window.location.search).get("contentID");
     const courseID = new URLSearchParams(window.location.search).get("courseID");
     const lessonChunk = Number(new URLSearchParams(window.location.search).get("lessonChunk"));
     const lessonMaxChunk = Number(new URLSearchParams(window.location.search).get("lessonMaxChunk"));
+
+    const chatWindow = document.getElementById("chatgptHelpChatMainDiv");
+
+    const cookies = document.cookie.split(';');
+
+    let chatExists = false;
+
+    for (let i = 0; i < cookies.length; i++) {
+
+        const cookie = cookies[i].trim();
+
+        if (cookie.startsWith("chatID=")) {
+
+            chatExists = true;
+
+            break;
+
+        }
+
+    }
+
+    if (chatExists) {
+
+        const getMessageListData = {
+
+            courseID
+
+        }
+
+        const getMessageListReq = {
+
+            method: "POST",
+
+            headers: {
+
+                "Content-Type": "application/json"
+
+            },
+
+            body: JSON.stringify(getMessageListData)
+
+        };
+
+
+        fetch("/getGPTMessageList", getMessageListReq).then(async (res) => {
+
+            if (!res.ok) {
+
+                const error = await res.json();
+
+                $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+
+            }
+
+            else {
+
+                const getMessageListResData = await res.json();
+
+                const messages = getMessageListResData.messages;
+
+                for (let i = 0; i < messages.length; i++) {
+
+                    const message = messages[i];
+
+                    const msgElem = document.createElement("p");
+
+                    msgElem.classList = message.role == "user" ? "userGPTMessage" : "aiGPTMessage";
+
+                    chatWindow.appendChild(msgElem);
+
+                    msgElem.textContent = message.content;
+
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                }
+
+            }
+
+        });
+
+    };
+
+    $("#chatgptHelpIconImg").click(() => {
+
+        $("#chatgptHelpChatDiv").toggle();
+        $("#chatgptHelpTooltip").css("visibility", "hidden");
+
+    });
+
+    $("#chatgptHelpChatInputBtn").click(async () => {
+
+        const messageContent = $("#chatgptHelpChatInputText").val();
+
+        const userMsgElem = document.createElement("p");
+
+        userMsgElem.classList = "userGPTMessage";
+
+        chatWindow.appendChild(userMsgElem);
+
+        userMsgElem.textContent = messageContent;
+
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        $("#chatgptHelpChatInputText").prop("disabled", true);
+        $("#chatgptHelpChatInputBtn").prop("disabled", true);
+        $("#chatgptHelpChatInputText").val("Loading...");
+
+        if (!chatExists) {
+
+            const createChatData = {
+
+                contentID,
+                courseID
+
+            }
+
+            const createChatReq = {
+
+                method: "POST",
+        
+                headers: {
+        
+                    "Content-Type": "application/json"
+        
+                },
+        
+                body: JSON.stringify(createChatData)
+        
+            };
+
+            const res = await fetch("/startGPTSession", createChatReq);
+
+            if (!res.ok) {
+        
+                $("#chatgptHelpChatInputText").prop("disabled", false);
+                $("#chatgptHelpChatInputBtn").prop("disabled", false);
+                $("#chatgptHelpChatInputText").val(messageContent);
+
+                const error = await res.json();
+
+                $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+
+                return;
+
+            }
+
+        }
+
+        const getChatResponseData = {
+
+            courseID,
+            messageContent
+
+        }
+
+        const getChatResponseReq = {
+
+            method: "POST",
+    
+            headers: {
+    
+                "Content-Type": "application/json"
+    
+            },
+    
+            body: JSON.stringify(getChatResponseData)
+    
+        };
+
+        const res = await fetch("/getGPTChatResponse", getChatResponseReq);
+
+        if (!res.ok) {
+
+            $("#chatgptHelpChatInputText").prop("disabled", false);
+            $("#chatgptHelpChatInputBtn").prop("disabled", false);
+            $("#chatgptHelpChatInputText").val(messageContent);
+
+            const error = await res.json();
+
+            $("#error").text(error.userMsg || error.msg || "An error has occurred.");
+
+        }
+
+        else {
+
+            const data = await res.json();
+
+            $("#chatgptHelpChatInputText").prop("disabled", false);
+            $("#chatgptHelpChatInputBtn").prop("disabled", false);
+            $("#chatgptHelpChatInputText").val("");
+
+            const aiMsgElem = document.createElement("p");
+
+            aiMsgElem.classList = "aiGPTMessage";
+
+            chatWindow.appendChild(aiMsgElem);
+
+            aiMsgElem.textContent = data.gptResponse;
+
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        }
+
+    });
 
     const lessonCompletionPerc = ((lessonChunk + 1)/(lessonMaxChunk + 1))*100
 

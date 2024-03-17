@@ -1741,6 +1741,8 @@ const chat = {
 
         } while (chatIDExists)
 
+        const userIDHash = utils.hash(userID, "base64");
+
         await collections.chat.insertOne({ userIDHash, chatIDHash, messages : [] });
 
         return chatID;
