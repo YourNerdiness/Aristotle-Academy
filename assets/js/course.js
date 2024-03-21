@@ -484,7 +484,7 @@ $(document).ready(async () => {
 
             chatWindow.appendChild(aiMsgElem);
 
-            aiMsgElem.textContent = data.gptResponse;
+            aiMsgElem.innerHTML = marked.parse(data.gptResponse.replace(/>/gm, ""));
 
             chatWindow.scrollTop = chatWindow.scrollHeight;
 
