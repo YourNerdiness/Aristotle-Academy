@@ -1768,6 +1768,8 @@ const chat = {
 
         else {
 
+            results[0].messages = results[0].messages.map(message => { return { role : message.role, content : utils.decrypt(message.content, "utf-8")} } )
+
             return results[0];
 
         }
@@ -1798,7 +1800,7 @@ const chat = {
 
             const newMessages = chatData.messages;
 
-            newMessages.push({ role, content : messageContent });
+            newMessages.push({ role, content : utils.encrypt(messageContent, "utf-8") });
 
             await collections.chat.updateOne({ chatIDHash }, { $set : { messages : newMessages } });
 
