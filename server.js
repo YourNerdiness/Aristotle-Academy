@@ -1243,7 +1243,7 @@ const ejsRenderMiddleware = async (req, res, next) => {
 
     try {
 
-        const route = req.url.split("?")[0];
+        const route = req.url.split("?")[0].length == 1 ? "/index" : req.url.split("?")[0];
 
         if (req.method == "GET" && pageRoutes.includes(route)) {
 
