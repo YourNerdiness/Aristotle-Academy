@@ -107,8 +107,6 @@ button:disabled {
     border: none;
     border-style: none;
 
-    display: block;
-
 }
 
 .passwordLabel {
