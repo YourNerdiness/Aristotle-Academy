@@ -104,6 +104,11 @@ button:disabled {
 
     background-color: transparent;
 
+    border: none;
+    border-style: none;
+
+    display: block;
+
 }
 
 .passwordLabel {
