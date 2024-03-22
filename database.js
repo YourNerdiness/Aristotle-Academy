@@ -32,11 +32,13 @@ const collections = {
     ai : db.collection("ai"),
     schools : db.collection("schools"),
     chat : db.collection("chat"),
+    requests : db.collection("requests"),
     config : db.collection("config")
     
 };
 
 await collections.jwts.createIndex({ createdAt: 1 }, { expireAfterSeconds: (+process.env.JWT_EXPIRES_MS)/1000 });
+await collections.requests.createIndex({ firstRequest: 1 }, { expireAfterSeconds: 60 });
 
 const redisClient = redis.createClient({
 
@@ -1834,7 +1836,115 @@ const chat = {
 
     }
 
-}
+};
+
+const requests = {
+
+    getIPHashRequests : async () => {
+
+        const results = await collections.requests.find({ ipHash : { $exists : true } }).toArray();
+
+        return results.reduce((acc, result) => {
+
+            acc[result.ipHash] = { requestCount : result.requestCount, routeRequestsCount : result.routeRequestsCount };
+
+            return acc;
+
+        }, {});
+
+    },
+
+    getUserIDHashRequests : async () => {
+
+        const results = await collections.requests.find({ userIDHash : { $exists : true } }).toArray();
+
+        return results.reduce((acc, result) => {
+
+            acc[result.userIDHash] = { requestCount : result.requestCount, routeRequestsCount : result.routeRequestsCount };
+
+            return acc;
+
+        }, {});
+
+    },
+
+    addIPHashRequests : async (updatesToRequestsMadeByIPHash) => {
+
+        const ipHashes = Object.keys(updatesToRequestsMadeByIPHash);
+
+        if (ipHashes.length == 0) return; 
+
+        const bulkUpdates = ipHashes.map(ipHash => {
+
+            return {
+
+                updateOne : {
+
+                    filter : { ipHash },
+                    update : { 
+                        
+                        $inc: { requestCount: updatesToRequestsMadeByIPHash[ipHash].requestCount },
+                        $inc: Object.keys(updatesToRequestsMadeByIPHash[ipHash].routeRequestsCount).reduce((acc, elem) => {
+
+                            acc[`routeRequestsCount.${elem.replace(".", "_dot_")}`] = updatesToRequestsMadeByIPHash[ipHash].routeRequestsCount[elem];
+
+                            return acc;
+
+                         }, {}), // adds "routeRequestCount" prefix to each route request counter
+                        $setOnInsert: { firstRequest: new Date() }
+
+                    },
+                    upsert: true
+
+                }
+
+            }
+
+        });
+
+        await collections.requests.bulkWrite(bulkUpdates);
+
+    },
+
+    addUserIDHashRequests : async (updatesToRequestsMadeByUserIDHash) => {
+
+        const userIDHashes = Object.keys(updatesToRequestsMadeByUserIDHash);
+
+        if (userIDHashes.length == 0) return;
+
+        const bulkUpdates = userIDHashes.map(userIDHash => {
+
+            return {
+
+                updateOne : {
+
+                    filter : { userIDHash },
+                    update : { 
+                        
+                        $inc: { requestCount: updatesToRequestsMadeByUserIDHash[userIDHash].requestCount },
+                        $inc: Object.keys(updatesToRequestsMadeByUserIDHash[userIDHash].routeRequestsCount).reduce((acc, elem) => {
+
+                            acc[`routeRequestsCount.${elem.replace(".", "_dot_")}`] = updatesToRequestsMadeByUserIDHash[userIDHash].routeRequestsCount[elem];
+
+                            return acc;
+
+                         }, {}), // adds "routeRequestCount" prefix to each route request counter
+                        $setOnInsert: { firstRequest: new Date() }
+
+                    },
+                    upsert: true
+
+                }
+
+            }
+
+        });
+
+        await collections.requests.bulkWrite(bulkUpdates);
+
+    }
+
+};
 
 const config = {
 
@@ -1905,6 +2015,7 @@ export default {
     ai,
     schools,
     chat,
+    requests,
     config
 
 };

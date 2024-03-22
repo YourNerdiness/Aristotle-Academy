@@ -533,5 +533,25 @@
         "msg": "Cannot get chat message list, chatID invalid.",
         "http_error_code": 400,
         "severity": "ERROR"
+    },
+    "0x00006D" : {
+        "msg": "Cannot process request, IP has made too many requests in the last minute",
+        "http_error_code": 429,
+        "severity": "WARNING"
+    },
+    "0x00006E" : {
+        "msg": "Cannot process request, user has made too many requests in the last minute",
+        "http_error_code": 429,
+        "severity": "WARNING"
+    },
+    "0x00006F" : {
+        "msg": "Cannot process request, IP has made too many requests to the given route in the last minute",
+        "http_error_code": 429,
+        "severity": "WARNING"
+    },
+    "0x000070" : {
+        "msg": "Cannot process request, user has made too many requests to the given route in the last minute",
+        "http_error_code": 429,
+        "severity": "WARNING"
     }
 }

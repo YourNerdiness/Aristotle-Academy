@@ -51,8 +51,6 @@ const updateConfig = async () => {
 
 };
 
-await updateConfig();
-
 const updateConfigClockCallback = async () => {
 
     await updateConfig();
@@ -61,7 +59,40 @@ const updateConfigClockCallback = async () => {
 
 };
 
-setTimeout(updateConfigClockCallback, process.env.CONFIG_CLOCK_MS);
+await updateConfigClockCallback();
+
+let updatesToRequestsMadeByIPHash = {};
+let updatesToRequestsMadeByUserIDHash = {};
+
+let requestsMadeByIPHash = {};
+let requestsMadeByUserIDHash = {};
+
+const syncRequestData = async () => {
+
+    console.log("Syncing DOS data with database.");
+
+    const updateIPHashRequestsProm = database.requests.addIPHashRequests(updatesToRequestsMadeByIPHash);
+    const updateUserIDHashRequestsProm = database.requests.addUserIDHashRequests(updatesToRequestsMadeByUserIDHash);
+
+    await updateIPHashRequestsProm;
+    await updateUserIDHashRequestsProm;
+
+    updatesToRequestsMadeByIPHash = {};
+    updatesToRequestsMadeByUserIDHash = {};
+
+    const getIPHashRequestsProm = database.requests.getIPHashRequests();
+    const getUserIDHashRequestsProm = database.requests.getUserIDHashRequests();
+
+    requestsMadeByIPHash = await getIPHashRequestsProm;
+    requestsMadeByUserIDHash = await getUserIDHashRequestsProm;
+
+    console.log("Synced DOS data with database.");
+
+    setTimeout(syncRequestData, 10000);
+
+};
+
+await syncRequestData();
 
 const handleRequestError = (error, res) => {
 
@@ -778,6 +809,63 @@ const getTokenMiddleware = async (req, res, next) => {
 
 };
 
+const dosProtectionMiddleware = async (req, res, next) => {
+    
+    const ipHash = utils.hash(req.ip, "utf-8");
+
+    updatesToRequestsMadeByIPHash[ipHash] = updatesToRequestsMadeByIPHash[ipHash] || { requestCount : 0, routeRequestsCount : {} };
+
+    updatesToRequestsMadeByIPHash[ipHash].requestCount++;
+    updatesToRequestsMadeByIPHash[ipHash].routeRequestsCount[req.url] = (updatesToRequestsMadeByIPHash[ipHash].routeRequestsCount[req.url] || 0) + 1;
+
+    if ((requestsMadeByIPHash[ipHash]?.requestCount || 0) > 256) {
+
+        new utils.ErrorHandler("0x00006D").throwErrorToClient(res);
+
+        return;
+
+    }
+
+    if ((requestsMadeByIPHash[ipHash]?.routeRequestsCount[req.url] || 0) > 64) {
+
+        new utils.ErrorHandler("0x00006F").throwErrorToClient(res);
+
+        return;
+
+    }
+
+
+    if (req.headers.auth) {
+
+        const userIDHash = utils.hash(req.headers.auth.userID, "base64");
+
+        updatesToRequestsMadeByUserIDHash[userIDHash] = updatesToRequestsMadeByUserIDHash[userIDHash] || { requestCount : 0, routeRequestsCount : {} };
+
+        updatesToRequestsMadeByUserIDHash[userIDHash].requestCount++;
+        updatesToRequestsMadeByUserIDHash[userIDHash].routeRequestsCount[req.url] = (updatesToRequestsMadeByUserIDHash[userIDHash].routeRequestsCount[req.url] || 0) + 1;
+
+        if ((requestsMadeByUserIDHash[userIDHash]?.requestCount || 0) > 128) {
+
+            new utils.ErrorHandler("0x00006E").throwErrorToClient(res);
+
+            return;
+
+        }
+
+        if ((requestsMadeByUserIDHash[userIDHash]?.routeRequestsCount[req.url] || 0) > 16) {
+
+            new utils.ErrorHandler("0x000070").throwErrorToClient(res);
+
+            return;
+
+        }
+
+    }
+
+    next();
+
+}
+
 const requestVerificationMiddleware = async (req, res, next) => {
 
     if (requestParameters[req.url] && requestParameters[req.url].methodToMatch == req.method) {
@@ -1452,6 +1540,7 @@ app.use(express.json());
 app.use(morgan(":date - :client-ip - :user-agent - :method :url"));
 app.use(cookieParser());
 app.use(getTokenMiddleware);
+app.use(dosProtectionMiddleware);
 app.use(requestVerificationMiddleware)
 app.use(indexRouteMiddle);
 app.use(ejsRenderMiddleware);
